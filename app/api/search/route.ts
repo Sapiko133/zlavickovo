@@ -27,17 +27,24 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 1000,
+        max_tokens: 2000,
         tools: [{ type: "web_search_20250305", name: "web_search" }],
-        tool_choice: { type: "auto" },
-        system: `Nájdi zľavové kódy pre eshop pomocou web_search.
-DOLEZITE: pole "code" musi byt PROMO KOD zadavany pri pokladni (napr. SUMMER20, ZIMA15). NIE zľava ani popis!
-Odpovedaj POUZE týmto JSON bez iného textu:
-{"shop":"nazov","codes":[{"code":"SKUTOCNY_KOD","discount":"10%","description":"popis","source":"zdroj","valid_until":"DD.MM.YYYY alebo null","added":"DD.MM.YYYY alebo null"}],"note":""}`,
+        tool_choice: { type: "any" },
+        system: `Si expert na zľavové kódy a kupóny. Použi web_search na nájdenie aktuálnych zliav.
+
+Hľadaj:
+1. Promo kódy zadávané pri pokladni (napr. SUMMER20) – najlepšie
+2. Percentuálne zľavy a akcie (napr. "20% na elektroniku") – tiež OK
+3. Doprava zadarmo, darčeky k nákupu – tiež OK
+
+Pre typ "promo_code" uveď skutočný kód. Pre typ "deal" uveď "AKCIA" ako code.
+
+Odpovedaj VÝLUČNE týmto JSON (bez iného textu):
+{"shop":"nazov","codes":[{"code":"KOD_alebo_AKCIA","discount":"napr 20%","description":"popis zľavy","type":"promo_code alebo deal","source":"url zdroja","valid_until":"DD.MM.YYYY alebo null"}],"note":""}`,
         messages: [{
           role: "user",
-          content: `Nájdi zľavové kódy pre obchod "${shopName}" v ${year}, región: ${countryLabel}. Hľadaj na vouchery.sk, sleviste.cz, kuponovnik.sk, kuponyzdarma.sk, reddit, TikTok, YouTube a celom internete. Vráť iba JSON.`
-        }]
+          content: `Nájdi zľavové kódy a aktuálne zľavy pre obchod "${shopName}" v ${year}, región: ${countryLabel}. Prehľadaj vouchery.sk, kuponovnik.sk, kuponyzdarma.sk, sleviste.cz a aj priamo web obchodu ${shopName}. Vráť iba JSON.`,
+        }],
       }),
     });
 
@@ -47,8 +54,8 @@ Odpovedaj POUZE týmto JSON bez iného textu:
       .map((b: any) => b.text)
       .join("");
 
-    const jsonMatch = allText.match(/\{[\s\S]*"codes"[\s\S]*\}/);
-    let result: any = { shop: shopName, codes: [], note: "Nenašli sa kódy." };
+    const jsonMatch = allText.match(/\{[\s\S]*?"codes"[\s\S]*?\}/);
+    let result: any = { shop: shopName, codes: [], note: "" };
     if (jsonMatch) {
       try { result = JSON.parse(jsonMatch[0]); } catch (e) {}
     }
