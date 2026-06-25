@@ -11,8 +11,12 @@ export async function generateMetadata({ params }: Props) {
   const name = slug.replace(/-/g, " ");
   const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
   return {
-    title: capitalized + " zlavove kody a kupony 2026",
-    description: "Aktualne overene zlavove kody pre " + capitalized + ". Useteri na kazdом nakupe!",
+    title: `${capitalized} – zľavové kódy a kupóny 2026`,
+    description: `Aktuálne overené zľavové kódy pre ${capitalized}. Ušetri na každom nákupe s AI vyhľadávaním kupónov.`,
+    openGraph: {
+      title: `${capitalized} zľavové kódy 2026`,
+      description: `Nájdi najlepšie kupóny pre ${capitalized}. Overené kódy aktualizované denne.`,
+    },
   };
 }
 
@@ -62,7 +66,7 @@ export default async function ShopPage({ params }: Props) {
           {capitalized}
         </h1>
         <p style={{ color: "#666", fontSize: 15, margin: 0 }}>
-          Aktualne zlavove kody a kupony 2026
+          Aktuálne zľavové kódy a kupóny 2026
         </p>
       </div>
 
@@ -83,7 +87,7 @@ export default async function ShopPage({ params }: Props) {
       </div>
 
       <div style={{ borderTop: "1px solid #f0f0f0", padding: "24px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
-        Affiliate linky – za nakupy cez nas web dostávame províziu · © 2026 Zlavickovo
+        Affiliate linky – za nákupy cez náš web dostávame províziu · © 2026 Zlavickovo
       </div>
     </div>
   );

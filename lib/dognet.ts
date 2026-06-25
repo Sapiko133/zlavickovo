@@ -45,7 +45,30 @@ export async function getCoupons() {
 
 export async function getCouponsByShop(shopName: string) {
   const all = await getCoupons();
-  return all.filter((c: any) => 
+  return all.filter((c: any) =>
     c.campaign?.name?.toLowerCase().includes(shopName.toLowerCase())
   );
+}
+
+export async function getLatestCoupons(limit = 6) {
+  const all = await getCoupons();
+  return all
+    .filter((c: any) => c.code)
+    .slice(0, limit);
+}
+
+export async function getShops() {
+  const all = await getCoupons();
+  const map = new Map<number, { id: number; name: string; count: number }>();
+  for (const c of all) {
+    const campaign = c.campaign;
+    if (!campaign?.id || !campaign?.name) continue;
+    const entry = map.get(campaign.id);
+    if (entry) {
+      entry.count++;
+    } else {
+      map.set(campaign.id, { id: campaign.id, name: campaign.name, count: 1 });
+    }
+  }
+  return Array.from(map.values()).sort((a, b) => b.count - a.count);
 }

@@ -1,5 +1,8 @@
-"use client";
 import SearchBar from "@/components/SearchBar";
+import CouponCard from "@/components/CouponCard";
+import { getLatestCoupons } from "@/lib/dognet";
+
+export const revalidate = 3600;
 
 const SHOPS = [
   { name: "Alza", color: "#0065BD", letter: "A" },
@@ -16,13 +19,12 @@ const SHOPS = [
   { name: "Dr. Max", color: "#006A35", letter: "D" },
 ];
 
-const DEALS = [
-  { store: "Alza", storeColor: "#0065BD", code: "ALZA20", discount: "20% zľava", desc: "Na vybranú elektroniku", expires: "30.6.2026" },
-  { store: "Shein", storeColor: "#E8001D", code: "AFFILI30", discount: "30% zľava", desc: "Na prvý nákup", expires: "31.7.2026" },
-  { store: "Zalando", storeColor: "#FF6900", code: "ZALA20SK", discount: "20% zľava", desc: "Na celý nákup nad 50€", expires: "30.6.2026" },
-];
+export default async function Home() {
+  let deals: any[] = [];
+  try {
+    deals = await getLatestCoupons(6);
+  } catch (e) {}
 
-export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
 
@@ -97,7 +99,7 @@ export default function Home() {
       <div id="obchody" style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px" }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 36 }}>
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Populárne obchody</h2>
-          <span style={{ fontSize: 13, color: "#7C3AED", cursor: "pointer" }}>Zobraziť všetky →</span>
+          <a href="/obchody" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Zobraziť všetky →</a>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
           {SHOPS.map(shop => (
@@ -110,17 +112,6 @@ export default function Home() {
                 background: "#fff", border: "1px solid #f0f0f0",
                 textDecoration: "none", color: "#1d1d1f",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)";
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
-                (e.currentTarget as HTMLElement).style.borderColor = "#e0e0e0";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLElement).style.transform = "";
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
-                (e.currentTarget as HTMLElement).style.borderColor = "#f0f0f0";
               }}
             >
               <div style={{
@@ -143,61 +134,19 @@ export default function Home() {
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 36 }}>
             <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Najnovšie zľavy</h2>
-            <span style={{ fontSize: 13, color: "#7C3AED", cursor: "pointer" }}>Zobraziť všetky →</span>
+            <span style={{ fontSize: 13, color: "#7C3AED" }}>Zobraziť všetky →</span>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-            {DEALS.map((deal, i) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 20, overflow: "hidden",
-                border: "1px solid #f0f0f0", boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-              }}>
-                <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #f5f5f5" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 10, background: deal.storeColor,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "#fff", fontWeight: 800, fontSize: 14,
-                    }}>
-                      {deal.store.charAt(0)}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f" }}>{deal.store}</div>
-                      <div style={{ fontSize: 12, color: "#999" }}>Vyprší: {deal.expires}</div>
-                    </div>
-                    <div style={{
-                      marginLeft: "auto", background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-                      color: "#fff", fontSize: 12, fontWeight: 700,
-                      padding: "4px 10px", borderRadius: 8,
-                    }}>
-                      {deal.discount}
-                    </div>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#666" }}>{deal.desc}</p>
-                </div>
-                <div style={{ padding: "14px 20px" }}>
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "space-between",
-                    background: "#fafafa", border: "1.5px dashed #e0e0e0",
-                    borderRadius: 10, padding: "10px 14px",
-                  }}>
-                    <span style={{ fontFamily: "monospace", fontWeight: 700, fontSize: 15, color: "#7C3AED", letterSpacing: 2 }}>
-                      {deal.code}
-                    </span>
-                    <button
-                      onClick={() => navigator.clipboard.writeText(deal.code)}
-                      style={{
-                        background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-                        border: "none", color: "#fff", fontSize: 12,
-                        cursor: "pointer", padding: "6px 14px", borderRadius: 8, fontWeight: 600,
-                      }}
-                    >
-                      Kopírovať
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {deals.length > 0 ? (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+              {deals.map((coupon: any) => (
+                <CouponCard key={coupon.id} coupon={coupon} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "48px 24px", color: "#aaa", fontSize: 15 }}>
+              Momentálne žiadne aktívne zľavy. Skúste vyhľadávanie.
+            </div>
+          )}
         </div>
       </div>
 
