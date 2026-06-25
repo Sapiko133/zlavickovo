@@ -54,7 +54,7 @@ Odpovedaj VÝLUČNE týmto JSON (bez iného textu):
       .map((b: any) => b.text)
       .join("");
 
-    const jsonMatch = allText.match(/\{[\s\S]*?"codes"[\s\S]*?\}/);
+    const jsonMatch = allText.match(/\{[\s\S]*"codes"[\s\S]*\}/);
     let result: any = { shop: shopName, codes: [], note: "" };
     if (jsonMatch) {
       try { result = JSON.parse(jsonMatch[0]); } catch (e) {}

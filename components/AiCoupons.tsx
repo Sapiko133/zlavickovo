@@ -2,12 +2,6 @@
 
 import { useState, useEffect } from "react";
 
-const MANUAL_SEARCH_SITES = [
-  { label: "vouchery.sk", url: "https://www.vouchery.sk" },
-  { label: "kuponovnik.sk", url: "https://www.kuponovnik.sk" },
-  { label: "kuponyzdarma.sk", url: "https://www.kuponyzdarma.sk" },
-];
-
 export default function AiCoupons({ shopName }: { shopName: string }) {
   const [codes, setCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,25 +50,8 @@ export default function AiCoupons({ shopName }: { shopName: string }) {
       <div style={{ fontSize: 16, fontWeight: 600, color: "#333", marginBottom: 6 }}>
         Nenašli sa kódy pre {shopName}
       </div>
-      <div style={{ fontSize: 13, color: "#aaa", marginBottom: 24 }}>
-        Tento obchod momentálne nemá dostupné promo kódy. Skús nájsť zľavy ručne:
-      </div>
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-        {MANUAL_SEARCH_SITES.map(site => (
-          <a
-            key={site.label}
-            href={`${site.url}/?q=${encodeURIComponent(shopName)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              padding: "10px 18px", borderRadius: 10,
-              border: "1.5px solid #e0e0e0", fontSize: 13, fontWeight: 500,
-              color: "#555", textDecoration: "none", background: "#fff",
-            }}
-          >
-            {site.label} →
-          </a>
-        ))}
+      <div style={{ fontSize: 13, color: "#aaa" }}>
+        Tento obchod momentálne nemá dostupné promo kódy.
       </div>
     </div>
   );

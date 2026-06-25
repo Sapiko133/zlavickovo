@@ -87,7 +87,7 @@ export default async function ShopPage({ params }: Props) {
       </div>
 
       <div style={{ borderTop: "1px solid #f0f0f0", padding: "24px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
-        Affiliate linky – za nákupy cez náš web dostávame províziu · © 2026 Zlavickovo
+        © 2026 Zlavickovo
       </div>
     </div>
   );

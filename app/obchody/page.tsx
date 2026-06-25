@@ -118,7 +118,6 @@ export default async function ObchodyPage() {
         fontSize: 13, color: "#999",
       }}>
         <span style={{ fontWeight: 600, color: "#1d1d1f" }}>Zlavickovo</span>
-        <span>Affiliate linky – za nákupy cez náš web dostávame províziu</span>
         <span>© 2026</span>
       </div>
     </div>
