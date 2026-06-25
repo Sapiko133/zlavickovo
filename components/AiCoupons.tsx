@@ -1,5 +1,9 @@
 import { getAiCoupons } from "@/lib/ai-search";
-import CouponCopyButton from "@/components/CouponCopyButton";
+import RevealCode from "@/components/RevealCode";
+
+function makeToken(shopName: string, code: string) {
+  return Buffer.from(`${shopName}:${code}`).toString("base64");
+}
 
 export default async function AiCoupons({ shopName }: { shopName: string }) {
   let codes: any[] = [];
@@ -7,7 +11,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
   try {
     const result = await getAiCoupons(shopName);
     codes = result.codes || [];
-  } catch (e) {
+  } catch {
     apiError = true;
   }
 
@@ -41,11 +45,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {promoCodes.map((code: any, i: number) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 14,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-                border: "1px solid #eee", overflow: "hidden",
-              }}>
+              <div key={i} style={{ background: "#fff", borderRadius: 14, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #eee", overflow: "hidden" }}>
                 <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{code.discount}</span>
@@ -57,17 +57,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
                   )}
                 </div>
                 <div style={{ padding: "12px 20px 16px" }}>
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <div style={{
-                      flex: 1, padding: "10px 14px", background: "#fafafa",
-                      borderRadius: 8, border: "2px dashed #7C3AED",
-                      fontWeight: 800, fontSize: 14, color: "#7C3AED",
-                      letterSpacing: 2, textAlign: "center",
-                    }}>
-                      {code.code}
-                    </div>
-                    <CouponCopyButton code={code.code} />
-                  </div>
+                  <RevealCode token={makeToken(shopName, code.code)} />
                 </div>
               </div>
             ))}
@@ -82,11 +72,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {deals.map((code: any, i: number) => (
-              <div key={i} style={{
-                background: "#fff", borderRadius: 14,
-                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-                border: "1px solid #eee", overflow: "hidden",
-              }}>
+              <div key={i} style={{ background: "#fff", borderRadius: 14, boxShadow: "0 2px 12px rgba(0,0,0,0.06)", border: "1px solid #eee", overflow: "hidden" }}>
                 <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                     <span style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{code.discount}</span>

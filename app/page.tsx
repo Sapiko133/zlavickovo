@@ -1,32 +1,48 @@
 import SearchBar from "@/components/SearchBar";
 import CouponCard from "@/components/CouponCard";
-import { getLatestCoupons } from "@/lib/dognet";
+import AdBanner from "@/components/AdBanner";
+import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
 
 export const revalidate = 3600;
 
-const SHOPS = [
-  { name: "Alza", color: "#0065BD", letter: "A" },
-  { name: "Shein", color: "#E8001D", letter: "S" },
-  { name: "Zalando", color: "#FF6900", letter: "Z" },
-  { name: "Mall", color: "#E31837", letter: "M" },
-  { name: "Notino", color: "#8B1A1A", letter: "N" },
+type Shop = {
+  name: string;
+  color: string;
+  letter: string;
+  featured?: boolean;
+  featuredDesc?: string;
+};
+
+const SHOPS: Shop[] = [
+  { name: "Alza",       color: "#0065BD", letter: "A", featured: true,  featuredDesc: "Najväčší slovenský e-shop s elektronikou a spotrebičmi" },
+  { name: "Zalando",    color: "#FF6900", letter: "Z", featured: true,  featuredDesc: "Módne oblečenie a obuv z celej Európy" },
+  { name: "Shein",      color: "#E8001D", letter: "S" },
+  { name: "Mall",       color: "#E31837", letter: "M" },
+  { name: "Notino",     color: "#8B1A1A", letter: "N" },
   { name: "Sportisimo", color: "#00A551", letter: "S" },
-  { name: "IKEA", color: "#0058A3", letter: "I" },
-  { name: "Dedoles", color: "#FF4081", letter: "D" },
-  { name: "Martinus", color: "#D32F2F", letter: "M" },
-  { name: "About You", color: "#000000", letter: "A" },
-  { name: "Answear", color: "#FF6B6B", letter: "A" },
-  { name: "Dr. Max", color: "#006A35", letter: "D" },
+  { name: "IKEA",       color: "#0058A3", letter: "I" },
+  { name: "Dedoles",    color: "#FF4081", letter: "D" },
+  { name: "Martinus",   color: "#D32F2F", letter: "M" },
+  { name: "About You",  color: "#000000", letter: "A" },
+  { name: "Answear",    color: "#FF6B6B", letter: "A" },
+  { name: "Dr. Max",    color: "#006A35", letter: "D" },
 ];
 
+const featured = SHOPS.filter(s => s.featured);
+const regular = SHOPS.filter(s => !s.featured);
+
+function shopSlug(name: string) {
+  return name.toLowerCase().replace(/ /g, "-");
+}
+
 export default async function Home() {
-  let deals: any[] = [];
-  try {
-    deals = await getLatestCoupons(6);
-  } catch (e) {}
+  let feed: any[] = [];
+  let sales: any[] = [];
+  try { [feed, sales] = await Promise.all([getCouponsFeed(12), getSalesCoupons(6)]); } catch {}
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <style>{`.hide-scroll::-webkit-scrollbar{display:none}`}</style>
 
       {/* Nav */}
       <nav style={{
@@ -47,14 +63,13 @@ export default async function Home() {
         <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
           <a href="#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
           <a href="#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
-          <a href="#" style={{ color: "#555", textDecoration: "none" }}>Novinky</a>
+          <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Všetky obchody</a>
         </div>
       </nav>
 
       {/* Hero */}
       <div style={{
-        textAlign: "center",
-        padding: "100px 24px 80px",
+        textAlign: "center", padding: "100px 24px 80px",
         background: "linear-gradient(180deg, #f5f3ff 0%, #eff6ff 50%, #fff 100%)",
         position: "relative", overflow: "hidden",
       }}>
@@ -73,14 +88,10 @@ export default async function Home() {
         </div>
         <h1 style={{
           fontSize: "clamp(36px, 6vw, 72px)", fontWeight: 800,
-          letterSpacing: "-2px", lineHeight: 1.05, margin: "0 0 20px",
-          color: "#1d1d1f",
+          letterSpacing: "-2px", lineHeight: 1.05, margin: "0 0 20px", color: "#1d1d1f",
         }}>
           Ušetri na{" "}
-          <span style={{
-            background: "linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-          }}>
+          <span style={{ background: "linear-gradient(135deg, #7C3AED 0%, #2563EB 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             každom nákupe
           </span>
         </h1>
@@ -95,17 +106,67 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* Popular shops */}
-      <div id="obchody" style={{ maxWidth: 1100, margin: "0 auto", padding: "80px 24px" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 36 }}>
+      {/* Ad banner – header */}
+      <div style={{ padding: "32px 24px 0", display: "flex", justifyContent: "center" }}>
+        <AdBanner slot="header" />
+      </div>
+
+      {/* Featured obchody */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
+        <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>Odporúčané obchody</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+          {featured.map(shop => (
+            <a
+              key={shop.name}
+              href={`/kupony/${shopSlug(shop.name)}`}
+              style={{
+                display: "flex", flexDirection: "column", justifyContent: "space-between",
+                padding: "28px 28px 24px", borderRadius: 20, textDecoration: "none",
+                background: `linear-gradient(135deg, ${shop.color}ee 0%, ${shop.color}99 100%)`,
+                minHeight: 160, position: "relative", overflow: "hidden",
+              }}
+            >
+              <div style={{
+                position: "absolute", top: -30, right: -30,
+                width: 120, height: 120, borderRadius: "50%",
+                background: "rgba(255,255,255,0.12)",
+              }} />
+              <div>
+                <div style={{
+                  width: 52, height: 52, borderRadius: 14,
+                  background: "rgba(255,255,255,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontWeight: 900, fontSize: 22, marginBottom: 14,
+                }}>
+                  {shop.letter}
+                </div>
+                <div style={{ color: "#fff", fontWeight: 800, fontSize: 20, marginBottom: 6 }}>{shop.name}</div>
+                <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 1.4 }}>{shop.featuredDesc}</div>
+              </div>
+              <div style={{
+                marginTop: 20, display: "inline-flex", alignItems: "center", gap: 6,
+                background: "rgba(255,255,255,0.2)", color: "#fff",
+                padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                backdropFilter: "blur(4px)", alignSelf: "flex-start",
+              }}>
+                Zobraziť kupóny →
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {/* Populárne obchody */}
+      <div id="obchody" style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Populárne obchody</h2>
           <a href="/obchody" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Zobraziť všetky →</a>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
-          {SHOPS.map(shop => (
+          {regular.map(shop => (
             <a
               key={shop.name}
-              href={"/kupony/" + shop.name.toLowerCase().replace(/ /g, "-")}
+              href={`/kupony/${shopSlug(shop.name)}`}
               style={{
                 display: "flex", flexDirection: "column", alignItems: "center",
                 gap: 12, padding: "24px 16px", borderRadius: 16,
@@ -115,11 +176,10 @@ export default async function Home() {
               }}
             >
               <div style={{
-                width: 48, height: 48, borderRadius: 12,
-                background: shop.color,
+                width: 48, height: 48, borderRadius: 12, background: shop.color,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#fff", fontWeight: 800, fontSize: 20,
-                boxShadow: "0 4px 12px " + shop.color + "44",
+                boxShadow: `0 4px 12px ${shop.color}44`,
               }}>
                 {shop.letter}
               </div>
@@ -129,26 +189,61 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* Latest deals */}
-      <div id="zlavy" style={{ background: "#fafafa", padding: "80px 24px" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 36 }}>
+      {/* Najnovšie zľavy – horizontálny scroll */}
+      <div id="zlavy" style={{ padding: "64px 0 0" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
             <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Najnovšie zľavy</h2>
-            <span style={{ fontSize: 13, color: "#7C3AED" }}>Zobraziť všetky →</span>
           </div>
-          {deals.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-              {deals.map((coupon: any) => (
-                <CouponCard key={coupon.id} coupon={coupon} />
-              ))}
-            </div>
-          ) : (
-            <div style={{ textAlign: "center", padding: "48px 24px", color: "#aaa", fontSize: 15 }}>
-              Momentálne žiadne aktívne zľavy. Skúste vyhľadávanie.
+        </div>
+        <div
+          className="hide-scroll"
+          style={{
+            display: "flex", gap: 16, overflowX: "auto",
+            padding: "4px 24px 16px",
+            scrollbarWidth: "none", msOverflowStyle: "none",
+          }}
+        >
+          {feed.length > 0 ? feed.map((coupon: any) => {
+            const token = coupon.code
+              ? Buffer.from(`feed:${coupon.code}`).toString("base64")
+              : null;
+            const { code: _stripped, ...couponData } = coupon;
+            return (
+              <div key={coupon.id} style={{ minWidth: 280, maxWidth: 280 }}>
+                <CouponCard coupon={couponData} token={token} />
+              </div>
+            );
+          }) : (
+            <div style={{ padding: "48px 24px", color: "#aaa", fontSize: 15 }}>
+              Momentálne žiadne aktívne zľavy.
             </div>
           )}
         </div>
       </div>
+
+      {/* Ad banner – between coupons */}
+      <div style={{ padding: "40px 24px 0", display: "flex", justifyContent: "center" }}>
+        <AdBanner slot="between-coupons" />
+      </div>
+
+      {/* Najväčšie akcie */}
+      {sales.length > 0 && (
+        <div style={{ background: "#fafafa", padding: "64px 24px", marginTop: 48 }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+            <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>Najväčšie akcie</h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+              {sales.map((coupon: any) => {
+                const token = coupon.code
+                  ? Buffer.from(`sales:${coupon.code}`).toString("base64")
+                  : null;
+                const { code: _stripped, ...couponData } = coupon;
+                return <CouponCard key={coupon.id} coupon={couponData} token={token} />;
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{

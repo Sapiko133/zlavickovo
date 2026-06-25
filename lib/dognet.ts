@@ -57,6 +57,19 @@ export async function getLatestCoupons(limit = 6) {
     .slice(0, limit);
 }
 
+// Type 1 = Zľava, Type 3 = Výpredaj — for homepage feeds
+export async function getCouponsFeed(limit = 12) {
+  const all = await getCoupons();
+  return all.slice(0, limit);
+}
+
+export async function getSalesCoupons(limit = 6) {
+  const all = await getCoupons();
+  return all
+    .filter((c: any) => c.type === 3 || c.type === 1)
+    .slice(0, limit);
+}
+
 export async function getShops() {
   const all = await getCoupons();
   const map = new Map<number, { id: number; name: string; count: number }>();
