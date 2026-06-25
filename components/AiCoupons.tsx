@@ -1,48 +1,12 @@
-"use client";
+import { getAiCoupons } from "@/lib/ai-search";
+import CouponCopyButton from "@/components/CouponCopyButton";
 
-import { useState, useEffect } from "react";
-
-export default function AiCoupons({ shopName }: { shopName: string }) {
-  const [codes, setCodes] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/search", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shopName, country: "sk" }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        setCodes(data.codes || []);
-        setLoading(false);
-      })
-      .catch(e => {
-        setError(e.message);
-        setLoading(false);
-      });
-  }, [shopName]);
-
-  if (loading) return (
-    <div style={{ textAlign: "center", padding: "40px 20px", color: "#888" }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: "50%", margin: "0 auto 16px",
-        border: "3px solid #f0f0f0", borderTopColor: "#7C3AED",
-        animation: "spin 0.8s linear infinite",
-      }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>AI hľadá kódy pre {shopName}...</div>
-      <div style={{ fontSize: 13, marginTop: 6, color: "#aaa" }}>Môže to trvať 10–20 sekúnd</div>
-    </div>
-  );
-
-  if (error) return (
-    <div style={{ background: "#fff5f5", color: "#c0392b", padding: "16px 20px", borderRadius: 12, fontSize: 14 }}>
-      Chyba pri hľadaní: {error}
-    </div>
-  );
+export default async function AiCoupons({ shopName }: { shopName: string }) {
+  let codes: any[] = [];
+  try {
+    const result = await getAiCoupons(shopName);
+    codes = result.codes || [];
+  } catch (e) {}
 
   if (codes.length === 0) return (
     <div style={{ textAlign: "center", padding: "40px 24px" }}>
@@ -72,7 +36,35 @@ export default function AiCoupons({ shopName }: { shopName: string }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {promoCodes.map((code: any, i: number) => (
-              <CouponItem key={i} code={code} copied={copied} setCopied={setCopied} />
+              <div key={i} style={{
+                background: "#fff", borderRadius: 14,
+                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                border: "1px solid #eee", overflow: "hidden",
+              }}>
+                <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{code.discount}</span>
+                    <span style={{ fontSize: 11, background: "rgba(124,58,237,0.08)", color: "#7C3AED", fontWeight: 600, padding: "3px 8px", borderRadius: 6 }}>Promo kód</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#666" }}>{code.description}</div>
+                  {code.valid_until && (
+                    <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>Vyprší: {code.valid_until}</div>
+                  )}
+                </div>
+                <div style={{ padding: "12px 20px 16px" }}>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{
+                      flex: 1, padding: "10px 14px", background: "#fafafa",
+                      borderRadius: 8, border: "2px dashed #7C3AED",
+                      fontWeight: 800, fontSize: 14, color: "#7C3AED",
+                      letterSpacing: 2, textAlign: "center",
+                    }}>
+                      {code.code}
+                    </div>
+                    <CouponCopyButton code={code.code} />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -85,81 +77,40 @@ export default function AiCoupons({ shopName }: { shopName: string }) {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
             {deals.map((code: any, i: number) => (
-              <CouponItem key={i} code={code} copied={copied} setCopied={setCopied} isDeal />
+              <div key={i} style={{
+                background: "#fff", borderRadius: 14,
+                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+                border: "1px solid #eee", overflow: "hidden",
+              }}>
+                <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{code.discount}</span>
+                    <span style={{ fontSize: 11, background: "#f0fdf4", color: "#16a34a", fontWeight: 600, padding: "3px 8px", borderRadius: 6 }}>Akcia</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: "#666" }}>{code.description}</div>
+                  {code.valid_until && (
+                    <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>Vyprší: {code.valid_until}</div>
+                  )}
+                </div>
+                <div style={{ padding: "12px 20px 16px" }}>
+                  <a
+                    href={code.url || "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "block", padding: "11px 14px", borderRadius: 8,
+                      background: "#1d1d1f", color: "#fff", fontWeight: 700,
+                      fontSize: 14, textAlign: "center", textDecoration: "none",
+                    }}
+                  >
+                    Prejsť na akciu →
+                  </a>
+                </div>
+              </div>
             ))}
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function CouponItem({ code, copied, setCopied, isDeal = false }: {
-  code: any;
-  copied: string | null;
-  setCopied: (v: string | null) => void;
-  isDeal?: boolean;
-}) {
-  return (
-    <div style={{
-      background: "#fff", borderRadius: 14,
-      boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-      border: "1px solid #eee", overflow: "hidden",
-    }}>
-      <div style={{ padding: "16px 20px 12px", borderBottom: "1px solid #f0f0f0" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{code.discount}</span>
-          {isDeal ? (
-            <span style={{ fontSize: 11, background: "#f0fdf4", color: "#16a34a", fontWeight: 600, padding: "3px 8px", borderRadius: 6 }}>Akcia</span>
-          ) : (
-            <span style={{ fontSize: 11, background: "rgba(124,58,237,0.08)", color: "#7C3AED", fontWeight: 600, padding: "3px 8px", borderRadius: 6 }}>Promo kód</span>
-          )}
-        </div>
-        <div style={{ fontSize: 13, color: "#666" }}>{code.description}</div>
-        {code.valid_until && (
-          <div style={{ fontSize: 12, color: "#aaa", marginTop: 4 }}>Vyprší: {code.valid_until}</div>
-        )}
-      </div>
-      <div style={{ padding: "12px 20px 16px" }}>
-        {isDeal ? (
-          <div style={{
-            padding: "10px 14px", background: "#f9f9f9", borderRadius: 8,
-            fontSize: 13, color: "#555", textAlign: "center",
-          }}>
-            Akcia aktívna – klikni na odkaz obchodu
-          </div>
-        ) : (
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{
-              flex: 1, padding: "10px 14px", background: "#fafafa",
-              borderRadius: 8, border: "2px dashed #7C3AED",
-              fontWeight: 800, fontSize: 14, color: "#7C3AED",
-              letterSpacing: 2, textAlign: "center",
-            }}>
-              {code.code}
-            </div>
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(code.code).catch(() => {});
-                setCopied(code.code);
-                setTimeout(() => setCopied(null), 2000);
-              }}
-              style={{
-                padding: "10px 14px", borderRadius: 8,
-                background: copied === code.code ? "#16a34a" : "#1d1d1f",
-                color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer",
-              }}
-            >
-              {copied === code.code ? "✓" : "Kopírovať"}
-            </button>
-          </div>
-        )}
-        {code.source && (
-          <div style={{ fontSize: 11, color: "#ccc", marginTop: 8, textAlign: "center" }}>
-            Zdroj: {code.source}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import CouponCard from "@/components/CouponCard";
 import AiCoupons from "@/components/AiCoupons";
@@ -83,7 +84,20 @@ export default async function ShopPage({ params }: Props) {
             </div>
           </div>
         )}
-        <AiCoupons shopName={capitalized} />
+        <Suspense fallback={
+          <div style={{ textAlign: "center", padding: "40px 20px", color: "#888" }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: "50%", margin: "0 auto 16px",
+              border: "3px solid #f0f0f0", borderTopColor: "#7C3AED",
+              animation: "spin 0.8s linear infinite",
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            <div style={{ fontSize: 15, fontWeight: 600, color: "#444" }}>AI hľadá kódy pre {capitalized}...</div>
+            <div style={{ fontSize: 13, marginTop: 6, color: "#aaa" }}>Môže to trvať 10–20 sekúnd</div>
+          </div>
+        }>
+          <AiCoupons shopName={capitalized} />
+        </Suspense>
       </div>
 
       <div style={{ borderTop: "1px solid #f0f0f0", padding: "24px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
