@@ -11,8 +11,8 @@ export async function generateMetadata({ params }: Props) {
   const name = slug.replace(/-/g, " ");
   const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
   return {
-    title: `${capitalized} zľavové kódy a kupóny 2026`,
-    description: `Aktuálne overené zľavové kódy pre ${capitalized}. Ušetri na každom nákupe!`,
+    title: capitalized + " zlavove kody a kupony 2026",
+    description: "Aktualne overene zlavove kody pre " + capitalized + ". Useteri na kazdом nakupe!",
   };
 }
 
@@ -22,44 +22,69 @@ export default async function ShopPage({ params }: Props) {
   const capitalized = shopName.charAt(0).toUpperCase() + shopName.slice(1);
 
   let coupons: any[] = [];
-
   try {
     coupons = await getCouponsByShop(shopName);
   } catch (e) {}
 
   return (
-    <main style={{ fontFamily: "system-ui, sans-serif", minHeight: "100vh", background: "#f7f7f7" }}>
-      <nav style={{ background: "#E8001D", padding: "0 24px", height: 60, display: "flex", alignItems: "center" }}>
-        <a href="/" style={{ color: "#fff", fontWeight: 900, fontSize: 20, textDecoration: "none" }}>
-          ✂️ KupónyZľavy.sk
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#fff", color: "#1d1d1f" }}>
+      <nav style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100,
+        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(0,0,0,0.08)",
+      }}>
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: "linear-gradient(135deg, #7C3AED, #2563EB)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", fontSize: 14, fontWeight: 800,
+          }}>Z</div>
+          <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo</span>
         </a>
+        <a href="/" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>← Späť</a>
       </nav>
 
-      <div style={{ background: "linear-gradient(135deg, #1a1a2e, #16213e)", padding: "40px 24px", textAlign: "center" }}>
-        <h1 style={{ color: "#fff", fontSize: 28, fontWeight: 900, margin: "0 0 8px" }}>
-          {capitalized} – zľavové kódy 2026
+      <div style={{
+        background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)",
+        padding: "60px 24px 48px", textAlign: "center",
+      }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: 16, margin: "0 auto 20px",
+          background: "linear-gradient(135deg, #7C3AED, #2563EB)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#fff", fontSize: 28, fontWeight: 800,
+        }}>
+          {capitalized.charAt(0)}
+        </div>
+        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px" }}>
+          {capitalized}
         </h1>
-        <p style={{ color: "#aaa", margin: 0, fontSize: 15 }}>
-          Aktuálne kupóny a promo kódy pre {capitalized}
+        <p style={{ color: "#666", fontSize: 15, margin: 0 }}>
+          Aktualne zlavove kody a kupony 2026
         </p>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px" }}>
         {coupons.length > 0 && (
-          <>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#1a1a2e", marginBottom: 20 }}>
-              ✅ Overené kupóny ({coupons.length})
+          <div style={{ marginBottom: 48 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px" }}>
+              Overene kupony ({coupons.length})
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18, marginBottom: 40 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
               {coupons.map((coupon: any) => (
                 <CouponCard key={coupon.id} coupon={coupon} />
               ))}
             </div>
-          </>
+          </div>
         )}
-
         <AiCoupons shopName={capitalized} />
       </div>
-    </main>
+
+      <div style={{ borderTop: "1px solid #f0f0f0", padding: "24px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
+        Affiliate linky – za nakupy cez nas web dostávame províziu · © 2026 Zlavickovo
+      </div>
+    </div>
   );
 }
