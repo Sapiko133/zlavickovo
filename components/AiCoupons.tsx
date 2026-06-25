@@ -3,10 +3,15 @@ import CouponCopyButton from "@/components/CouponCopyButton";
 
 export default async function AiCoupons({ shopName }: { shopName: string }) {
   let codes: any[] = [];
+  let apiError = false;
   try {
     const result = await getAiCoupons(shopName);
     codes = result.codes || [];
-  } catch (e) {}
+  } catch (e) {
+    apiError = true;
+  }
+
+  if (apiError) return null;
 
   if (codes.length === 0) return (
     <div style={{ textAlign: "center", padding: "40px 24px" }}>

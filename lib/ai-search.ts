@@ -42,6 +42,11 @@ Odpovedaj VÝLUČNE týmto JSON (bez iného textu):
   });
 
   const data = await response.json();
+
+  if (!response.ok || data.type === "error" || data.error) {
+    throw new Error(data.error?.message || `Anthropic API error ${response.status}`);
+  }
+
   const allText = (data.content || [])
     .filter((b: any) => b.type === "text")
     .map((b: any) => b.text)
