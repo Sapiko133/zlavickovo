@@ -1,4 +1,4 @@
-import { kv } from "@vercel/kv";
+import { redis } from "@/lib/redis";
 
 const ipLimiter = new Map<string, number>(); // ip → last click timestamp
 
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     // Increment in KV — if KV not configured, this throws and we catch it
     const key = `clicks:${shop.toLowerCase()}:${code.toUpperCase()}`;
-    await kv.incr(key);
+    await redis.incr(key);
 
     return Response.json({ ok: true });
   } catch {

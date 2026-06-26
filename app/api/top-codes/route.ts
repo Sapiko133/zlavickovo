@@ -1,4 +1,4 @@
-import { kv } from "@vercel/kv";
+import { redis } from "@/lib/redis";
 
 const FALLBACK = [
   { code: "ALZA20",    shop: "Alza",    discount: "20%",            clicks: 0, slug: "alza" },
@@ -15,10 +15,10 @@ export async function GET(req: Request) {
   const shopFilter = url.searchParams.get("shop")?.toLowerCase() ?? null;
 
   try {
-    const keys = await kv.keys("clicks:*");
+    const keys = await redis.keys("clicks:*");
     if (!keys.length) return Response.json(filterFallback(shopFilter));
 
-    const counts = await Promise.all(keys.map(k => kv.get<number>(k)));
+    const counts = await Promise.all(keys.map(k => redis.get<number>(k)));
 
     const items = keys
       .map((key, i) => {
