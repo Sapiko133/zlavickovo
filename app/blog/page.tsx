@@ -1,5 +1,6 @@
-import { getAllPosts, categoryLabel } from "@/lib/blog";
+import { getAllPosts, categoryLabel, type BlogPost } from "@/lib/blog";
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -17,45 +18,60 @@ const CAT_COLORS: Record<string, { bg: string; color: string }> = {
   porovnanie: { bg: "#fff7ed", color: "#ea580c" },
 };
 
+const CAT_KEYWORDS: Record<string, string> = {
+  tipy:       "money,savings,finance",
+  kupony:     "shopping,sale,discount",
+  navody:     "laptop,online-shopping",
+  porovnanie: "products,compare,choice",
+};
+
+function blogImageUrl(post: BlogPost): string {
+  const kw = post.shop
+    ? `${encodeURIComponent(post.shop.toLowerCase())},shopping`
+    : encodeURIComponent(CAT_KEYWORDS[post.category] || "shopping,deals");
+  return `https://source.unsplash.com/800x440/?${kw}`;
+}
+
 export default function BlogPage() {
   const posts = getAllPosts();
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
+      <Nav />
 
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
-        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #7C3AED, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800 }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo</span>
-        </a>
-        <div style={{ display: "flex", gap: 20, fontSize: 13 }}>
-          <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
-          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
-          <a href="/blog" style={{ color: "#7C3AED", fontWeight: 600, textDecoration: "none" }}>Blog</a>
-          <a href="/" style={{ color: "#555", textDecoration: "none" }}>← Domov</a>
-        </div>
-      </nav>
-
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "56px 24px 48px", textAlign: "center" }}>
-        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px" }}>Blog</h1>
-        <p style={{ fontSize: 16, color: "#666", margin: 0 }}>Tipy, návody a porovnania pre inteligentných nakupovateľov</p>
+      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "56px 24px 48px", textAlign: "center" }}>
+        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "var(--text)" }}>Blog</h1>
+        <p style={{ fontSize: 16, color: "var(--text2)", margin: 0 }}>Tipy, návody a porovnania pre inteligentných nakupovateľov</p>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 24 }}>
           {posts.map(post => {
             const cat = CAT_COLORS[post.category] || { bg: "#f5f5f5", color: "#555" };
+            const imgUrl = blogImageUrl(post);
             return (
-              <a key={post.slug} href={`/blog/${post.slug}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "#fff", borderRadius: 16, border: "1px solid #eee", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden", transition: "transform 0.15s" }}>
-                <div style={{ padding: "24px 24px 20px", flex: 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 100, background: cat.bg, color: cat.color }}>{categoryLabel(post.category)}</span>
-                    {post.shop && <span style={{ fontSize: 11, color: "#aaa" }}>{post.shop}</span>}
+              <a key={post.slug} href={`/blog/${post.slug}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                {/* Obrázok */}
+                <div style={{ position: "relative", height: 180, overflow: "hidden", background: "var(--step-bg)" }}>
+                  <img
+                    src={imgUrl}
+                    alt={post.title}
+                    loading="lazy"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                  <div style={{ position: "absolute", top: 12, left: 12 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 100, background: cat.bg, color: cat.color }}>
+                      {categoryLabel(post.category)}
+                    </span>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 10 }}>{post.title}</div>
-                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>{post.description}</div>
                 </div>
-                <div style={{ padding: "12px 24px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 12, color: "#bbb" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
+                {/* Content */}
+                <div style={{ padding: "20px 24px", flex: 1 }}>
+                  {post.shop && <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6 }}>{post.shop}</div>}
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text)", lineHeight: 1.4, marginBottom: 10 }}>{post.title}</div>
+                  <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>{post.description}</div>
+                </div>
+                <div style={{ padding: "12px 24px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border)" }}>
+                  <span style={{ fontSize: 12, color: "var(--text2)" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
                   <span style={{ fontSize: 13, color: "#7C3AED", fontWeight: 600 }}>Čítať →</span>
                 </div>
               </a>

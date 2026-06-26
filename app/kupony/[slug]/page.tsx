@@ -5,6 +5,7 @@ import CouponCard from "@/components/CouponCard";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
+import HeurekaSearch from "@/components/HeurekaSearch";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 
@@ -150,27 +151,27 @@ export default async function ShopPage({ params }: Props) {
   };
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#fff", color: "#1d1d1f" }}>
+    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <Nav links={[
         { label: "Obchody", href: "/obchody" },
-        { label: "Letáky", href: "/letaky" },
+        { label: "🛒 Potraviny", href: "/letaky" },
         { label: "Cashback", href: "/cashback" },
         { label: "← Domov", href: "/" },
       ]} />
 
       {/* Breadcrumb */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "#aaa" }}>
-        <a href="/" style={{ color: "#aaa", textDecoration: "none" }}>Zlavickovo</a>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "var(--text2)" }}>
+        <a href="/" style={{ color: "var(--text2)", textDecoration: "none" }}>Zlavickovo</a>
         {" › "}
-        <a href="/obchody" style={{ color: "#aaa", textDecoration: "none" }}>Kupóny</a>
+        <a href="/obchody" style={{ color: "var(--text2)", textDecoration: "none" }}>Kupóny</a>
         {" › "}
-        <span style={{ color: "#555" }}>{capitalized}</span>
+        <span style={{ color: "var(--text)" }}>{capitalized}</span>
       </div>
 
       {/* Header */}
-      <div className="shop-header" style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
+      <div className="shop-header" style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
         <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 20px", background: logoColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 800 }}>
           {capitalized.charAt(0)}
         </div>
@@ -188,7 +189,7 @@ export default async function ShopPage({ params }: Props) {
 
         {/* Shop description intro */}
         {shopDesc && (
-          <div style={{ maxWidth: 700, margin: "0 auto", fontSize: 15, color: "#555", lineHeight: 1.7, textAlign: "left", background: "#fafafa", borderRadius: 12, padding: "20px 24px" }}>
+          <div style={{ maxWidth: 700, margin: "0 auto", fontSize: 15, color: "var(--text2)", lineHeight: 1.7, textAlign: "left", background: "var(--step-bg)", borderRadius: 12, padding: "20px 24px" }}>
             {shopDesc}
           </div>
         )}
@@ -267,7 +268,7 @@ export default async function ShopPage({ params }: Props) {
 
         {/* Sidebar – desktop */}
         <div className="shop-sidebar" style={{ width: 300, flexShrink: 0, position: "sticky", top: 72 }}>
-          <div style={{ background: "#fafafa", borderRadius: 16, padding: "20px" }}>
+          <div style={{ background: "var(--step-bg)", borderRadius: 16, padding: "20px" }}>
             <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
           </div>
           <div style={{ marginTop: 16 }}>
@@ -282,16 +283,19 @@ export default async function ShopPage({ params }: Props) {
           <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
         </div>
 
+        {/* Heureka widget */}
+        <HeurekaSearch shopName={capitalized} />
+
         {/* FAQ */}
-        <div style={{ marginTop: 64, padding: "40px", background: "#fafafa", borderRadius: 20 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 28px", letterSpacing: "-0.3px" }}>
+        <div style={{ marginTop: 48, padding: "40px", background: "var(--step-bg)", borderRadius: 20, border: "1px solid var(--step-border)" }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 28px", letterSpacing: "-0.3px", color: "var(--text)" }}>
             Časté otázky – {capitalized} kupóny
           </h2>
           <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             {faq.map((item, i) => (
-              <div key={i} style={{ padding: "20px 0", borderBottom: i < faq.length - 1 ? "1px solid #ebebeb" : "none" }}>
-                <div style={{ fontWeight: 600, fontSize: 15, color: "#1d1d1f", marginBottom: 8 }}>{item.q}</div>
-                <div style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>{item.a}</div>
+              <div key={i} style={{ padding: "20px 0", borderBottom: i < faq.length - 1 ? "1px solid var(--border)" : "none" }}>
+                <div style={{ fontWeight: 600, fontSize: 15, color: "var(--text)", marginBottom: 8 }}>{item.q}</div>
+                <div style={{ fontSize: 14, color: "var(--text2)", lineHeight: 1.6 }}>{item.a}</div>
               </div>
             ))}
           </div>
@@ -299,7 +303,7 @@ export default async function ShopPage({ params }: Props) {
 
         {/* Related shops */}
         <div style={{ marginTop: 48 }}>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.3px" }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.3px", color: "var(--text)" }}>
             Súvisiace obchody
           </h2>
           <div className="related-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
@@ -309,11 +313,11 @@ export default async function ShopPage({ params }: Props) {
               const c = COLORS[name.charCodeAt(0) % COLORS.length];
               return (
                 <a key={s} href={`/kupony/${s}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "#fafafa", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, border: "1px solid #ebebeb", transition: "background 0.15s" }}>
+                  <div style={{ background: "var(--step-bg)", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, border: "1px solid var(--border)" }}>
                     <div style={{ width: 36, height: 36, borderRadius: 9, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 15, flexShrink: 0 }}>
                       {name.charAt(0)}
                     </div>
-                    <span style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f" }}>{name}</span>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>{name}</span>
                   </div>
                 </a>
               );
