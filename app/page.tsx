@@ -3,7 +3,7 @@ import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import Footer from "@/components/Footer";
-import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
+import { getCouponsFeed, getSalesCoupons, getLatestSales } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -61,7 +61,8 @@ function shopSlug(name: string) {
 export default async function Home() {
   let feed: any[] = [];
   let sales: any[] = [];
-  try { [feed, sales] = await Promise.all([getCouponsFeed(12), getSalesCoupons(6)]); } catch {}
+  let latestSales: any[] = [];
+  try { [feed, sales, latestSales] = await Promise.all([getCouponsFeed(12), getSalesCoupons(6), getLatestSales(8)]); } catch {}
   const latestPosts = getLatestPosts(3);
 
   return (
@@ -269,6 +270,48 @@ export default async function Home() {
           )}
         </div>
       </div>
+
+      {/* Najnovšie akcie – horizontálny scroll */}
+      {latestSales.length > 0 && (
+        <div style={{ padding: "64px 0 0" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px" }}>
+            <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>
+              🔥 Najnovšie akcie
+            </h2>
+          </div>
+          <div
+            className="hide-scroll"
+            style={{ display: "flex", gap: 16, overflowX: "auto", padding: "4px 24px 16px", scrollbarWidth: "none", msOverflowStyle: "none" }}
+          >
+            {latestSales.map((coupon: any) => {
+              const shopName = coupon.campaign?.name || "Obchod";
+              const link = coupon.affiliate_link || coupon.url || "#";
+              const expires = coupon.valid_to ? new Date(coupon.valid_to).toLocaleDateString("sk-SK") : null;
+              const discount = coupon.title || coupon.name || "Akcia";
+              return (
+                <a
+                  key={coupon.id}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer nofollow"
+                  style={{ minWidth: 240, maxWidth: 240, textDecoration: "none", display: "flex", flexDirection: "column", background: "#fff", borderRadius: 16, border: "1px solid #ebebeb", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden", flexShrink: 0 }}
+                >
+                  <div style={{ padding: "16px 16px 12px", background: "linear-gradient(135deg, #fff7ed, #fef3c7)", borderBottom: "1px solid #fde68a" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#d97706", marginBottom: 4 }}>{shopName}</div>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", lineHeight: 1.3 }}>
+                      {discount.length > 60 ? discount.slice(0, 60) + "…" : discount}
+                    </div>
+                  </div>
+                  <div style={{ padding: "10px 16px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <div style={{ fontSize: 11, color: "#aaa" }}>{expires ? `Do ${expires}` : "Obmedzená ponuka"}</div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "#7C3AED" }}>Pozrieť →</span>
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Ad banner – between coupons */}
       <div style={{ padding: "40px 24px 0", display: "flex", justifyContent: "center" }}>

@@ -87,6 +87,18 @@ export async function getSalesCoupons(limit = 6) {
     .slice(0, limit);
 }
 
+export async function getLatestSales(limit = 8) {
+  const all = await getCoupons();
+  return all
+    .filter((c: any) => c.type === 3)
+    .sort((a: any, b: any) => {
+      const da = new Date(a.valid_from || 0).getTime();
+      const db = new Date(b.valid_from || 0).getTime();
+      return db - da;
+    })
+    .slice(0, limit);
+}
+
 export async function getCashbackShops() {
   try {
     const t = await getToken();
