@@ -5,6 +5,8 @@ import TopCodes from "@/components/TopCodes";
 import Footer from "@/components/Footer";
 import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
+import { getLatestPosts, categoryLabel } from "@/lib/blog";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export const revalidate = 3600;
 
@@ -60,9 +62,10 @@ export default async function Home() {
   let feed: any[] = [];
   let sales: any[] = [];
   try { [feed, sales] = await Promise.all([getCouponsFeed(12), getSalesCoupons(6)]); } catch {}
+  const latestPosts = getLatestPosts(3);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebSite",
@@ -97,7 +100,9 @@ export default async function Home() {
           <a href="#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
           <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
           <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
+          <a href="/blog" style={{ color: "#555", textDecoration: "none" }}>Blog</a>
           <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Všetky obchody</a>
+          <ThemeToggle />
         </div>
       </nav>
 
@@ -286,7 +291,7 @@ export default async function Home() {
                   <div style={{ width: 40, height: 40, borderRadius: 10, background: letak.color, display: "flex", alignItems: "center", justifyContent: "center", color: letak.color === "#FFCC00" ? "#333" : "#fff", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
                     {letak.letter}
                   </div>
-                  <span style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f" }}>{letak.name}</span>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>{letak.name}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4 }}>Platný do {formatDate(expiry)}</div>
                 {soon && <div style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>⚠ Expiruje čoskoro!</div>}
@@ -310,6 +315,30 @@ export default async function Home() {
                 return <CouponCard key={coupon.id} coupon={couponData} token={token} />;
               })}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blog preview */}
+      {latestPosts.length > 0 && (
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
+            <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Z blogu</h2>
+            <a href="/blog" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Všetky články →</a>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+            {latestPosts.map(post => (
+              <a key={post.slug} href={`/blog/${post.slug}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "#fff", borderRadius: 16, border: "1px solid #eee", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <div style={{ padding: "20px 20px 14px", flex: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 100, background: "#f0eeff", color: "#7C3AED", display: "inline-block", marginBottom: 10 }}>{categoryLabel(post.category)}</span>
+                  <div style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f", lineHeight: 1.4 }}>{post.title}</div>
+                </div>
+                <div style={{ padding: "8px 20px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 12, color: "#bbb" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
+                  <span style={{ fontSize: 13, color: "#7C3AED", fontWeight: 600 }}>Čítať →</span>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       )}
