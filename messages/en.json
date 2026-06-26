@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "shops": "Shops",
+    "leaflets": "Leaflets",
+    "cashback": "Cashback",
+    "blog": "Blog",
+    "all_shops": "All shops",
+    "home": "Home"
+  },
+  "hero": {
+    "title": "Save on every purchase",
+    "subtitle": "Enter a shop and AI finds current discount codes in seconds."
+  },
+  "search": {
+    "button": "Search",
+    "placeholder_shop": "E.g. Alza, Shein, Zalando...",
+    "placeholder_url": "Paste a product or shop link...",
+    "mode_shop": "🏪 Shop",
+    "mode_url": "🔗 URL"
+  },
+  "coupon": {
+    "show_code": "🎁 Show code",
+    "copy": "Copy",
+    "copied": "✓",
+    "expires": "Expires",
+    "verified": "Verified",
+    "sponsored": "Sponsored",
+    "go_to_shop": "Go to shop →",
+    "use_deal": "Use deal →"
+  }
+}

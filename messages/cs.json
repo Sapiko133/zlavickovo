@@ -1,0 +1,31 @@
+{
+  "nav": {
+    "shops": "Obchody",
+    "leaflets": "Letáky",
+    "cashback": "Cashback",
+    "blog": "Blog",
+    "all_shops": "Všechny obchody",
+    "home": "Domů"
+  },
+  "hero": {
+    "title": "Ušetři na každém nákupu",
+    "subtitle": "Zadej obchod a AI najde aktuální slevové kódy za pár sekund."
+  },
+  "search": {
+    "button": "Hledat",
+    "placeholder_shop": "Např. Alza, Shein, Zalando...",
+    "placeholder_url": "Vlož odkaz na produkt nebo obchod...",
+    "mode_shop": "🏪 Obchod",
+    "mode_url": "🔗 URL"
+  },
+  "coupon": {
+    "show_code": "🎁 Zobrazit kód",
+    "copy": "Kopírovat",
+    "copied": "✓",
+    "expires": "Vyprší",
+    "verified": "Ověřený",
+    "sponsored": "Sponzorováno",
+    "go_to_shop": "Přejít do obchodu →",
+    "use_deal": "Využít akci →"
+  }
+}
