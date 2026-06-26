@@ -7,6 +7,7 @@ import Nav from "@/components/Nav";
 import { getCouponsFeed, getSalesCoupons, getLatestSales } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
+import { getActiveFeaturedDynamic } from "@/lib/featured";
 
 export const revalidate = 3600;
 
@@ -51,7 +52,6 @@ const SHOPS: Shop[] = [
   { name: "Dr. Max",    color: "#006A35", letter: "D" },
 ];
 
-const featured = SHOPS.filter(s => s.featured);
 const regular = SHOPS.filter(s => !s.featured);
 
 function shopSlug(name: string) {
@@ -64,6 +64,7 @@ export default async function Home() {
   let latestSales: any[] = [];
   try { [feed, sales, latestSales] = await Promise.all([getCouponsFeed(12), getSalesCoupons(6), getLatestSales(8)]); } catch {}
   const latestPosts = getLatestPosts(3);
+  const activeFeatured = await getActiveFeaturedDynamic();
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
@@ -154,49 +155,63 @@ export default async function Home() {
       </div>
 
       {/* Featured obchody */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
-        <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>Odporúčané obchody</h2>
-        <div className="featured-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
-          {featured.map(shop => (
-            <a
-              key={shop.name}
-              href={`/kupony/${shopSlug(shop.name)}`}
-              style={{
-                display: "flex", flexDirection: "column", justifyContent: "space-between",
-                padding: "28px 28px 24px", borderRadius: 20, textDecoration: "none",
-                background: `linear-gradient(135deg, ${shop.color}ee 0%, ${shop.color}99 100%)`,
-                minHeight: 160, position: "relative", overflow: "hidden",
-              }}
-            >
-              <div style={{
-                position: "absolute", top: -30, right: -30,
-                width: 120, height: 120, borderRadius: "50%",
-                background: "rgba(255,255,255,0.12)",
-              }} />
-              <div>
+      {activeFeatured.length > 0 && (
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
+          <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>⭐ Odporúčané obchody</h2>
+          <div className="featured-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+            {activeFeatured.map(shop => (
+              <a
+                key={shop.slug}
+                href={`/kupony/${shop.slug}`}
+                style={{
+                  display: "flex", flexDirection: "column", justifyContent: "space-between",
+                  padding: "28px 28px 24px", borderRadius: 20, textDecoration: "none",
+                  background: `linear-gradient(135deg, ${shop.color}ee 0%, ${shop.color}99 100%)`,
+                  minHeight: 200, position: "relative", overflow: "hidden",
+                }}
+              >
                 <div style={{
-                  width: 52, height: 52, borderRadius: 14,
-                  background: "rgba(255,255,255,0.25)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "#fff", fontWeight: 900, fontSize: 22, marginBottom: 14,
-                }}>
-                  {shop.letter}
+                  position: "absolute", top: -30, right: -30,
+                  width: 120, height: 120, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.12)",
+                }} />
+                <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                  <span style={{
+                    background: "rgba(255,255,255,0.25)", color: "#fff",
+                    padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                  }}>⭐ Odporúčané</span>
+                  <span style={{
+                    background: "rgba(255,255,255,0.2)", color: "#fff",
+                    padding: "4px 10px", borderRadius: 8, fontSize: 11, fontWeight: 700,
+                  }}>{shop.topDeal}</span>
                 </div>
-                <div style={{ color: "#fff", fontWeight: 800, fontSize: 20, marginBottom: 6 }}>{shop.name}</div>
-                <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, lineHeight: 1.4 }}>{shop.featuredDesc}</div>
-              </div>
-              <div style={{
-                marginTop: 20, display: "inline-flex", alignItems: "center", gap: 6,
-                background: "rgba(255,255,255,0.2)", color: "#fff",
-                padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700,
-                backdropFilter: "blur(4px)", alignSelf: "flex-start",
-              }}>
-                Zobraziť kupóny →
-              </div>
-            </a>
-          ))}
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+                  <div style={{
+                    width: 64, height: 64, borderRadius: 18,
+                    background: "rgba(255,255,255,0.25)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: "#fff", fontWeight: 900, fontSize: 28, flexShrink: 0,
+                  }}>
+                    {shop.name[0]}
+                  </div>
+                  <div>
+                    <div style={{ color: "#fff", fontWeight: 800, fontSize: 22, marginBottom: 4 }}>{shop.name}</div>
+                    <div style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, lineHeight: 1.4 }}>{shop.promoText}</div>
+                  </div>
+                </div>
+                <div style={{
+                  marginTop: 12, display: "inline-flex", alignItems: "center", gap: 6,
+                  background: "rgba(255,255,255,0.2)", color: "#fff",
+                  padding: "8px 16px", borderRadius: 10, fontSize: 13, fontWeight: 700,
+                  backdropFilter: "blur(4px)", alignSelf: "flex-start",
+                }}>
+                  Zobraziť kupóny →
+                </div>
+              </a>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Populárne obchody */}
       <div id="obchody" style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>

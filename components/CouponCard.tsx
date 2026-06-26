@@ -14,7 +14,7 @@ const SOURCE_BADGES: Record<string, { label: string; bg: string; color: string }
   ai:     { label: "AI",      bg: "#ede9fe", color: "#7C3AED" },
 };
 
-export default function CouponCard({ coupon, token }: { coupon: any; token?: string | null }) {
+export default function CouponCard({ coupon, token, sponsored }: { coupon: any; token?: string | null; sponsored?: boolean }) {
   const storeName = coupon.campaign?.name || coupon.campaign_name || "Obchod";
   const logoColor = COLORS[storeName.charCodeAt(0) % COLORS.length];
   const link = coupon.affiliate_link || coupon.url || "#";
@@ -45,7 +45,11 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
           {expires && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Vyprší: {expires}</div>}
         </div>
         <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-          {coupon.source && SOURCE_BADGES[coupon.source] && (
+          {sponsored ? (
+            <div style={{ background: "#fff7ed", color: "#ea580c", fontWeight: 700, fontSize: 10, padding: "4px 8px", borderRadius: 8 }}>
+              Sponzorované
+            </div>
+          ) : coupon.source && SOURCE_BADGES[coupon.source] && (
             <div style={{ background: SOURCE_BADGES[coupon.source].bg, color: SOURCE_BADGES[coupon.source].color, fontWeight: 700, fontSize: 10, padding: "4px 8px", borderRadius: 8 }}>
               {SOURCE_BADGES[coupon.source].label}
             </div>
