@@ -176,7 +176,7 @@ export default async function ShopPage({ params }: Props) {
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
         <div style={{ marginBottom: 40, display: "flex", justifyContent: "center" }}>
-          <AdBanner slot="header" />
+          <AdBanner slot="header" shopName={capitalized} />
         </div>
 
         <div className="shop-cols" style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
@@ -199,7 +199,7 @@ export default async function ShopPage({ params }: Props) {
 
         {coupons.length > 0 && (
           <div style={{ marginBottom: 48, display: "flex", justifyContent: "center" }}>
-            <AdBanner slot="between-coupons" />
+            <AdBanner slot="between-coupons" shopName={capitalized} />
           </div>
         )}
 
@@ -222,7 +222,7 @@ export default async function ShopPage({ params }: Props) {
             <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
           </div>
           <div style={{ marginTop: 16 }}>
-            <AdBanner slot="sidebar" />
+            <AdBanner slot="sidebar" shopName={capitalized} />
           </div>
         </div>
 
