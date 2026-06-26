@@ -1,6 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import OneSignalInit from "@/components/OneSignalInit";
+import InstallBanner from "@/components/InstallBanner";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,6 +15,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: "#7C3AED",
+};
+
 export const metadata: Metadata = {
   title: {
     default: "Zlavickovo – zľavové kódy a kupóny 2026",
@@ -20,6 +26,15 @@ export const metadata: Metadata = {
   },
   description: "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
   keywords: ["zlavove kody", "kupony", "zlava", "zlavickovo", "zlavovy kod", "Slovakia"],
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    title: "Zlavickovo",
+    statusBarStyle: "default",
+  },
+  icons: {
+    apple: [{ url: "/api/icon/192", sizes: "192x192" }],
+  },
   openGraph: {
     siteName: "Zlavickovo",
     locale: "sk_SK",
@@ -41,6 +56,8 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <OneSignalInit />
+          <InstallBanner />
           {children}
         </ThemeProvider>
       </body>

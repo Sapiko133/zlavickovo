@@ -3,6 +3,33 @@
 import { useState } from "react";
 import ThemeToggle from "@/components/ThemeToggle";
 
+function NotifButton() {
+  const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+  if (!appId) return null;
+
+  function handleClick() {
+    import("react-onesignal")
+      .then(({ default: OneSignal }) => {
+        (OneSignal.Slidedown as any).promptPush().catch(() => {});
+      })
+      .catch(() => {});
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      title="Dostávať upozornenia"
+      style={{
+        background: "none", border: "1px solid #e0e0e0", borderRadius: 8,
+        padding: "5px 10px", cursor: "pointer", fontSize: 15,
+        color: "#555", display: "flex", alignItems: "center", gap: 4,
+      }}
+    >
+      🔔
+    </button>
+  );
+}
+
 interface NavLink { label: string; href: string }
 
 const DEFAULT_LINKS: NavLink[] = [
@@ -35,6 +62,7 @@ export default function Nav({ links = DEFAULT_LINKS }: { links?: NavLink[] }) {
           {links.map(l => (
             <a key={l.href + l.label} href={l.href} style={{ color: "#555", textDecoration: "none" }}>{l.label}</a>
           ))}
+          <NotifButton />
           <ThemeToggle />
         </div>
 
