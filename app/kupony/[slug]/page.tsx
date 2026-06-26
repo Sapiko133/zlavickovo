@@ -3,6 +3,7 @@ import { getCouponsByShop } from "@/lib/dognet";
 import CouponCard from "@/components/CouponCard";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
+import TopCodes from "@/components/TopCodes";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -171,10 +172,15 @@ export default async function ShopPage({ params }: Props) {
         </p>
       </div>
 
+      <style>{`@media(max-width:768px){.shop-cols{flex-direction:column!important}.shop-sidebar{display:none!important}.shop-sidebar-mobile{display:block!important}}`}</style>
+
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
         <div style={{ marginBottom: 40, display: "flex", justifyContent: "center" }}>
           <AdBanner slot="header" />
         </div>
+
+        <div className="shop-cols" style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
 
         {coupons.length > 0 && (
           <div style={{ marginBottom: 48 }}>
@@ -207,6 +213,25 @@ export default async function ShopPage({ params }: Props) {
         }>
           <AiCoupons shopName={`${capitalized}${isCz ? " CZ" : ""}`} />
         </Suspense>
+
+        </div>{/* end left col */}
+
+        {/* Sidebar – desktop */}
+        <div className="shop-sidebar" style={{ width: 300, flexShrink: 0, position: "sticky", top: 72 }}>
+          <div style={{ background: "#fafafa", borderRadius: 16, padding: "20px" }}>
+            <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
+          </div>
+          <div style={{ marginTop: 16 }}>
+            <AdBanner slot="sidebar" />
+          </div>
+        </div>
+
+        </div>{/* end shop-cols */}
+
+        {/* Sidebar – mobile */}
+        <div className="shop-sidebar-mobile" style={{ display: "none", marginTop: 32 }}>
+          <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
+        </div>
 
         {/* FAQ */}
         <div style={{ marginTop: 64, padding: "40px", background: "#fafafa", borderRadius: 20 }}>

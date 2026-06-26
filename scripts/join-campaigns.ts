@@ -1,5 +1,5 @@
 const API_BASE = "https://api.app.dognet.com/api/v1";
-const AD_CHANNEL_ID = 8875;
+const AD_CHANNEL_ID = 33415;;
 
 async function getToken() {
   const res = await fetch(`${API_BASE}/auth/login`, {

@@ -1,6 +1,7 @@
 import SearchBar from "@/components/SearchBar";
 import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
+import TopCodes from "@/components/TopCodes";
 import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 
@@ -140,6 +141,15 @@ export default async function Home() {
       {/* Ad banner – header */}
       <div style={{ padding: "32px 24px 0", display: "flex", justifyContent: "center" }}>
         <AdBanner slot="header" />
+      </div>
+
+      {/* Trending kódy */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 0" }}>
+        <style>{`.trending-scroll::-webkit-scrollbar{display:none}`}</style>
+        <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 20px" }}>🔥 Trending kódy</h2>
+        <div className="trending-scroll" style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8, scrollbarWidth: "none", msOverflowStyle: "none" }}>
+          <TopCodes limit={6} title="" />
+        </div>
       </div>
 
       {/* Featured obchody */}
