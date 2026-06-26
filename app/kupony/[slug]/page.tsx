@@ -4,6 +4,7 @@ import CouponCard from "@/components/CouponCard";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
+import Footer from "@/components/Footer";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -146,6 +147,7 @@ export default async function ShopPage({ params }: Props) {
         <div style={{ display: "flex", gap: 20, fontSize: 13 }}>
           <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
           <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
+          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
           <a href="/" style={{ color: "#7C3AED", textDecoration: "none" }}>← Domov</a>
         </div>
       </nav>
@@ -249,9 +251,7 @@ export default async function ShopPage({ params }: Props) {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f0f0f0", padding: "32px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
-        © 2026 Zlavickovo
-      </div>
+      <Footer />
     </div>
   );
 }

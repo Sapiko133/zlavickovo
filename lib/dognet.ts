@@ -87,6 +87,36 @@ export async function getSalesCoupons(limit = 6) {
     .slice(0, limit);
 }
 
+export async function getCashbackShops() {
+  try {
+    const t = await getToken();
+    const res = await fetch(`${API_BASE}/campaigns/filter`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${t}`,
+      },
+      body: JSON.stringify({
+        filter: [{ ad_channel_type_id: { eq: 14 } }],
+        "per-page": 50,
+      }),
+    });
+    const data = await res.json();
+    const campaigns: any[] = data.data || [];
+    return campaigns
+      .filter((c: any) => c.name)
+      .map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        cashback: c.cashback_value ?? c.commission ?? null,
+        slug: c.name.toLowerCase().replace(/\s+/g, "-"),
+        affiliate_link: c.url ?? c.website_url ?? "#",
+      }));
+  } catch {
+    return [];
+  }
+}
+
 export async function getShops() {
   const all = await getCoupons();
   const map = new Map<number, { id: number; name: string; count: number }>();

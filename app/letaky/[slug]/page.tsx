@@ -1,5 +1,6 @@
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { notFound } from "next/navigation";
+import Footer from "@/components/Footer";
 
 export const revalidate = 3600;
 
@@ -160,9 +161,7 @@ export default async function LetatPage({ params }: Props) {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f0f0f0", padding: "32px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
-        © 2026 Zlavickovo
-      </div>
+      <Footer />
     </div>
   );
 }

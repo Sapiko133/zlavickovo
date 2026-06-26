@@ -1,4 +1,5 @@
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
+import Footer from "@/components/Footer";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -87,6 +88,7 @@ export default function LetakyPage() {
         <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
           <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
           <a href="/letaky" style={{ color: "#7C3AED", fontWeight: 600, textDecoration: "none" }}>Letáky</a>
+          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
           <a href="/" style={{ color: "#555", textDecoration: "none" }}>Domov</a>
         </div>
       </nav>
@@ -113,9 +115,7 @@ export default function LetakyPage() {
         </div>
       </div>
 
-      <div style={{ borderTop: "1px solid #f0f0f0", padding: "32px 48px", textAlign: "center", fontSize: 13, color: "#999" }}>
-        © 2026 Zlavickovo
-      </div>
+      <Footer />
     </div>
   );
 }

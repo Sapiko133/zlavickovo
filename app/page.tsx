@@ -2,6 +2,7 @@ import SearchBar from "@/components/SearchBar";
 import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
+import Footer from "@/components/Footer";
 import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 
@@ -95,6 +96,7 @@ export default async function Home() {
           <a href="#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
           <a href="#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
           <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
+          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
           <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Všetky obchody</a>
         </div>
       </nav>
@@ -312,15 +314,7 @@ export default async function Home() {
         </div>
       )}
 
-      {/* Footer */}
-      <div style={{
-        borderTop: "1px solid #f0f0f0", padding: "32px 48px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        fontSize: 13, color: "#999",
-      }}>
-        <span style={{ fontWeight: 600, color: "#1d1d1f" }}>Zlavickovo</span>
-        <span>© 2026</span>
-      </div>
+      <Footer />
     </div>
   );
 }

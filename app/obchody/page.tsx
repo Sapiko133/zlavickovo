@@ -1,4 +1,5 @@
 import { getShops } from "@/lib/dognet";
+import Footer from "@/components/Footer";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -45,7 +46,7 @@ export default async function ObchodyPage() {
         </a>
         <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
           <a href="/#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
-          <a href="/#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
+          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
           <a href="/" style={{ color: "#555", textDecoration: "none" }}>Domov</a>
         </div>
       </nav>
@@ -111,15 +112,7 @@ export default async function ObchodyPage() {
         )}
       </div>
 
-      {/* Footer */}
-      <div style={{
-        borderTop: "1px solid #f0f0f0", padding: "32px 48px",
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        fontSize: 13, color: "#999",
-      }}>
-        <span style={{ fontWeight: 600, color: "#1d1d1f" }}>Zlavickovo</span>
-        <span>© 2026</span>
-      </div>
+      <Footer />
     </div>
   );
 }
