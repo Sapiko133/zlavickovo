@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    apple: [{ url: "/api/icon/192", sizes: "192x192" }],
+    apple: [{ url: "/icon-192.png", sizes: "192x192" }],
   },
   openGraph: {
     siteName: "Zlavickovo",
