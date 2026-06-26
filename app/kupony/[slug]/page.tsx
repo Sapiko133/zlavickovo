@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
+import { getShopDescription } from "@/lib/shop-desc";
 import CouponCard from "@/components/CouponCard";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
@@ -43,6 +44,14 @@ function getFAQ(shopName: string) {
   ];
 }
 
+function getRelatedShops(currentSlug: string, count = 4) {
+  const others = TOP_SLUGS.filter(s => s !== currentSlug);
+  // deterministic "random" based on slug char code
+  const seed = currentSlug.charCodeAt(0) + currentSlug.length;
+  const start = seed % (others.length - count);
+  return others.slice(start, start + count);
+}
+
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   const isCz = slug.endsWith("-cz");
@@ -79,6 +88,8 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
+const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F","#FF4081","#006A35","#8B1A1A"];
+
 export default async function ShopPage({ params }: Props) {
   const { slug } = await params;
   const isCz = slug.endsWith("-cz");
@@ -88,9 +99,17 @@ export default async function ShopPage({ params }: Props) {
   const { month, year } = currentMonthYear();
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
+  const relatedSlugs = getRelatedShops(baseSlug);
+  const logoColor = COLORS[capitalized.charCodeAt(0) % COLORS.length];
 
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
+
+  const codeCoupons = coupons.filter(c => c.code && c.code.trim() !== "");
+  const dealCoupons = coupons.filter(c => !c.code || c.code.trim() === "");
+
+  let shopDesc = "";
+  try { shopDesc = await getShopDescription(capitalized, baseSlug); } catch {}
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -163,15 +182,27 @@ export default async function ShopPage({ params }: Props) {
 
       {/* Header */}
       <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 20px", background: "linear-gradient(135deg, #7C3AED, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 800 }}>
+        <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 20px", background: logoColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 800 }}>
           {capitalized.charAt(0)}
         </div>
-        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px" }}>
-          {capitalized}
+        <h1 style={{ fontSize: 32, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", lineHeight: 1.2 }}>
+          {capitalized} zľavové kódy a kupóny {month} {year}{isCz ? " (CZ)" : ""}
         </h1>
-        <p style={{ color: "#666", fontSize: 15, margin: 0 }}>
-          Aktuálne zľavové kódy a kupóny {month} {year}{isCz ? " (CZ)" : ""}
-        </p>
+        <div style={{ display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap", marginBottom: 20 }}>
+          <span style={{ background: "#f0fdf4", color: "#16a34a", fontWeight: 600, fontSize: 13, padding: "4px 12px", borderRadius: 20 }}>
+            ✓ {coupons.length} overených kupónov
+          </span>
+          <span style={{ background: "#fef9c3", color: "#a16207", fontWeight: 600, fontSize: 13, padding: "4px 12px", borderRadius: 20 }}>
+            Aktualizované: {month} {year}
+          </span>
+        </div>
+
+        {/* Shop description intro */}
+        {shopDesc && (
+          <div style={{ maxWidth: 700, margin: "0 auto", fontSize: 15, color: "#555", lineHeight: 1.7, textAlign: "left", background: "#fafafa", borderRadius: 12, padding: "20px 24px" }}>
+            {shopDesc}
+          </div>
+        )}
       </div>
 
       <style>{`@media(max-width:768px){.shop-cols{flex-direction:column!important}.shop-sidebar{display:none!important}.shop-sidebar-mobile{display:block!important}}`}</style>
@@ -184,16 +215,32 @@ export default async function ShopPage({ params }: Props) {
         <div className="shop-cols" style={{ display: "flex", gap: 32, alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
 
-        {coupons.length > 0 && (
+        {/* Code coupons section */}
+        {codeCoupons.length > 0 && (
           <div style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px" }}>
-              Overené kupóny ({coupons.length})
+              🏷️ Zľavové kódy ({codeCoupons.length})
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
-              {coupons.map((coupon: any) => {
-                const token = coupon.code ? Buffer.from(`${capitalized}:${coupon.code}`).toString("base64") : null;
+              {codeCoupons.map((coupon: any) => {
+                const token = Buffer.from(`${capitalized}:${coupon.code}`).toString("base64");
                 const { code: _s, ...couponData } = coupon;
                 return <CouponCard key={coupon.id} coupon={couponData} token={token} />;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Deal coupons section (no code) */}
+        {dealCoupons.length > 0 && (
+          <div style={{ marginBottom: 48 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px" }}>
+              🔥 Aktuálne akcie ({dealCoupons.length})
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+              {dealCoupons.map((coupon: any) => {
+                const { code: _s, ...couponData } = coupon;
+                return <CouponCard key={coupon.id} coupon={couponData} token={null} />;
               })}
             </div>
           </div>
@@ -247,6 +294,30 @@ export default async function ShopPage({ params }: Props) {
                 <div style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>{item.a}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Related shops */}
+        <div style={{ marginTop: 48 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.3px" }}>
+            Súvisiace obchody
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+            {relatedSlugs.map(s => {
+              const n = s.replace(/-/g, " ");
+              const name = n.charAt(0).toUpperCase() + n.slice(1);
+              const c = COLORS[name.charCodeAt(0) % COLORS.length];
+              return (
+                <a key={s} href={`/kupony/${s}`} style={{ textDecoration: "none" }}>
+                  <div style={{ background: "#fafafa", borderRadius: 12, padding: "16px", display: "flex", alignItems: "center", gap: 12, border: "1px solid #ebebeb", transition: "background 0.15s" }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 9, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 15, flexShrink: 0 }}>
+                      {name.charAt(0)}
+                    </div>
+                    <span style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f" }}>{name}</span>
+                  </div>
+                </a>
+              );
+            })}
           </div>
         </div>
       </div>
