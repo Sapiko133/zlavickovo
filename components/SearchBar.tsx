@@ -87,8 +87,8 @@ export default function SearchBar() {
             placeholder={placeholders[mode]}
             style={{
               width: "100%", padding: "16px 20px", borderRadius: 14,
-              border: "1.5px solid #e0e0e0", background: "#fff",
-              color: "#1d1d1f", fontSize: 15, outline: "none",
+              border: "1.5px solid var(--border)", background: "var(--bg)",
+              color: "var(--text)", fontSize: 15, outline: "none",
               boxSizing: "border-box", transition: "border-color 0.15s",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
             }}
@@ -100,7 +100,7 @@ export default function SearchBar() {
           {suggestions.length > 0 && (
             <div style={{
               position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0,
-              background: "#fff", border: "1px solid #e8e8e8", borderRadius: 14,
+              background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 14,
               overflow: "hidden", zIndex: 100,
               boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
             }}>
@@ -110,7 +110,7 @@ export default function SearchBar() {
                   onClick={() => handleSearch(s)}
                   style={{
                     padding: "12px 20px", cursor: "pointer", fontSize: 14,
-                    color: "#1d1d1f", borderBottom: "1px solid #f5f5f5",
+                    color: "var(--text)", borderBottom: "1px solid var(--bg2)",
                     transition: "background 0.1s",
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#f5f3ff")}

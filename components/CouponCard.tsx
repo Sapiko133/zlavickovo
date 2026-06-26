@@ -24,7 +24,7 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 14,
+      background: "var(--card)", borderRadius: 14,
       boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
       border: "1px solid #eee",
       display: "flex", flexDirection: "column", overflow: "hidden",
@@ -39,7 +39,7 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
           {storeName.charAt(0)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15, color: "#1a1a2e", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {storeName}
           </div>
           {expires && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Vyprší: {expires}</div>}
@@ -58,7 +58,7 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
 
       {/* Body */}
       <div style={{ padding: "14px 20px", flex: 1 }}>
-        <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a2e", lineHeight: 1.4 }}>
+        <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)", lineHeight: 1.4 }}>
           {coupon.title || coupon.name}
         </div>
         {coupon.description && (
