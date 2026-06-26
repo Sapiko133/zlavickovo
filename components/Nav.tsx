@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useLocale } from "next-intl";
 import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -44,7 +43,6 @@ const DEFAULT_LINKS: NavLink[] = [
 
 export default function Nav({ links = DEFAULT_LINKS }: { links?: NavLink[] }) {
   const [open, setOpen] = useState(false);
-  const locale = useLocale();
 
   return (
     <>
@@ -65,7 +63,7 @@ export default function Nav({ links = DEFAULT_LINKS }: { links?: NavLink[] }) {
           {links.map(l => (
             <a key={l.href + l.label} href={l.href} style={{ color: "#555", textDecoration: "none" }}>{l.label}</a>
           ))}
-          <LanguageSwitcher current={locale} />
+          <LanguageSwitcher />
           <NotifButton />
           <ThemeToggle />
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const LANGS = [
@@ -9,9 +9,18 @@ const LANGS = [
   { code: "en", label: "EN", flag: "🇬🇧" },
 ];
 
-export default function LanguageSwitcher({ current = "sk" }: { current?: string }) {
+function getCookieLocale(): string {
+  if (typeof document === "undefined") return "sk";
+  const m = document.cookie.match(/(?:^|; )NEXT_LOCALE=([^;]*)/);
+  return m ? decodeURIComponent(m[1]) : "sk";
+}
+
+export default function LanguageSwitcher() {
   const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("sk");
   const router = useRouter();
+
+  useEffect(() => { setCurrent(getCookieLocale()); }, []);
 
   function switchLang(code: string) {
     document.cookie = `NEXT_LOCALE=${code}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
