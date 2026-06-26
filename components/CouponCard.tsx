@@ -72,7 +72,7 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
       <div style={{ padding: "12px 20px 16px", borderTop: "1px dashed #eee" }}>
         {token ? (
           <div>
-            <RevealCode token={token} />
+            <RevealCode token={token} affiliateLink={link} shop={storeName} />
             <a href={link} target="_blank" rel="noopener noreferrer"
               style={{ display: "block", textAlign: "center", marginTop: 8, fontSize: 13, color: "#7C3AED", fontWeight: 600, textDecoration: "none" }}>
               Prejsť do obchodu →

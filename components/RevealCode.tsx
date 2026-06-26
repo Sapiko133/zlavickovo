@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-export default function RevealCode({ token }: { token: string }) {
+interface Props {
+  token: string;
+  affiliateLink?: string;
+  shop?: string;
+}
+
+export default function RevealCode({ token, affiliateLink, shop }: Props) {
   const [code, setCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -18,8 +24,23 @@ export default function RevealCode({ token }: { token: string }) {
         body: JSON.stringify({ token }),
       });
       const data = await res.json();
-      if (data.error) setError(data.error);
-      else setCode(data.code);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setCode(data.code);
+        // Open affiliate link in new tab (cookie tracking)
+        if (affiliateLink && affiliateLink !== "#") {
+          window.open(affiliateLink, "_blank", "noopener,noreferrer");
+        }
+        // Track the click
+        if (shop && data.code) {
+          fetch("/api/track", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: data.code, shop }),
+          }).catch(() => {});
+        }
+      }
     } catch {
       setError("Chyba siete");
     }
@@ -41,6 +62,7 @@ export default function RevealCode({ token }: { token: string }) {
         background: loading ? "#d1d5db" : "linear-gradient(135deg, #7C3AED, #2563EB)",
         color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
         cursor: loading ? "wait" : "pointer", transition: "opacity 0.15s",
+        fontFamily: "inherit",
       }}
     >
       {loading ? "Načítavam..." : "🎁 Zobraziť kód"}
@@ -68,7 +90,7 @@ export default function RevealCode({ token }: { token: string }) {
           padding: "10px 14px", borderRadius: 8,
           background: copied ? "#16a34a" : "#1d1d1f",
           color: "#fff", border: "none", fontWeight: 700, fontSize: 13,
-          cursor: "pointer", whiteSpace: "nowrap",
+          cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit",
         }}
       >
         {copied ? "✓" : "Kopírovať"}

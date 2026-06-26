@@ -57,7 +57,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
                   )}
                 </div>
                 <div style={{ padding: "12px 20px 16px" }}>
-                  <RevealCode token={makeToken(shopName, code.code)} />
+                  <RevealCode token={makeToken(shopName, code.code)} affiliateLink={code.url} shop={shopName} />
                 </div>
               </div>
             ))}
