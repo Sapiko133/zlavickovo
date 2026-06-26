@@ -8,8 +8,14 @@ const TYPE_LABELS: Record<number, string> = {
   1: "Zľava", 2: "Darček", 3: "Výpredaj", 4: "Iné", 5: "Doprava zadarmo",
 };
 
+const SOURCE_BADGES: Record<string, { label: string; bg: string; color: string }> = {
+  dognet: { label: "Overený", bg: "#dcfce7", color: "#16a34a" },
+  affial: { label: "Affial",  bg: "#dbeafe", color: "#1d4ed8" },
+  ai:     { label: "AI",      bg: "#ede9fe", color: "#7C3AED" },
+};
+
 export default function CouponCard({ coupon, token }: { coupon: any; token?: string | null }) {
-  const storeName = coupon.campaign?.name || "Obchod";
+  const storeName = coupon.campaign?.name || coupon.campaign_name || "Obchod";
   const logoColor = COLORS[storeName.charCodeAt(0) % COLORS.length];
   const link = coupon.affiliate_link || coupon.url || "#";
   const expires = coupon.valid_to
@@ -38,8 +44,15 @@ export default function CouponCard({ coupon, token }: { coupon: any; token?: str
           </div>
           {expires && <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>Vyprší: {expires}</div>}
         </div>
-        <div style={{ background: "#fff0f0", color: "#E8001D", fontWeight: 700, fontSize: 11, padding: "4px 10px", borderRadius: 8, flexShrink: 0 }}>
-          {TYPE_LABELS[coupon.type] || "Akcia"}
+        <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+          {coupon.source && SOURCE_BADGES[coupon.source] && (
+            <div style={{ background: SOURCE_BADGES[coupon.source].bg, color: SOURCE_BADGES[coupon.source].color, fontWeight: 700, fontSize: 10, padding: "4px 8px", borderRadius: 8 }}>
+              {SOURCE_BADGES[coupon.source].label}
+            </div>
+          )}
+          <div style={{ background: "#fff0f0", color: "#E8001D", fontWeight: 700, fontSize: 11, padding: "4px 10px", borderRadius: 8 }}>
+            {TYPE_LABELS[coupon.type] || "Akcia"}
+          </div>
         </div>
       </div>
 

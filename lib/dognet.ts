@@ -1,3 +1,5 @@
+import { getAffialCoupons } from "@/lib/affial";
+
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 8875;
 
@@ -44,10 +46,25 @@ export async function getCoupons() {
 }
 
 export async function getCouponsByShop(shopName: string) {
-  const all = await getCoupons();
-  return all.filter((c: any) =>
-    c.campaign?.name?.toLowerCase().includes(shopName.toLowerCase())
+  const [dognetAll, affialAll] = await Promise.all([getCoupons(), getAffialCoupons()]);
+  const lower = shopName.toLowerCase();
+
+  const dognet = dognetAll
+    .filter((c: any) => c.campaign?.name?.toLowerCase().includes(lower))
+    .map((c: any) => ({ ...c, source: "dognet" }));
+
+  const affial = affialAll.filter((c: any) =>
+    c.campaign_name?.toLowerCase().includes(lower)
   );
+
+  const seenCodes = new Set(
+    dognet.map((c: any) => c.code?.toUpperCase()).filter(Boolean)
+  );
+  const uniqueAffial = affial.filter(
+    (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
+  );
+
+  return [...dognet, ...uniqueAffial];
 }
 
 export async function getLatestCoupons(limit = 6) {
