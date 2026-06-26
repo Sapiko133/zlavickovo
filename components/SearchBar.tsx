@@ -7,7 +7,7 @@ const POPULAR_SHOPS = [
   "Sportisimo", "IKEA", "Notino", "Dedoles", "Martinus", "About You",
 ];
 
-type SearchMode = "shop" | "product" | "url";
+type SearchMode = "shop" | "url";
 
 export default function SearchBar() {
   const router = useRouter();
@@ -33,23 +33,19 @@ export default function SearchBar() {
     setSuggestions([]);
     if (mode === "shop") {
       router.push("/kupony/" + q.toLowerCase().replace(/\s+/g, "-"));
-    } else if (mode === "product") {
-      router.push("/hladat?produkt=" + encodeURIComponent(q));
     } else {
       router.push("/hladat?url=" + encodeURIComponent(q));
     }
   };
 
   const modes: { key: SearchMode; label: string }[] = [
-    { key: "shop", label: "Obchod" },
-    { key: "product", label: "Produkt" },
-    { key: "url", label: "URL" },
+    { key: "shop", label: "🏪 Obchod" },
+    { key: "url",  label: "🔗 URL" },
   ];
 
-  const placeholders = {
+  const placeholders: Record<SearchMode, string> = {
     shop: "Napr. Alza, Shein, Zalando...",
-    product: "Napr. iPhone 15, Nike Air Max...",
-    url: "Vlož link produktu...",
+    url:  "Vlož link produktu alebo obchodu...",
   };
 
   return (
