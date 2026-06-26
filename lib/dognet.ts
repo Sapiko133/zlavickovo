@@ -129,17 +129,46 @@ export async function getCashbackShops() {
   }
 }
 
+async function getCouponsForChannel(channelId: number) {
+  try {
+    const t = await getToken();
+    const res = await fetch(`${API_BASE}/coupons/filter`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
+      body: JSON.stringify({
+        ad_channel_id: channelId,
+        from_joined_campaigns: true,
+        filter: [{ validity: { eq: "present" } }],
+        expand: "campaign",
+        "per-page": 500,
+      }),
+    });
+    const data = await res.json();
+    return data.data || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getShops() {
-  const all = await getCoupons();
-  const map = new Map<number, { id: number; name: string; count: number }>();
+  const results = await Promise.allSettled([
+    getCouponsForChannel(8875),
+    getCouponsForChannel(33415),
+  ]);
+
+  const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+
+  // Deduplicate by campaign name (case-insensitive)
+  const map = new Map<string, { id: number; name: string; count: number }>();
   for (const c of all) {
     const campaign = c.campaign;
-    if (!campaign?.id || !campaign?.name) continue;
-    const entry = map.get(campaign.id);
+    if (!campaign?.name) continue;
+    const key = campaign.name.toLowerCase();
+    const entry = map.get(key);
     if (entry) {
       entry.count++;
     } else {
-      map.set(campaign.id, { id: campaign.id, name: campaign.name, count: 1 });
+      map.set(key, { id: campaign.id ?? 0, name: campaign.name, count: 1 });
     }
   }
   return Array.from(map.values()).sort((a, b) => b.count - a.count);

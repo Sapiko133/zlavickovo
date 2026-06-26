@@ -1,6 +1,13 @@
 import { getShops } from "@/lib/dognet";
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 import type { Metadata } from "next";
+
+const FALLBACK_SHOPS = [
+  "Alza","Shein","Zalando","Mall","Notino","Sportisimo",
+  "IKEA","Dedoles","Martinus","About You","Answear","Dr. Max",
+  "Zara","H&M","ASOS","Lidl","Kaufland","Booking.com","GymBeam","Nike",
+].map((name, i) => ({ id: -(i + 1), name, count: 0 }));
 
 export const revalidate = 3600;
 
@@ -22,34 +29,20 @@ function shopSlug(name: string) {
 export default async function ObchodyPage() {
   let shops: { id: number; name: string; count: number }[] = [];
   try {
-    shops = await getShops();
-  } catch (e) {}
+    const fetched = await getShops();
+    shops = fetched.length > 0 ? fetched : FALLBACK_SHOPS;
+  } catch {
+    shops = FALLBACK_SHOPS;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
 
-      {/* Nav */}
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0,0,0,0.08)",
-      }}>
-        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 14, fontWeight: 800,
-          }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: "-0.3px" }}>Zlavickovo</span>
-        </a>
-        <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
-          <a href="/#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
-          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
-          <a href="/" style={{ color: "#555", textDecoration: "none" }}>Domov</a>
-        </div>
-      </nav>
+      <Nav links={[
+        { label: "Obchody", href: "/#obchody" },
+        { label: "Cashback", href: "/cashback" },
+        { label: "← Domov", href: "/" },
+      ]} />
 
       {/* Header */}
       <div style={{
@@ -60,15 +53,14 @@ export default async function ObchodyPage() {
           Všetky obchody
         </h1>
         <p style={{ color: "#666", fontSize: 16, margin: 0 }}>
-          {shops.length > 0 ? `${shops.length} obchodov so zľavovými kódmi` : "Načítavam obchody..."}
+          {shops.length} obchodov so zľavovými kódmi
         </p>
       </div>
 
       {/* Shop grid */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
-        {shops.length > 0 ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
-            {shops.map(shop => {
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+          {shops.map(shop => {
               const color = shopColor(shop.name);
               return (
                 <a
@@ -95,21 +87,18 @@ export default async function ObchodyPage() {
                   <span style={{ fontSize: 13, fontWeight: 500, color: "#444", textAlign: "center", lineHeight: 1.3 }}>
                     {shop.name}
                   </span>
-                  <span style={{
-                    fontSize: 11, color: "#7C3AED", fontWeight: 600,
-                    background: "rgba(124,58,237,0.08)", padding: "2px 8px", borderRadius: 100,
-                  }}>
-                    {shop.count} {shop.count === 1 ? "kód" : shop.count < 5 ? "kódy" : "kódov"}
-                  </span>
+                  {shop.count > 0 && (
+                    <span style={{
+                      fontSize: 11, color: "#7C3AED", fontWeight: 600,
+                      background: "rgba(124,58,237,0.08)", padding: "2px 8px", borderRadius: 100,
+                    }}>
+                      {shop.count} {shop.count === 1 ? "kód" : shop.count < 5 ? "kódy" : "kódov"}
+                    </span>
+                  )}
                 </a>
               );
-            })}
-          </div>
-        ) : (
-          <div style={{ textAlign: "center", padding: "64px 24px", color: "#aaa", fontSize: 15 }}>
-            Nepodarilo sa načítať obchody. Skúste to neskôr.
-          </div>
-        )}
+          })}
+        </div>
       </div>
 
       <Footer />
