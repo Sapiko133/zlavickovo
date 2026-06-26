@@ -30,9 +30,16 @@ function Placeholder({ width, height, label }: { width: number; height: number; 
 }
 
 export default function AdBanner({ slot, shopName }: { slot: Slot; shopName?: string }) {
-  const { width, height, label } = SIZES[slot];
   const adsenseEnabled = process.env.NEXT_PUBLIC_ADSENSE_ENABLED === "true";
   const [banner, setBanner] = useState<DognetBanner | null | undefined>(undefined);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
+
+  const effectiveSlot: Slot = isMobile && slot === "header" ? "between-coupons" : slot;
+  const { width, height, label } = SIZES[effectiveSlot];
 
   useEffect(() => {
     if (adsenseEnabled) return;

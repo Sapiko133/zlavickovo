@@ -6,6 +6,7 @@ import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -152,24 +153,12 @@ export default async function ShopPage({ params }: Props) {
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#fff", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Nav */}
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0,0,0,0.08)",
-      }}>
-        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #7C3AED, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800 }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo</span>
-        </a>
-        <div style={{ display: "flex", gap: 20, fontSize: 13 }}>
-          <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
-          <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
-          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
-          <a href="/" style={{ color: "#7C3AED", textDecoration: "none" }}>← Domov</a>
-        </div>
-      </nav>
+      <Nav links={[
+        { label: "Obchody", href: "/obchody" },
+        { label: "Letáky", href: "/letaky" },
+        { label: "Cashback", href: "/cashback" },
+        { label: "← Domov", href: "/" },
+      ]} />
 
       {/* Breadcrumb */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "#aaa" }}>
@@ -181,7 +170,7 @@ export default async function ShopPage({ params }: Props) {
       </div>
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
+      <div className="shop-header" style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
         <div style={{ width: 64, height: 64, borderRadius: 16, margin: "0 auto 20px", background: logoColor, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 28, fontWeight: 800 }}>
           {capitalized.charAt(0)}
         </div>
@@ -205,9 +194,20 @@ export default async function ShopPage({ params }: Props) {
         )}
       </div>
 
-      <style>{`@media(max-width:768px){.shop-cols{flex-direction:column!important}.shop-sidebar{display:none!important}.shop-sidebar-mobile{display:block!important}}`}</style>
+      <style>{`
+        @media(max-width:768px){
+          .shop-cols{flex-direction:column!important}
+          .shop-sidebar{display:none!important}
+          .shop-sidebar-mobile{display:block!important}
+          .coupon-grid{grid-template-columns:1fr!important}
+          .related-grid{grid-template-columns:repeat(2,1fr)!important}
+          .shop-main-pad{padding:24px 16px!important}
+          .shop-header{padding:32px 16px 28px!important}
+          .shop-header h1{font-size:22px!important;letter-spacing:-0.5px!important}
+        }
+      `}</style>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
+      <div className="shop-main-pad" style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 24px" }}>
         <div style={{ marginBottom: 40, display: "flex", justifyContent: "center" }}>
           <AdBanner slot="header" shopName={capitalized} />
         </div>
@@ -221,7 +221,7 @@ export default async function ShopPage({ params }: Props) {
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px" }}>
               🏷️ Zľavové kódy ({codeCoupons.length})
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+            <div className="coupon-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
               {codeCoupons.map((coupon: any) => {
                 const token = Buffer.from(`${capitalized}:${coupon.code}`).toString("base64");
                 const { code: _s, ...couponData } = coupon;
@@ -237,7 +237,7 @@ export default async function ShopPage({ params }: Props) {
             <h2 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px" }}>
               🔥 Aktuálne akcie ({dealCoupons.length})
             </h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
+            <div className="coupon-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 16 }}>
               {dealCoupons.map((coupon: any) => {
                 const { code: _s, ...couponData } = coupon;
                 return <CouponCard key={coupon.id} coupon={couponData} token={null} />;
@@ -302,7 +302,7 @@ export default async function ShopPage({ params }: Props) {
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 20px", letterSpacing: "-0.3px" }}>
             Súvisiace obchody
           </h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          <div className="related-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
             {relatedSlugs.map(s => {
               const n = s.replace(/-/g, " ");
               const name = n.charAt(0).toUpperCase() + n.slice(1);

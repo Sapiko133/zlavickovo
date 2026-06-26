@@ -3,10 +3,10 @@ import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 import { getCouponsFeed, getSalesCoupons, getLatestSales } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
-import ThemeToggle from "@/components/ThemeToggle";
 
 export const revalidate = 3600;
 
@@ -78,37 +78,30 @@ export default async function Home() {
           "query-input": "required name=search_term_string",
         },
       }) }} />
-      <style>{`.hide-scroll::-webkit-scrollbar{display:none}`}</style>
+      <style>{`
+        .hide-scroll::-webkit-scrollbar{display:none}
+        @media(max-width:768px){
+          .home-hero{padding:60px 16px 48px!important}
+          .home-hero h1{font-size:clamp(28px,8vw,36px)!important;letter-spacing:-1px!important}
+          .home-hero p{font-size:15px!important}
+          .featured-grid{grid-template-columns:1fr!important}
+          .shops-grid{grid-template-columns:repeat(2,1fr)!important}
+          .letaky-grid{grid-template-columns:repeat(2,1fr)!important}
+          .section-pad{padding-left:16px!important;padding-right:16px!important}
+        }
+      `}</style>
 
-      {/* Nav */}
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0,0,0,0.08)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: 8,
-            background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontSize: 14, fontWeight: 800,
-          }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: "-0.3px" }}>Zlavickovo</span>
-        </div>
-        <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
-          <a href="#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
-          <a href="#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
-          <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
-          <a href="/cashback" style={{ color: "#555", textDecoration: "none" }}>Cashback</a>
-          <a href="/blog" style={{ color: "#555", textDecoration: "none" }}>Blog</a>
-          <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Všetky obchody</a>
-          <ThemeToggle />
-        </div>
-      </nav>
+      <Nav links={[
+        { label: "Obchody", href: "#obchody" },
+        { label: "Zľavy", href: "#zlavy" },
+        { label: "Letáky", href: "/letaky" },
+        { label: "Cashback", href: "/cashback" },
+        { label: "Blog", href: "/blog" },
+        { label: "Všetky obchody", href: "/obchody" },
+      ]} />
 
       {/* Hero */}
-      <div style={{
+      <div className="home-hero" style={{
         textAlign: "center", padding: "100px 24px 80px",
         background: "linear-gradient(180deg, #f5f3ff 0%, #eff6ff 50%, #fff 100%)",
         position: "relative", overflow: "hidden",
@@ -163,7 +156,7 @@ export default async function Home() {
       {/* Featured obchody */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
         <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 24px" }}>Odporúčané obchody</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
+        <div className="featured-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: 16 }}>
           {featured.map(shop => (
             <a
               key={shop.name}
@@ -211,7 +204,7 @@ export default async function Home() {
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Populárne obchody</h2>
           <a href="/obchody" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Zobraziť všetky →</a>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
+        <div className="shops-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: 12 }}>
           {regular.map(shop => (
             <a
               key={shop.name}
@@ -324,7 +317,7 @@ export default async function Home() {
           <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Aktuálne letáky</h2>
           <a href="/letaky" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Zobraziť všetky letáky →</a>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+        <div className="letaky-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
           {LETAKY.filter(l => ["lidl","kaufland","tesco","billa"].includes(l.slug)).map(letak => {
             const expiry = getExpiryDate(letak.newDayOfWeek);
             const soon = isExpiringSoon(expiry);
