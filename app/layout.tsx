@@ -1,21 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
-import { NextIntlClientProvider } from "next-intl";
 import { cookies } from "next/headers";
 import OneSignalInit from "@/components/OneSignalInit";
 import InstallBanner from "@/components/InstallBanner";
-import skMessages from "@/messages/sk.json";
-import csMessages from "@/messages/cs.json";
-import enMessages from "@/messages/en.json";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-const MESSAGES = { sk: skMessages, cs: csMessages, en: enMessages } as const;
-type Locale = keyof typeof MESSAGES;
-const SUPPORTED: Locale[] = ["sk", "cs", "en"];
+const SUPPORTED = ["sk", "cs", "en"] as const;
+type Locale = typeof SUPPORTED[number];
 
 export const viewport: Viewport = { themeColor: "#7C3AED" };
 
@@ -44,8 +39,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sk";
-  const locale: Locale = SUPPORTED.includes(raw as Locale) ? (raw as Locale) : "sk";
-  const messages = MESSAGES[locale];
+  const locale: Locale = (SUPPORTED as readonly string[]).includes(raw) ? (raw as Locale) : "sk";
 
   return (
     <html
@@ -55,11 +49,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <NextIntlClientProvider locale={locale} messages={messages}>
-            <OneSignalInit />
-            <InstallBanner />
-            {children}
-          </NextIntlClientProvider>
+          <OneSignalInit />
+          <InstallBanner />
+          {children}
         </ThemeProvider>
       </body>
     </html>
