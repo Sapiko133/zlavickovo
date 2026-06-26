@@ -2,6 +2,7 @@ import SearchBar from "@/components/SearchBar";
 import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
 import { getCouponsFeed, getSalesCoupons } from "@/lib/dognet";
+import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 
 export const revalidate = 3600;
 
@@ -92,6 +93,7 @@ export default async function Home() {
         <div style={{ display: "flex", gap: 28, fontSize: 13, color: "#555" }}>
           <a href="#obchody" style={{ color: "#555", textDecoration: "none" }}>Obchody</a>
           <a href="#zlavy" style={{ color: "#555", textDecoration: "none" }}>Zľavy</a>
+          <a href="/letaky" style={{ color: "#555", textDecoration: "none" }}>Letáky</a>
           <a href="/obchody" style={{ color: "#555", textDecoration: "none" }}>Všetky obchody</a>
         </div>
       </nav>
@@ -254,6 +256,32 @@ export default async function Home() {
       {/* Ad banner – between coupons */}
       <div style={{ padding: "40px 24px 0", display: "flex", justifyContent: "center" }}>
         <AdBanner slot="between-coupons" />
+      </div>
+
+      {/* Letáky preview */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "64px 24px 0" }}>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 24 }}>
+          <h2 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.5px", margin: 0 }}>Aktuálne letáky</h2>
+          <a href="/letaky" style={{ fontSize: 13, color: "#7C3AED", textDecoration: "none" }}>Zobraziť všetky letáky →</a>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+          {LETAKY.filter(l => ["lidl","kaufland","tesco","billa"].includes(l.slug)).map(letak => {
+            const expiry = getExpiryDate(letak.newDayOfWeek);
+            const soon = isExpiringSoon(expiry);
+            return (
+              <a key={letak.slug} href={`/letaky/${letak.slug}`} style={{ display: "block", textDecoration: "none", background: "#fff", border: "1px solid #f0f0f0", borderRadius: 14, padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 10, background: letak.color, display: "flex", alignItems: "center", justifyContent: "center", color: letak.color === "#FFCC00" ? "#333" : "#fff", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
+                    {letak.letter}
+                  </div>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f" }}>{letak.name}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "#aaa", marginBottom: 4 }}>Platný do {formatDate(expiry)}</div>
+                {soon && <div style={{ fontSize: 11, color: "#dc2626", fontWeight: 600 }}>⚠ Expiruje čoskoro!</div>}
+              </a>
+            );
+          })}
+        </div>
       </div>
 
       {/* Najväčšie akcie */}
