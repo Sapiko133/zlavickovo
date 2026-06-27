@@ -37,6 +37,10 @@ export default async function ObchodyPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <style>{`
+        .shop-card { transition: border-color 0.15s, box-shadow 0.15s; }
+        .shop-card:hover { border-color: #22C55E !important; box-shadow: 0 4px 16px rgba(34,197,94,0.12) !important; }
+      `}</style>
       <Nav />
 
       {/* Header */}
@@ -58,16 +62,14 @@ export default async function ObchodyPage() {
               <a
                 key={shop.id}
                 href={`/kupony/${shopSlug(shop.name)}`}
+                className="shop-card"
                 style={{
                   display: "flex", flexDirection: "column", alignItems: "center",
                   gap: 12, padding: "24px 16px", borderRadius: 16,
                   background: "#fff", border: "1px solid #e5e7eb",
                   textDecoration: "none", color: "#1d1d1f",
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                  transition: "border-color 0.15s, box-shadow 0.15s",
                 }}
-                onMouseEnter={(e: any) => { e.currentTarget.style.borderColor = "#22C55E"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(34,197,94,0.12)"; }}
-                onMouseLeave={(e: any) => { e.currentTarget.style.borderColor = "#e5e7eb"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)"; }}
               >
                 <div style={{
                   width: 48, height: 48, borderRadius: 12,

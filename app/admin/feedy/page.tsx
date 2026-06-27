@@ -185,7 +185,7 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
                         <a href={`/api/cron/import-feeds?id=${f.id}`} style={{ padding: "4px 10px", borderRadius: 6, background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#16A34A", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>▶ Import</a>
                         <form action={deleteFeed} style={{ display: "inline" }}>
                           <input type="hidden" name="id" value={f.id} />
-                          <button type="submit" onClick={() => {}} style={{ padding: "4px 10px", borderRadius: 6, background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑 Vymazať</button>
+                          <button type="submit" style={{ padding: "4px 10px", borderRadius: 6, background: "#FEF2F2", border: "1px solid #FCA5A5", color: "#DC2626", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑 Vymazať</button>
                         </form>
                       </div>
                     </td>

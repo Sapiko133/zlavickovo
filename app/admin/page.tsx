@@ -52,6 +52,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
+      <style>{`
+        .admin-card { transition: border-color 0.15s, box-shadow 0.15s; }
+        .admin-card:hover { border-color: #22C55E !important; box-shadow: 0 4px 16px rgba(34,197,94,0.12) !important; }
+      `}</style>
       <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 32px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 28, height: 28, borderRadius: 7, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900 }}>Z</div>
         <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo Admin</span>
@@ -63,9 +67,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 24px" }}>Dashboard</h1>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(240px,1fr))", gap: 14 }}>
           {SECTIONS.map(s => (
-            <a key={s.href} href={s.href} style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "20px", background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8", textDecoration: "none", boxShadow: "0 1px 4px rgba(0,0,0,0.04)", transition: "border-color 0.15s, box-shadow 0.15s" }}
-              onMouseEnter={(e: any) => { e.currentTarget.style.borderColor="#22C55E"; e.currentTarget.style.boxShadow="0 4px 16px rgba(34,197,94,0.12)"; }}
-              onMouseLeave={(e: any) => { e.currentTarget.style.borderColor="#e8e8e8"; e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,0.04)"; }}
+            <a key={s.href} href={s.href} className="admin-card" style={{ display: "flex", gap: 14, alignItems: "flex-start", padding: "20px", background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8", textDecoration: "none", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}
             >
               <span style={{ fontSize: 28, flexShrink: 0 }}>{s.icon}</span>
               <div>

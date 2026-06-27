@@ -45,7 +45,7 @@ export default async function AdminKuponyPage({ searchParams }: { searchParams: 
 
         {/* Filters */}
         <form style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-          <select name="source" defaultValue={sourceFilter} onChange={(e: any) => { const u = new URL(window.location.href); u.searchParams.set("source", e.target.value); window.location.href = u.toString(); }}
+          <select name="source" defaultValue={sourceFilter}
             style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8e8", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
             <option value="all">Všetky zdroje</option>
             <option value="dognet">Dognet</option>

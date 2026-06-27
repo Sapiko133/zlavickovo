@@ -37,6 +37,10 @@ export default async function CashbackPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <style>{`
+        .cashback-btn { transition: background 0.15s; }
+        .cashback-btn:hover { background: #16A34A !important; }
+      `}</style>
       <Nav />
 
       {/* Hero */}
@@ -107,13 +111,12 @@ export default async function CashbackPage() {
                 </div>
                 <div style={{ padding: "14px 20px" }}>
                   <a href={shop.affiliate_link} target="_blank" rel="nofollow noopener noreferrer"
+                    className="cashback-btn"
                     style={{
                       display: "block", padding: "11px 14px", borderRadius: 10, textAlign: "center",
                       background: "#22C55E", color: "#fff",
                       fontWeight: 700, fontSize: 14, textDecoration: "none",
                     }}
-                    onMouseEnter={(e: any) => (e.currentTarget.style.background = "#16A34A")}
-                    onMouseLeave={(e: any) => (e.currentTarget.style.background = "#22C55E")}
                   >
                     Nakúpiť s cashbackom →
                   </a>
