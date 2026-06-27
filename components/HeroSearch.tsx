@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
+import SearchBar from "@/components/SearchBar";
 
 const POPULAR = [
   "iPhone 16", "PlayStation 5", "Nike tenisky",
@@ -42,32 +43,8 @@ export default function HeroSearch() {
           {t("subtitle")}
         </p>
 
-        {/* Search bar */}
-        <div style={{ display:"flex", maxWidth:620, margin:"0 auto", borderRadius:14, overflow:"hidden", boxShadow:"0 4px 24px rgba(34,197,94,0.18), 0 2px 8px rgba(0,0,0,0.06)", border:"2px solid #22C55E" }}>
-          <input
-            type="text"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && go()}
-            placeholder={t("placeholder")}
-            style={{
-              flex:1, padding:"16px 20px", border:"none", background:"#fff",
-              color:"#1d1d1f", fontSize:15, outline:"none", fontFamily:"inherit",
-            }}
-          />
-          <button
-            onClick={() => go()}
-            style={{
-              padding:"16px 28px", border:"none", background:"#22C55E",
-              color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer",
-              fontFamily:"inherit", flexShrink:0, whiteSpace:"nowrap",
-            }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
-            onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
-          >
-            🔍 {t("search_btn")}
-          </button>
-        </div>
+        {/* Search bar with autocomplete */}
+        <SearchBar />
 
         {/* Popular searches */}
         <div style={{ marginTop:20, display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
