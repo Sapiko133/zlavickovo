@@ -1,5 +1,4 @@
-// CJ (Commission Junction) — TODO: requires CJ_API_KEY
-// process.env.CJ_API_KEY
+import { importAndCacheCjCoupons } from "@/lib/cj";
 
 export interface CjProduct {
   name: string;
@@ -14,7 +13,8 @@ export interface CjProduct {
 }
 
 export async function importCjFeeds(): Promise<{ count: number; feeds: number }> {
-  return { count: 0, feeds: 0 };
+  const count = await importAndCacheCjCoupons();
+  return { count, feeds: count > 0 ? 1 : 0 };
 }
 
 export async function searchCjProducts(_query: string): Promise<CjProduct[]> {

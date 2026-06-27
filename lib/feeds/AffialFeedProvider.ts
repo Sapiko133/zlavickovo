@@ -25,6 +25,7 @@ const AFFILIATE_LINKS: Record<string, string> = {
   "togga.cz": "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=6c0959fa",
   "blendea.sk": "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=845b3845",
   "blendea.cz": "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=845b3845",
+  "tpmove.sk": "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=588d5af3",
   "superstrava.sk": "https://www.superstrava.sk/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=02bd6c6c",
   "altevita.sk": "https://altevita.sk/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=8bbcdb52",
   "arno-obuv.sk": "https://www.arno-obuv.sk/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=e6456574",
@@ -33,9 +34,10 @@ const AFFILIATE_LINKS: Record<string, string> = {
 export const FEEDS = [
   // zdravie
   { url: "https://greenmedical.venalio.com/feeds/heureka?websiteLanguageId=1&secretKey=gfcqk793m9iifpodwnssfh9s7sdnfqryy2zshrfw", domain: "namaximum.sk", category: "zdravie" },
-  { url: "https://www.superstrava.sk/heureka/export/products.xml", domain: "superstrava.sk", category: "zdravie" },
+  { url: "https://www.superstrava.sk/fotky45423/xml/heureka_sk.xml", domain: "superstrava.sk", category: "zdravie" },
   { url: "https://www.altevita.sk/heureka/export/products.xml", domain: "altevita.sk", category: "zdravie" },
-  { url: "https://powerlogy.com/wp-content/uploads/wpallexport/exports/55f587f59fd8330d834ce3dc733b6c31/current-CRON-heureka-xml-feed.xml", domain: "powerlogy.com", category: "zdravie" },
+  { url: "https://powerlogy.com/wp-content/uploads/wpallexport/exports/df3bd20ee04ad4a7874c46ee151b165f/current-CRON-heureka-xml-feed.xml", domain: "powerlogy.com", category: "zdravie" },
+  { url: "https://powerlogy.cz/wp-load.php?security_token=a271c6704cd333f5&export_id=70&action=get_data", domain: "powerlogy.cz", category: "zdravie" },
   { url: "https://www.bionutrian.com/wp-content/uploads/xml/heureka_1.xml", domain: "bionutrian.com", category: "zdravie" },
   { url: "https://www.ajala.cz/heureka/export/products.xml", domain: "ajala.cz", category: "zdravie" },
   { url: "https://www.neurinu.cz/wp-content/uploads/xml/heureka_1.xml", domain: "neurinu.cz", category: "zdravie" },
@@ -44,6 +46,10 @@ export const FEEDS = [
   { url: "https://www.blendea.cz/google/export/products.xml?hash=GtthfasBtRIRsl8yiPRuCn8A", domain: "blendea.cz", category: "zdravie" },
   { url: "https://www.chiashake.sk/feed-heureka-2lkmu0rfo9.xml", domain: "chiashake.sk", category: "zdravie" },
   { url: "https://www.mixslim.sk/feed-heureka-2lkmu0rfo9.xml", domain: "mixslim.sk", category: "zdravie" },
+  { url: "https://feeds.mergado.com/keto-diet-heureka-cz-produktovy-cz-47f58d127336cb5493e7cbc69720048c.xml", domain: "ketodiet.cz", category: "zdravie" },
+  { url: "http://www.herbatica.sk/heureka/export/products.xml", domain: "herbatica.sk", category: "zdravie" },
+  { url: "https://feeds.mergado.com/herbatica-sk-google-nakupy-cz-ea521b74e2065367272427942589bec2.xml", domain: "herbatica.cz", category: "zdravie" },
+  { url: "https://www.tpmove.sk/universal.xml", domain: "tpmove.sk", category: "sport" },
   // krása
   { url: "https://www.kosmetikomat.sk/google.xml?hash=M2iNmNTwx981bVRSOfCjF5uo", domain: "kosmetikomat.sk", category: "krasa" },
   { url: "https://www.kosmetikomat.cz/heureka/export/products.xml", domain: "kosmetikomat.cz", category: "krasa" },
@@ -75,6 +81,7 @@ export const FEEDS = [
   { url: "https://www.happylu.cz/heureka/export/products.xml", domain: "happylu.cz", category: "ine" },
   { url: "https://drinkcentrum.sk/heureka_sk.xml", domain: "drinkcentrum.sk", category: "ine" },
   { url: "https://auto123.sk/media/feeds/heureka.xml", domain: "auto123.sk", category: "ine" },
+  { url: "https://www.mebik.sk/wp-load.php?security_key=5035fa7ff7ce79a0&export_id=15&action=get_data", domain: "mebik.sk", category: "ine" },
 ];
 
 const parser = new XMLParser({
