@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getCoupons } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
+import { getEhubCoupons } from "@/lib/ehub";
 
 const SESSION_COOKIE = "admin_session";
 
@@ -26,12 +27,15 @@ export default async function AdminKuponyPage({ searchParams }: { searchParams: 
 
   let dognetCoupons: any[] = [];
   let affialCoupons: any[] = [];
+  let ehubCoupons: any[] = [];
   try { dognetCoupons = await getCoupons(); } catch {}
   try { affialCoupons = await getAffialCoupons(); } catch {}
+  try { ehubCoupons = await getEhubCoupons(); } catch {}
 
   const allCoupons = [
     ...dognetCoupons.map((c: any) => ({ ...c, _source: "Dognet" })),
     ...affialCoupons.map((c: any) => ({ ...c, _source: "Affial" })),
+    ...ehubCoupons.map((c: any) => ({ ...c, _source: "eHub" })),
   ];
 
   const filtered = allCoupons
@@ -50,6 +54,7 @@ export default async function AdminKuponyPage({ searchParams }: { searchParams: 
             <option value="all">Všetky zdroje</option>
             <option value="dognet">Dognet</option>
             <option value="affial">Affial</option>
+            <option value="ehub">eHub</option>
           </select>
           <input name="shop" defaultValue={sp.shop || ""} placeholder="Filter obchod..." style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #e8e8e8", fontSize: 13, fontFamily: "inherit", minWidth: 180 }} />
           <button type="submit" style={{ padding: "8px 16px", borderRadius: 8, border: "none", background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
@@ -58,7 +63,7 @@ export default async function AdminKuponyPage({ searchParams }: { searchParams: 
         </form>
 
         <div style={{ marginBottom: 12, fontSize: 13, color: "#666" }}>
-          Celkom: <strong>{filtered.length}</strong> kupónov (Dognet: {dognetCoupons.length}, Affial: {affialCoupons.length})
+          Celkom: <strong>{filtered.length}</strong> kupónov (Dognet: {dognetCoupons.length}, Affial: {affialCoupons.length}, eHub: {ehubCoupons.length})
         </div>
 
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e8e8e8", overflow: "hidden" }}>
@@ -83,7 +88,11 @@ export default async function AdminKuponyPage({ searchParams }: { searchParams: 
                     ) : <span style={{ color: "#aaa" }}>—</span>}
                   </td>
                   <td style={{ padding: "10px 16px" }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 100, background: c._source === "Dognet" ? "#dbeafe" : "#f0fdf4", color: c._source === "Dognet" ? "#1d4ed8" : "#16a34a" }}>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 100,
+                      background: c._source === "Dognet" ? "#dbeafe" : c._source === "eHub" ? "#fff3e0" : "#f0fdf4",
+                      color: c._source === "Dognet" ? "#1d4ed8" : c._source === "eHub" ? "#FF6B35" : "#16a34a",
+                    }}>
                       {c._source}
                     </span>
                   </td>

@@ -1,5 +1,6 @@
 import { getCoupons, getCashbackShops } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
+import { getEhubCoupons } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
 import { createHash } from "crypto";
@@ -55,13 +56,13 @@ export async function POST(req: Request) {
     letaky: [],
   };
 
-  // Kupóny (Dognet + Affial)
+  // Kupóny (Dognet + Affial + eHub)
   try {
-    const [dognetAll, affialAll] = await Promise.all([getCoupons(), getAffialCoupons()]);
+    const [dognetAll, affialAll, ehubAll] = await Promise.all([getCoupons(), getAffialCoupons(), getEhubCoupons()]);
     const relevantShops = getRelevantShops(query);
     const qLow = query.toLowerCase();
 
-    result.coupons = [...dognetAll, ...affialAll].filter((c: any) => {
+    result.coupons = [...dognetAll, ...affialAll, ...ehubAll].filter((c: any) => {
       const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
       const title = (c.title || c.name || "").toLowerCase();
       return (
