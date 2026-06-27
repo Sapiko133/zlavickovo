@@ -9,11 +9,14 @@ export interface FeedProduct {
   affiliateLink: string;
   imageUrl?: string;
   category: string;
-  source: "awin" | "dognet" | "cj";
+  source: "affial" | "awin" | "dognet" | "cj";
 }
 
 export interface FeedProvider {
-  name: "awin" | "dognet" | "cj";
+  name: "affial" | "awin" | "dognet" | "cj";
+  isActive?: boolean;
+  feedUrl?: string;
+  format?: "xml" | "csv" | "json";
   search(query: string): Promise<FeedProduct[]>;
   import(): Promise<void>;
   update(): Promise<void>;

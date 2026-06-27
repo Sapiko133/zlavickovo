@@ -1,4 +1,5 @@
 import { getShops } from "@/lib/dognet";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import type { Metadata } from "next";
@@ -91,6 +92,55 @@ export default async function ObchodyPage() {
                     {shop.count} {shop.count === 1 ? "kód" : shop.count < 5 ? "kódy" : "kódov"}
                   </span>
                 )}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Affial partnerské obchody */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px" }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px", color: "#1d1d1f" }}>
+          Partnerské obchody s cashbackom
+        </h2>
+        <p style={{ fontSize: 14, color: "#888", margin: "0 0 24px" }}>
+          Nakupuj cez affiliate linky a získaj cashback priamo od predajcu.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
+          {AFFIAL_SHOPS.map((shop) => {
+            const color = shopColor(shop.name);
+            const slug = shop.domain.replace(".", "-");
+            return (
+              <a
+                key={shop.domain}
+                href={`/kupony/${slug}`}
+                className="shop-card"
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 10, padding: "20px 14px", borderRadius: 16,
+                  background: "#fff", border: "1px solid #e5e7eb",
+                  textDecoration: "none", color: "#1d1d1f",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <div style={{
+                  width: 48, height: 48, borderRadius: 12,
+                  background: color,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "#fff", fontWeight: 800, fontSize: 20,
+                  boxShadow: `0 4px 12px ${color}44`,
+                }}>
+                  {shop.name.charAt(0).toUpperCase()}
+                </div>
+                <span style={{ fontSize: 13, fontWeight: 500, color: "#444", textAlign: "center", lineHeight: 1.3 }}>
+                  {shop.name}
+                </span>
+                <span style={{
+                  fontSize: 11, color: "#16A34A", fontWeight: 700,
+                  background: "#F0FDF4", padding: "2px 8px", borderRadius: 100,
+                }}>
+                  💰 {shop.commission}
+                </span>
               </a>
             );
           })}

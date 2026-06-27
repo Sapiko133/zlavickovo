@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
+import { findAffialShop } from "@/lib/affial-shops";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
@@ -92,6 +93,8 @@ export default async function ShopPage({ params }: Props) {
   const relatedSlugs = getRelatedShops(baseSlug);
   const logoColor = COLORS[capitalized.charCodeAt(0) % COLORS.length];
 
+  const affialShop = findAffialShop(slug);
+
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
 
@@ -168,6 +171,11 @@ export default async function ShopPage({ params }: Props) {
                 <span style={{ fontSize: 12, background: "#f1f5f9", color: "#475569", fontWeight: 600, padding: "4px 12px", borderRadius: 20 }}>
                   Aktualizované: {month} {year}
                 </span>
+                {affialShop && (
+                  <span style={{ fontSize: 12, background: "#fef9c3", color: "#854d0e", fontWeight: 700, padding: "4px 12px", borderRadius: 20 }}>
+                    💰 Cashback {affialShop.commission}
+                  </span>
+                )}
                 {isCz && (
                   <span style={{ fontSize: 12, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600, padding: "4px 12px", borderRadius: 20 }}>CZ</span>
                 )}
@@ -242,6 +250,25 @@ export default async function ShopPage({ params }: Props) {
 
           {/* Sidebar – desktop */}
           <div className="shop-sidebar" style={{ width: 272, flexShrink: 0, position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 16 }}>
+            {affialShop && (
+              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #22C55E", padding: "20px", boxShadow: "0 2px 12px rgba(34,197,94,0.10)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
+                  Partnerský obchod
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f", marginBottom: 4 }}>{affialShop.name}</div>
+                <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, marginBottom: 14 }}>
+                  💰 Cashback {affialShop.commission}
+                </div>
+                <a
+                  href={affialShop.affiliateUrl}
+                  target="_blank"
+                  rel="nofollow noopener noreferrer"
+                  style={{ display: "block", padding: "11px 14px", borderRadius: 10, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center" }}
+                >
+                  Prejsť do obchodu ↗
+                </a>
+              </div>
+            )}
             <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
               <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
             </div>
