@@ -63,6 +63,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
           strategy="lazyOnload"
         />
+        <Script
+          async
+          src="https://cse.google.com/cse.js?cx=5195c8422613748fc"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

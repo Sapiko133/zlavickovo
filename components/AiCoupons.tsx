@@ -1,5 +1,6 @@
 import { getAiCoupons } from "@/lib/ai-search";
 import RevealCode from "@/components/RevealCode";
+import GoogleSearch from "@/components/GoogleSearch";
 
 function makeToken(shopName: string, code: string) {
   return Buffer.from(`${shopName}:${code}`).toString("base64");
@@ -15,19 +16,9 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
     apiError = true;
   }
 
-  if (apiError) return null;
+  if (apiError) return <GoogleSearch />;
 
-  if (codes.length === 0) return (
-    <div style={{ textAlign: "center", padding: "40px 24px" }}>
-      <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-      <div style={{ fontSize: 16, fontWeight: 600, color: "#333", marginBottom: 6 }}>
-        Nenašli sa kódy pre {shopName}
-      </div>
-      <div style={{ fontSize: 13, color: "#aaa" }}>
-        Tento obchod momentálne nemá dostupné promo kódy.
-      </div>
-    </div>
-  );
+  if (codes.length === 0) return <GoogleSearch />;
 
   const promoCodes = codes.filter(c => c.type === "promo_code" || (c.code && c.code !== "AKCIA"));
   const deals = codes.filter(c => c.type === "deal" || c.code === "AKCIA");
@@ -102,6 +93,8 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
           </div>
         </div>
       )}
+
+      <GoogleSearch />
     </div>
   );
 }
