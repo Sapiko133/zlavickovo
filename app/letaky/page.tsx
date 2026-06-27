@@ -58,14 +58,14 @@ function LetatCard({ letak }: { letak: typeof LETAKY[0] }) {
         <div style={{ fontSize: 12, color: "#666" }}>Aktualizácia: {letak.updateText}</div>
       </div>
       <div style={{ padding: "14px 20px", display: "flex", gap: 8 }}>
-        <a href={`/letaky/${letak.slug}`} style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1.5px solid #e5e7eb", fontSize: 13, fontWeight: 600, color: "#666", textAlign: "center", textDecoration: "none" }}>
+        <a href={`/letaky/${letak.slug}`} style={{ flex: 1, padding: "10px", minHeight: 44, borderRadius: 9, border: "1.5px solid #e5e7eb", fontSize: 13, fontWeight: 600, color: "#666", textAlign: "center", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}>
           Info
         </a>
         <a
           href={letak.url}
           target="_blank"
           rel="nofollow noopener noreferrer"
-          style={{ flex: 2, padding: "10px", borderRadius: 9, background: "#22C55E", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center", textDecoration: "none" }}
+          style={{ flex: 2, padding: "10px", minHeight: 44, borderRadius: 9, background: "#22C55E", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center", textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           Zobraziť leták →
         </a>
@@ -89,6 +89,7 @@ function SectionHeader({ emoji, title, subtitle }: { emoji: string; title: strin
 export default function LetakyPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <style>{`@media(max-width:600px){ .letaky-main-grid { grid-template-columns: repeat(2,1fr) !important; gap: 10px !important; } }`}</style>
       <Nav />
 
       {/* Header */}
@@ -107,14 +108,14 @@ export default function LetakyPage() {
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
         <div style={{ marginBottom: 56 }}>
           <SectionHeader emoji="🇸🇰" title="Slovensko — Potraviny & Reťazce" subtitle="Lidl, Kaufland, Tesco, Billa, COOP Jednota a ďalšie" />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          <div className="letaky-main-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
             {SK.map(l => <LetatCard key={l.slug} letak={l} />)}
           </div>
         </div>
 
         <div>
           <SectionHeader emoji="🇨🇿" title="Česko — Potraviny & Reťazce" subtitle="Penny, Albert, Globus a ďalšie" />
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          <div className="letaky-main-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
             {CZ.map(l => <LetatCard key={l.slug} letak={l} />)}
           </div>
         </div>

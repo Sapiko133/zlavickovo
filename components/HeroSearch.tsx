@@ -47,8 +47,20 @@ export default function HeroSearch() {
         <SearchBar />
 
         {/* Popular searches */}
-        <div style={{ marginTop:20, display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
-          <span style={{ fontSize:13, color:"#888", marginRight:4 }}>{t("popular_label")}</span>
+        <style>{`
+          .popular-scroll { scrollbar-width: none; }
+          .popular-scroll::-webkit-scrollbar { display: none; }
+          @media(max-width: 640px) {
+            .popular-scroll {
+              flex-wrap: nowrap !important;
+              overflow-x: auto !important;
+              justify-content: flex-start !important;
+              padding-bottom: 4px !important;
+            }
+          }
+        `}</style>
+        <div className="popular-scroll" style={{ marginTop:20, display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
+          <span style={{ fontSize:13, color:"#888", marginRight:4, flexShrink:0 }}>{t("popular_label")}</span>
           {POPULAR.map(p => (
             <button
               key={p}
@@ -57,6 +69,7 @@ export default function HeroSearch() {
                 padding:"5px 12px", borderRadius:100, border:"1px solid #BBF7D0",
                 background:"rgba(255,255,255,0.8)", color:"#16A34A",
                 fontSize:13, fontWeight:500, cursor:"pointer", fontFamily:"inherit",
+                flexShrink:0, whiteSpace:"nowrap",
               }}
               onMouseEnter={e => { e.currentTarget.style.background="#22C55E"; e.currentTarget.style.color="#fff"; e.currentTarget.style.borderColor="#22C55E"; }}
               onMouseLeave={e => { e.currentTarget.style.background="rgba(255,255,255,0.8)"; e.currentTarget.style.color="#16A34A"; e.currentTarget.style.borderColor="#BBF7D0"; }}

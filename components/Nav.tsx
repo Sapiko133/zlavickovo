@@ -7,15 +7,15 @@ import { useRouter } from "next/navigation";
 
 const CAT_LIST = [
   { slug: "elektronika", label: "Elektronika", emoji: "💻" },
-  { slug: "moda", label: "Móda", emoji: "👗" },
-  { slug: "zdravie", label: "Zdravie", emoji: "💊" },
-  { slug: "krasa", label: "Krása", emoji: "💄" },
-  { slug: "sport", label: "Šport", emoji: "⚽" },
-  { slug: "byvanie", label: "Bývanie", emoji: "🏠" },
-  { slug: "potraviny", label: "Potraviny", emoji: "🛒" },
-  { slug: "deti", label: "Deti", emoji: "👶" },
-  { slug: "cestovanie", label: "Cestovanie", emoji: "✈️" },
-  { slug: "knihy", label: "Knihy", emoji: "📚" },
+  { slug: "moda",        label: "Móda",        emoji: "👗" },
+  { slug: "zdravie",     label: "Zdravie",      emoji: "💊" },
+  { slug: "krasa",       label: "Krása",        emoji: "💄" },
+  { slug: "sport",       label: "Šport",        emoji: "⚽" },
+  { slug: "byvanie",     label: "Bývanie",      emoji: "🏠" },
+  { slug: "potraviny",   label: "Potraviny",    emoji: "🛒" },
+  { slug: "deti",        label: "Deti",         emoji: "👶" },
+  { slug: "cestovanie",  label: "Cestovanie",   emoji: "✈️" },
+  { slug: "knihy",       label: "Knihy",        emoji: "📚" },
 ];
 
 function NavSearch() {
@@ -30,7 +30,7 @@ function NavSearch() {
   }
 
   return (
-    <div style={{ display: "flex", flex: 1, maxWidth: 460 }}>
+    <div style={{ display: "flex", flex: 1, maxWidth: 460, width: "100%" }}>
       <input
         type="text"
         value={q}
@@ -48,11 +48,12 @@ function NavSearch() {
       />
       <button
         onClick={go}
-        aria-label="Search"
+        aria-label="Hľadať"
         style={{
           padding: "9px 14px", borderRadius: "0 8px 8px 0",
           border: "1.5px solid #22C55E", background: "#22C55E",
           color: "#fff", cursor: "pointer", fontSize: 15, flexShrink: 0,
+          minHeight: 44,
         }}
       >
         🔍
@@ -107,11 +108,11 @@ function CatDropdown({ onClose }: { onClose: () => void }) {
 
 export default function Nav() {
   const t = useTranslations("nav");
-  const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [catOpen, setCatOpen] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
+  // Close cat dropdown on outside click
   useEffect(() => {
     if (!catOpen) return;
     function handler(e: MouseEvent) {
@@ -123,6 +124,12 @@ export default function Nav() {
     return () => document.removeEventListener("mousedown", handler);
   }, [catOpen]);
 
+  // Block body scroll when mobile menu is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
+
   const NAV_LINKS = [
     { label: t("coupons"),  href: "/kupony" },
     { label: t("shops"),    href: "/obchody" },
@@ -133,28 +140,39 @@ export default function Nav() {
   return (
     <>
       <style>{`
-        @media(max-width:900px){
-          .nav-top { padding: 0 16px !important; gap: 8px !important; }
+        @media(max-width: 900px) {
           .nav-search-wrap { display: none !important; }
           .nav-sub { display: none !important; }
-          .nav-mobile-btn { display: flex !important; }
-          .nav-right-desktop { display: none !important; }
+          .nav-hamburger { display: flex !important; }
+          .nav-top { padding: 0 16px !important; }
         }
-        .nav-sub-link { color:#444; text-decoration:none; font-size:13px; font-weight:500; padding:10px 0; white-space:nowrap; border-bottom:2px solid transparent; transition:color 0.15s, border-color 0.15s; }
-        .nav-sub-link:hover { color:#22C55E; border-bottom-color:#22C55E; }
-        .nav-cat-btn { background:none; border:none; cursor:pointer; color:#444; font-size:13px; font-weight:500; padding:10px 0; white-space:nowrap; border-bottom:2px solid transparent; font-family:inherit; transition:color 0.15s, border-color 0.15s; display:flex; align-items:center; gap:4px; }
-        .nav-cat-btn:hover, .nav-cat-btn.open { color:#22C55E; border-bottom-color:#22C55E; }
-        .nav-fav-link { display:flex; align-items:center; gap:5px; color:#555; text-decoration:none; font-size:13px; font-weight:500; transition:color 0.15s; }
-        .nav-fav-link:hover { color:#22C55E; }
+        .nav-sub-link {
+          color: #444; text-decoration: none; font-size: 13px; font-weight: 500;
+          padding: 10px 0; white-space: nowrap;
+          border-bottom: 2px solid transparent;
+          transition: color 0.15s, border-color 0.15s;
+        }
+        .nav-sub-link:hover { color: #22C55E; border-bottom-color: #22C55E; }
+        .nav-cat-btn {
+          background: none; border: none; cursor: pointer; color: #444;
+          font-size: 13px; font-weight: 500; padding: 10px 0; white-space: nowrap;
+          border-bottom: 2px solid transparent; font-family: inherit;
+          transition: color 0.15s, border-color 0.15s;
+          display: flex; align-items: center; gap: 4px;
+        }
+        .nav-cat-btn:hover, .nav-cat-btn.open { color: #22C55E; border-bottom-color: #22C55E; }
       `}</style>
 
-      {/* Top row */}
-      <div className="nav-top" style={{
-        display: "flex", alignItems: "center", gap: 16,
-        padding: "0 32px", height: 58,
-        background: "#fff", borderBottom: "1px solid #f0f0f0",
-        position: "sticky", top: 0, zIndex: 200,
-      }}>
+      {/* ── Top bar ── */}
+      <div
+        className="nav-top"
+        style={{
+          display: "flex", alignItems: "center", gap: 16,
+          padding: "0 32px", height: 58,
+          background: "#fff", borderBottom: "1px solid #f0f0f0",
+          position: "sticky", top: 0, zIndex: 300,
+        }}
+      >
         {/* Logo */}
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900 }}>Z</div>
@@ -163,42 +181,42 @@ export default function Nav() {
           </span>
         </a>
 
-        {/* Center search */}
+        {/* Center search — desktop only */}
         <div className="nav-search-wrap" style={{ flex: 1, display: "flex", justifyContent: "center" }}>
           <NavSearch />
         </div>
 
-        {/* Right */}
-        <div className="nav-right-desktop" style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
-          <a href="/oblibene" className="nav-fav-link">
-            <span style={{ fontSize: 16 }}>♡</span> {t("favorites")}
-          </a>
-          <LanguageSwitcher />
-        </div>
-
-        {/* Mobile: lang + hamburger */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <div className="nav-right-desktop" style={{ display: "none" }} />
+        {/* Right: single LanguageSwitcher + hamburger */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginLeft: "auto", flexShrink: 0 }}>
           <LanguageSwitcher />
           <button
-            className="nav-mobile-btn"
-            onClick={() => setOpen(o => !o)}
-            aria-label="Menu"
-            style={{ display: "none", background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#1d1d1f", padding: "4px 6px" }}
+            className="nav-hamburger"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label={menuOpen ? "Zavrieť menu" : "Otvoriť menu"}
+            aria-expanded={menuOpen}
+            style={{
+              display: "none", background: "none", border: "none",
+              fontSize: 22, cursor: "pointer", color: "#1d1d1f",
+              padding: "6px", lineHeight: 1, minWidth: 44, minHeight: 44,
+              alignItems: "center", justifyContent: "center",
+            }}
           >
-            {open ? "✕" : "☰"}
+            {menuOpen ? "✕" : "☰"}
           </button>
         </div>
       </div>
 
-      {/* Bottom sub-nav */}
-      <div className="nav-sub" style={{
-        background: "#fff", borderBottom: "1px solid #f0f0f0",
-        position: "sticky", top: 58, zIndex: 199,
-      }}>
+      {/* ── Sub-nav — desktop only ── */}
+      <div
+        className="nav-sub"
+        style={{
+          background: "#fff", borderBottom: "1px solid #f0f0f0",
+          position: "sticky", top: 58, zIndex: 199,
+        }}
+      >
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px", display: "flex", gap: 28, alignItems: "stretch" }}>
           {NAV_LINKS.map(l => (
-            <a key={l.href + l.label} href={l.href} className="nav-sub-link">{l.label}</a>
+            <a key={l.href} href={l.href} className="nav-sub-link">{l.label}</a>
           ))}
 
           {/* Kategórie dropdown */}
@@ -215,30 +233,93 @@ export default function Nav() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
-      {open && (
-        <div style={{
-          position: "fixed", top: 58, left: 0, right: 0, zIndex: 198,
-          background: "#fff", borderBottom: "1px solid #e8e8e8",
-          boxShadow: "0 8px 24px rgba(0,0,0,0.1)", maxHeight: "80vh", overflowY: "auto",
-        }}>
-          <div style={{ padding: "12px 16px 8px" }}>
+      {/* ── Mobile fullscreen menu ── */}
+      {menuOpen && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 500,
+            background: "#fff", overflowY: "auto",
+            display: "flex", flexDirection: "column",
+          }}
+        >
+          {/* Menu header */}
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            padding: "0 16px", height: 58, flexShrink: 0,
+            borderBottom: "1px solid #f0f0f0",
+            position: "sticky", top: 0, background: "#fff", zIndex: 1,
+          }}>
+            <a href="/" onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+              <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900 }}>Z</div>
+              <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f" }}>Zlavickovo<span style={{ color: "#22C55E" }}>.sk</span></span>
+            </a>
+            <button
+              onClick={() => setMenuOpen(false)}
+              aria-label="Zavrieť menu"
+              style={{
+                background: "none", border: "none", fontSize: 22, cursor: "pointer",
+                color: "#1d1d1f", padding: "6px", lineHeight: 1,
+                minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Search */}
+          <div style={{ padding: "14px 16px", borderBottom: "1px solid #f5f5f5" }}>
             <NavSearch />
           </div>
+
+          {/* Main nav links */}
           {NAV_LINKS.map(l => (
-            <a key={l.href + l.label} href={l.href} onClick={() => setOpen(false)}
-              style={{ display: "block", padding: "13px 20px", color: "#1d1d1f", textDecoration: "none", fontSize: 15, fontWeight: 500, borderBottom: "1px solid #f5f5f5" }}>
+            <a
+              key={l.href}
+              href={l.href}
+              onClick={() => setMenuOpen(false)}
+              style={{
+                display: "flex", alignItems: "center",
+                padding: "0 20px", minHeight: 52,
+                color: "#1d1d1f", textDecoration: "none",
+                fontSize: 16, fontWeight: 600,
+                borderBottom: "1px solid #f5f5f5",
+              }}
+            >
               {l.label}
             </a>
           ))}
-          {/* Mobile categories */}
-          <div style={{ padding: "8px 20px 4px", fontSize: 11, fontWeight: 700, color: "#aaa", letterSpacing: "0.05em" }}>KATEGÓRIE</div>
-          {CAT_LIST.map(c => (
-            <a key={c.slug} href={`/kategoria/${c.slug}`} onClick={() => setOpen(false)}
-              style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 20px", color: "#444", textDecoration: "none", fontSize: 14, fontWeight: 500, borderBottom: "1px solid #f5f5f5" }}>
-              <span>{c.emoji}</span> {c.label}
-            </a>
-          ))}
+
+          {/* Categories label */}
+          <div style={{
+            padding: "16px 20px 8px",
+            fontSize: 11, fontWeight: 700, color: "#aaa",
+            letterSpacing: "0.08em", textTransform: "uppercase",
+          }}>
+            Kategórie
+          </div>
+
+          {/* 2-column category grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+            {CAT_LIST.map(c => (
+              <a
+                key={c.slug}
+                href={`/kategoria/${c.slug}`}
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "0 20px", minHeight: 48,
+                  color: "#444", textDecoration: "none",
+                  fontSize: 14, fontWeight: 500,
+                  borderBottom: "1px solid #f5f5f5",
+                }}
+              >
+                <span style={{ fontSize: 20 }}>{c.emoji}</span> {c.label}
+              </a>
+            ))}
+          </div>
+
+          {/* Bottom padding */}
+          <div style={{ height: 32 }} />
         </div>
       )}
     </>

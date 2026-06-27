@@ -103,12 +103,12 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
               </button>
             </div>
           ) : (
-            <button onClick={handleReveal} style={{ width: "100%", padding: "10px", borderRadius: 9, border: "none", background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>
+            <button onClick={handleReveal} style={{ width: "100%", padding: "12px 10px", minHeight: 44, borderRadius: 9, border: "none", background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer", fontFamily: "inherit", boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>
               {t("show_code")}
             </button>
           )
         ) : (
-          <a href={link || "#"} target="_blank" rel="noopener noreferrer nofollow" onClick={() => { if (link) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: storeName }) }).catch(() => {}); }} style={{ display: "block", padding: "10px", borderRadius: 9, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, textAlign: "center", textDecoration: "none", boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>
+          <a href={link || "#"} target="_blank" rel="noopener noreferrer nofollow" onClick={() => { if (link) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: storeName }) }).catch(() => {}); }} style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 10px", minHeight: 44, borderRadius: 9, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, textAlign: "center", textDecoration: "none", boxShadow: "0 4px 14px rgba(34,197,94,0.35)" }}>
             {t("go_to_shop")}
           </a>
         )}

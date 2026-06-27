@@ -173,9 +173,12 @@ export default async function Home() {
           .section-row { padding-left:16px !important; padding-right:16px !important; }
         }
         @media(max-width:480px){
-          .cat-grid { grid-template-columns:repeat(4,1fr) !important; }
+          .cat-grid { grid-template-columns:repeat(5,1fr) !important; gap:6px !important; }
           .blog-grid { grid-template-columns:1fr !important; }
           .shops-grid { grid-template-columns:repeat(2,1fr) !important; }
+        }
+        @media(max-width:400px){
+          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
         }
       `}</style>
 
