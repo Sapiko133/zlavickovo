@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import ShopLogo from "@/components/ShopLogo";
 
 const LETAKY_SHOPS = [
   { name: "Lidl",     slug: "lidl",     letter: "L", color: "#FFD700", textColor: "#333" },
@@ -107,21 +108,7 @@ function SearchResults() {
               transition: "border-color 0.15s, box-shadow 0.15s",
             }}
           >
-            <div style={{
-              flexShrink: 0, width: 48, height: 48, borderRadius: 8,
-              background: "#f9fafb", border: "1px solid #e5e7eb",
-              display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden",
-            }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`https://logo.clearbit.com/${p.domain}`}
-                width={40}
-                height={40}
-                alt={p.domain}
-                style={{ borderRadius: 6, objectFit: "contain" }}
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
-            </div>
+            <ShopLogo name={p.domain || ""} domain={p.domain} size={48} />
 
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 600, fontSize: 15, color: "#1d1d1f", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

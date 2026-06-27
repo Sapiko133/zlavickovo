@@ -28,6 +28,12 @@ const DOMAIN_MAP: Record<string, string> = {
   "planeo": "planeo.sk",
   "electro world": "electroworld.sk",
   "dm": "dm.sk",
+  "gymbeam": "gymbeam.sk",
+  "herbatica": "herbatica.sk",
+  "pantarhei": "pantarhei.sk",
+  "panta rhei": "pantarhei.sk",
+  "invia": "invia.sk",
+  "rohlik": "rohlik.cz",
 
   // Medzinárodné
   "zalando": "zalando.sk",
@@ -59,15 +65,23 @@ const DOMAIN_MAP: Record<string, string> = {
 export function getShopDomain(name: string): string | null {
   if (!name) return null;
   const key = name.toLowerCase().trim();
+
   if (DOMAIN_MAP[key]) return DOMAIN_MAP[key];
 
-  // Try first word (e.g. "Zalando SK" → "zalando")
+  // Name already looks like a domain (e.g. "Kosmetikomat.sk", "li-go.cz")
+  if (/^[a-z0-9][a-z0-9.-]*\.[a-z]{2,6}$/.test(key) && !key.includes(" ")) return key;
+
+  // First word match (e.g. "Zalando SK" → "zalando")
   const firstWord = key.split(/\s+/)[0];
   if (DOMAIN_MAP[firstWord]) return DOMAIN_MAP[firstWord];
 
-  // Try slug form (hyphens → spaces)
+  // De-hyphen match (e.g. "about-you" → "about you")
   const deHyphen = key.replace(/-/g, " ");
   if (DOMAIN_MAP[deHyphen]) return DOMAIN_MAP[deHyphen];
+
+  // Slug-based TLD detection: "kosmetikomat-sk" → "kosmetikomat.sk"
+  const slugTld = key.match(/^(.+?)-(sk|cz|eu|com|de|pl|hu|at|co|net|org)$/);
+  if (slugTld) return `${slugTld[1]}.${slugTld[2]}`;
 
   return null;
 }

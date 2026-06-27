@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import CouponCard from "@/components/CouponCard";
+import ShopLogo from "@/components/ShopLogo";
 import { getCoupons } from "@/lib/dognet";
 import { getEhubCoupons } from "@/lib/ehub";
 import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
@@ -23,9 +24,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     alternates: { canonical: `https://zlavickovo.sk/kategoria/${slug}` },
   };
 }
-
-const COLORS = ["#E8001D", "#0065BD", "#00A551", "#FF6900", "#22C55E", "#003580", "#D32F2F", "#FF4081", "#7C3AED", "#0ea5e9"];
-function shopColor(name: string) { return COLORS[name.charCodeAt(0) % COLORS.length]; }
 
 export default async function KategoriaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -115,7 +113,6 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
             {cat.shops.map(shop => {
-              const color = shopColor(shop.name);
               const href = shop.href ?? `/kupony/${shop.slug}`;
               return (
                 <a
@@ -130,14 +127,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                   }}
                 >
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14, background: color,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontWeight: 800, fontSize: 22,
-                    boxShadow: `0 4px 12px ${color}44`,
-                  }}>
-                    {shop.name.charAt(0).toUpperCase()}
-                  </div>
+                  <ShopLogo name={shop.name} size={52} />
                   <span style={{ fontSize: 13, fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>
                     {shop.name}
                   </span>
@@ -150,7 +140,6 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
             {/* Affial shops for this category */}
             {affialForCat.map(shop => {
-              const color = shopColor(shop.name);
               const href = `/kupony/${shop.domain.replace(".", "-")}`;
               return (
                 <a
@@ -165,14 +154,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                   }}
                 >
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14, background: color,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontWeight: 800, fontSize: 22,
-                    boxShadow: `0 4px 12px ${color}44`,
-                  }}>
-                    {shop.name.charAt(0).toUpperCase()}
-                  </div>
+                  <ShopLogo name={shop.name} domain={shop.domain} size={52} />
                   <span style={{ fontSize: 13, fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>
                     {shop.name}
                   </span>

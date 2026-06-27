@@ -1,4 +1,5 @@
 import CouponCard from "@/components/CouponCard";
+import ShopLogo from "@/components/ShopLogo";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -229,36 +230,30 @@ export default async function Home() {
             <a href="/cashback" className="see-all">Zobraziť všetky →</a>
           </div>
           <div className="hide-scroll" style={{ display:"flex", gap:10, overflowX:"auto", padding:"4px 24px 16px", scrollbarWidth:"none" }}>
-            {cashbackShops.slice(0, 16).map((shop: any) => {
-              const c = shopColor(shop.name);
-              return (
-                <a
-                  key={shop.id}
-                  href={`/kupony/${shop.slug}`}
-                  className="cb-card"
-                  style={{
-                    flexShrink:0, textDecoration:"none",
-                    display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                    padding:"16px 18px", minWidth:110, borderRadius:14,
-                    background: `linear-gradient(135deg, ${c}12 0%, ${c}06 100%)`,
-                    border: `1.5px solid ${c}25`,
-                    boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  <div style={{ width:48, height:48, borderRadius:14, background:c, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:20, boxShadow:`0 4px 14px ${c}55` }}>
-                    {shop.name.charAt(0)}
-                  </div>
-                  <div style={{ textAlign:"center" }}>
-                    <div style={{ fontSize:12, fontWeight:600, color:"#1d1d1f", marginBottom:3 }}>{shop.name.length > 9 ? shop.name.slice(0,9)+"…" : shop.name}</div>
-                    {shop.cashback && (
-                      <div style={{ fontSize:12, fontWeight:800, color:"#00AA44" }}>
-                        {typeof shop.cashback === "number" ? `${shop.cashback}%` : shop.cashback}
-                      </div>
-                    )}
-                  </div>
-                </a>
-              );
-            })}
+            {cashbackShops.slice(0, 16).map((shop: any) => (
+              <a
+                key={shop.id}
+                href={`/kupony/${shop.slug}`}
+                className="cb-card"
+                style={{
+                  flexShrink:0, textDecoration:"none",
+                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
+                  padding:"16px 18px", minWidth:110, borderRadius:14,
+                  background:"#f9fafb", border:"1.5px solid #e8e8e8",
+                  boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <ShopLogo name={shop.name} size={48} />
+                <div style={{ textAlign:"center" }}>
+                  <div style={{ fontSize:12, fontWeight:600, color:"#1d1d1f", marginBottom:3 }}>{shop.name.length > 9 ? shop.name.slice(0,9)+"…" : shop.name}</div>
+                  {shop.cashback && (
+                    <div style={{ fontSize:12, fontWeight:800, color:"#00AA44" }}>
+                      {typeof shop.cashback === "number" ? `${shop.cashback}%` : shop.cashback}
+                    </div>
+                  )}
+                </div>
+              </a>
+            ))}
           </div>
         </section>
       )}
@@ -271,32 +266,27 @@ export default async function Home() {
             <a href="/obchody" className="see-all">Zobraziť všetky →</a>
           </div>
           <div className="shops-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
-            {popularShops.slice(0, 12).map((shop: any) => {
-              const c = shopColor(shop.name);
-              return (
-                <a
-                  key={shop.name}
-                  href={`/kupony/${shopSlug(shop.name)}`}
-                  className="shop-pill"
-                  style={{
-                    display:"flex", alignItems:"center", gap:12, padding:"14px",
-                    borderRadius:12, background:"#fff", border:"1.5px solid #e8e8e8",
-                    textDecoration:"none",
-                    boxShadow:"0 2px 6px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  <div style={{ width:42, height:42, borderRadius:11, background:c, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:18, flexShrink:0, boxShadow:`0 4px 12px ${c}44` }}>
-                    {shop.name.charAt(0)}
+            {popularShops.slice(0, 12).map((shop: any) => (
+              <a
+                key={shop.name}
+                href={`/kupony/${shopSlug(shop.name)}`}
+                className="shop-pill"
+                style={{
+                  display:"flex", alignItems:"center", gap:12, padding:"14px",
+                  borderRadius:12, background:"#fff", border:"1.5px solid #e8e8e8",
+                  textDecoration:"none",
+                  boxShadow:"0 2px 6px rgba(0,0,0,0.04)",
+                }}
+              >
+                <ShopLogo name={shop.name} size={42} />
+                <div>
+                  <div className="sp-name" style={{ fontSize:13, fontWeight:700, color:"#1d1d1f", transition:"color 0.15s" }}>{shop.name}</div>
+                  <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
+                    {shop.count} {shop.count === 1 ? "kupón" : shop.count < 5 ? "kupóny" : "kupónov"}
                   </div>
-                  <div>
-                    <div className="sp-name" style={{ fontSize:13, fontWeight:700, color:"#1d1d1f", transition:"color 0.15s" }}>{shop.name}</div>
-                    <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
-                      {shop.count} {shop.count === 1 ? "kupón" : shop.count < 5 ? "kupóny" : "kupónov"}
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+                </div>
+              </a>
+            ))}
           </div>
         </section>
       )}

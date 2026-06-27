@@ -1,6 +1,7 @@
 import { getShops } from "@/lib/dognet";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { CATEGORIES_LIST, inferCategory } from "@/lib/categories";
+import ShopLogo from "@/components/ShopLogo";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import type { Metadata } from "next";
@@ -11,12 +12,6 @@ export const metadata: Metadata = {
   title: "Všetky obchody | Zlavickovo.sk",
   description: "Prehľad všetkých obchodov so zľavovými kódmi, cashbackom a kupónmi. Nájdi kupóny pre tvoj obľúbený eshop.",
 };
-
-const COLORS = ["#E8001D", "#0065BD", "#00A551", "#FF6900", "#22C55E", "#003580", "#D32F2F", "#FF4081", "#7C3AED", "#0ea5e9"];
-
-function shopColor(name: string) {
-  return COLORS[name.charCodeAt(0) % COLORS.length];
-}
 
 function shopSlug(name: string) {
   return name.toLowerCase().replace(/\s+/g, "-").replace(/\./g, "");
@@ -30,6 +25,7 @@ interface UnifiedShop {
   commission?: string;
   couponCount?: number;
   category: string;
+  domain?: string;
 }
 
 export default async function ObchodyPage({
@@ -63,6 +59,7 @@ export default async function ObchodyPage({
       source: "affial" as const,
       commission: s.commission,
       category: s.category,
+      domain: s.domain,
     })),
   ];
 
@@ -169,47 +166,36 @@ export default async function ObchodyPage({
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px, 1fr))", gap: 12 }}>
-            {filtered.map((shop, i) => {
-              const color = shopColor(shop.name);
-              return (
-                <a
-                  key={`${shop.source}-${shop.slug}-${i}`}
-                  href={shop.href}
-                  className="shop-card"
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center",
-                    gap: 10, padding: "22px 14px 18px", borderRadius: 14,
-                    background: "#fff", border: "1.5px solid #e5e7eb",
-                    textDecoration: "none", color: "#1d1d1f",
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: color,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: "#fff", fontWeight: 800, fontSize: 22,
-                    boxShadow: `0 4px 12px ${color}44`,
-                  }}>
-                    {shop.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#222", textAlign: "center", lineHeight: 1.3 }}>
-                    {shop.name}
+            {filtered.map((shop, i) => (
+              <a
+                key={`${shop.source}-${shop.slug}-${i}`}
+                href={shop.href}
+                className="shop-card"
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  gap: 10, padding: "22px 14px 18px", borderRadius: 14,
+                  background: "#fff", border: "1.5px solid #e5e7eb",
+                  textDecoration: "none", color: "#1d1d1f",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                }}
+              >
+                <ShopLogo name={shop.name} domain={shop.domain} size={52} />
+                <span style={{ fontSize: 13, fontWeight: 600, color: "#222", textAlign: "center", lineHeight: 1.3 }}>
+                  {shop.name}
+                </span>
+                {shop.commission ? (
+                  <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, background: "#F0FDF4", padding: "2px 8px", borderRadius: 100 }}>
+                    💰 {shop.commission}
                   </span>
-                  {shop.commission ? (
-                    <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, background: "#F0FDF4", padding: "2px 8px", borderRadius: 100 }}>
-                      💰 {shop.commission}
-                    </span>
-                  ) : shop.couponCount != null && shop.couponCount > 0 ? (
-                    <span style={{ fontSize: 11, color: "#1d4ed8", fontWeight: 600, background: "#dbeafe", padding: "2px 8px", borderRadius: 100 }}>
-                      {shop.couponCount} {shop.couponCount === 1 ? "kód" : shop.couponCount < 5 ? "kódy" : "kódov"}
-                    </span>
-                  ) : (
-                    <span style={{ fontSize: 11, color: "#aaa" }}>kupóny</span>
-                  )}
-                </a>
-              );
-            })}
+                ) : shop.couponCount != null && shop.couponCount > 0 ? (
+                  <span style={{ fontSize: 11, color: "#1d4ed8", fontWeight: 600, background: "#dbeafe", padding: "2px 8px", borderRadius: 100 }}>
+                    {shop.couponCount} {shop.couponCount === 1 ? "kód" : shop.couponCount < 5 ? "kódy" : "kódov"}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 11, color: "#aaa" }}>kupóny</span>
+                )}
+              </a>
+            ))}
           </div>
         )}
       </div>

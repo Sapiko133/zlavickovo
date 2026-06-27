@@ -8,6 +8,7 @@ import TopCodes from "@/components/TopCodes";
 import HeurekaSearch from "@/components/HeurekaSearch";
 import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopTabs from "@/components/ShopTabs";
+import ShopLogo from "@/components/ShopLogo";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 
@@ -79,8 +80,6 @@ export async function generateMetadata({ params }: Props) {
   };
 }
 
-const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F","#FF4081","#006A35","#8B1A1A"];
-
 export default async function ShopPage({ params }: Props) {
   const { slug } = await params;
   const isCz = slug.endsWith("-cz");
@@ -91,17 +90,14 @@ export default async function ShopPage({ params }: Props) {
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
   const relatedSlugs = getRelatedShops(baseSlug);
-  const logoColor = COLORS[capitalized.charCodeAt(0) % COLORS.length];
-
   const affialShop = findAffialShop(slug);
 
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
 
-  const rawCodeCoupons = coupons.filter(c => c.code && c.code.trim() !== "");
-  const dealCoupons = coupons.filter(c => !c.code || c.code.trim() === "");
+  const rawCodeCoupons = coupons.filter((c: any) => c.code && c.code.trim() !== "");
+  const dealCoupons = coupons.filter((c: any) => !c.code || c.code.trim() === "");
 
-  // Embed token into coupon data, strip raw code for client
   const codeCoupons = rawCodeCoupons.map(c => {
     const { code, ...rest } = c;
     return { ...rest, _token: Buffer.from(`${capitalized}:${code}`).toString("base64") };
@@ -152,14 +148,7 @@ export default async function ShopPage({ params }: Props) {
       <div style={{ background: "#fff", borderBottom: "1px solid #eaecf0", padding: "28px 24px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
-            <div style={{
-              width: 72, height: 72, borderRadius: 18, background: logoColor, flexShrink: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "#fff", fontWeight: 800, fontSize: 30,
-              boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
-            }}>
-              {capitalized.charAt(0)}
-            </div>
+            <ShopLogo name={capitalized} size={72} radius={18} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: "clamp(20px, 3vw, 28px)", fontWeight: 800, margin: "0 0 10px", color: "#1d1d1f", letterSpacing: "-0.5px", lineHeight: 1.2 }}>
                 {capitalized} zľavové kódy &amp; kupóny {month} {year}{isCz ? " (CZ)" : ""}
@@ -300,13 +289,10 @@ export default async function ShopPage({ params }: Props) {
             {relatedSlugs.map(s => {
               const n = s.replace(/-/g, " ");
               const name = n.charAt(0).toUpperCase() + n.slice(1);
-              const c = COLORS[name.charCodeAt(0) % COLORS.length];
               return (
                 <a key={s} href={`/kupony/${s}`} style={{ textDecoration: "none" }}>
                   <div style={{ background: "#fff", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, border: "1px solid #eaecf0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                    <div style={{ width: 34, height: 34, borderRadius: 8, background: c, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 14, flexShrink: 0 }}>
-                      {name.charAt(0)}
-                    </div>
+                    <ShopLogo name={name} size={34} />
                     <span style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f" }}>{name}</span>
                   </div>
                 </a>

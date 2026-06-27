@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import ShopLogo from "@/components/ShopLogo";
 
 const CAT_LABELS: Record<string, string> = {
   zdravie: "Zdravie", krasa: "Krása", byvanie: "Bývanie",
@@ -73,36 +74,6 @@ function mergeShops(base: ShopEntry[], extra: ShopEntry[]): ShopEntry[] {
 }
 
 type SearchMode = "shop" | "url";
-
-function ShopLogo({ domain, name, size = 32 }: { domain: string; name: string; size?: number }) {
-  const [err, setErr] = useState(false);
-  const bg = ["#E8001D", "#0065BD", "#00A551", "#FF6900", "#7C3AED", "#D32F2F", "#FF4081", "#0ea5e9"][
-    name.charCodeAt(0) % 8
-  ];
-
-  if (!domain || err) {
-    return (
-      <div style={{
-        width: size, height: size, borderRadius: 8, background: bg, flexShrink: 0,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        color: "#fff", fontWeight: 800, fontSize: size * 0.45,
-      }}>
-        {name.charAt(0).toUpperCase()}
-      </div>
-    );
-  }
-
-  return (
-    <img
-      src={`https://logo.clearbit.com/${domain}`}
-      alt={name}
-      width={size}
-      height={size}
-      onError={() => setErr(true)}
-      style={{ width: size, height: size, borderRadius: 8, objectFit: "contain", flexShrink: 0, background: "#f5f5f5" }}
-    />
-  );
-}
 
 export default function SearchBar() {
   const router = useRouter();
@@ -300,7 +271,7 @@ export default function SearchBar() {
                   transition: "background 0.1s",
                 }}
               >
-                <ShopLogo domain={shop.domain} name={shop.name} size={32} />
+                <ShopLogo name={shop.name} domain={shop.domain} size={32} radius={8} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {shop.name}
