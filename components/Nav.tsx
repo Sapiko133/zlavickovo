@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import ThemeToggle from "@/components/ThemeToggle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 function NotifButton() {
@@ -63,7 +62,6 @@ export default function Nav() {
           ))}
           <LanguageSwitcher />
           <NotifButton />
-          <ThemeToggle />
         </div>
 
         <button
@@ -99,7 +97,6 @@ export default function Nav() {
           <div style={{ padding: "12px 24px", display: "flex", gap: 12, borderBottom: "1px solid var(--border)" }}>
             <LanguageSwitcher />
             <NotifButton />
-            <ThemeToggle />
           </div>
         </div>
       )}

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ThemeProvider } from "next-themes";
 import { NextIntlClientProvider } from "next-intl";
 import { cookies } from "next/headers";
 import Script from "next/script";
@@ -51,13 +50,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <NextIntlClientProvider messages={messages} locale={locale}>
-            <OneSignalInit />
-            <InstallBanner />
-            {children}
-          </NextIntlClientProvider>
-        </ThemeProvider>
+        <NextIntlClientProvider messages={messages} locale={locale}>
+          <OneSignalInit />
+          <InstallBanner />
+          {children}
+        </NextIntlClientProvider>
         <Script
           async
           src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
