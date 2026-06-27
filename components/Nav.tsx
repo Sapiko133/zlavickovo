@@ -1,18 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useRouter } from "next/navigation";
 
-const NAV_LINKS = [
-  { label: "Kupóny",     href: "/#zlavy" },
-  { label: "Obchody",    href: "/obchody" },
-  { label: "Letáky",     href: "/letaky" },
-  { label: "Cashback",   href: "/cashback" },
-  { label: "Kategórie ▾", href: "/obchody" },
-];
-
 function NavSearch() {
+  const t = useTranslations("nav");
   const router = useRouter();
   const [q, setQ] = useState("");
 
@@ -23,13 +17,13 @@ function NavSearch() {
   }
 
   return (
-    <div style={{ display: "flex", flex: 1, maxWidth: 460, position: "relative" }}>
+    <div style={{ display: "flex", flex: 1, maxWidth: 460 }}>
       <input
         type="text"
         value={q}
         onChange={e => setQ(e.target.value)}
         onKeyDown={e => e.key === "Enter" && go()}
-        placeholder="Vyhľadaj obchod alebo kupón..."
+        placeholder={t("search_placeholder")}
         style={{
           flex: 1, padding: "9px 16px", borderRadius: "8px 0 0 8px",
           border: "1.5px solid #e0e0e0", borderRight: "none",
@@ -41,12 +35,12 @@ function NavSearch() {
       />
       <button
         onClick={go}
+        aria-label="Search"
         style={{
           padding: "9px 14px", borderRadius: "0 8px 8px 0",
           border: "1.5px solid #22C55E", background: "#22C55E",
           color: "#fff", cursor: "pointer", fontSize: 15, flexShrink: 0,
         }}
-        aria-label="Hľadať"
       >
         🔍
       </button>
@@ -55,7 +49,16 @@ function NavSearch() {
 }
 
 export default function Nav() {
+  const t = useTranslations("nav");
   const [open, setOpen] = useState(false);
+
+  const NAV_LINKS = [
+    { label: t("coupons"),    href: "/#zlavy" },
+    { label: t("shops"),      href: "/obchody" },
+    { label: t("leaflets"),   href: "/letaky" },
+    { label: t("cashback"),   href: "/cashback" },
+    { label: t("categories"), href: "/obchody" },
+  ];
 
   return (
     <>
@@ -65,10 +68,12 @@ export default function Nav() {
           .nav-search-wrap { display: none !important; }
           .nav-sub { display: none !important; }
           .nav-mobile-btn { display: flex !important; }
-          .nav-right-full { display: none !important; }
+          .nav-right-desktop { display: none !important; }
         }
-        .nav-sub-link { color: #444; text-decoration: none; font-size: 13px; font-weight: 500; padding: 10px 0; white-space: nowrap; border-bottom: 2px solid transparent; transition: color 0.15s, border-color 0.15s; }
-        .nav-sub-link:hover { color: #22C55E; border-bottom-color: #22C55E; }
+        .nav-sub-link { color:#444; text-decoration:none; font-size:13px; font-weight:500; padding:10px 0; white-space:nowrap; border-bottom:2px solid transparent; transition:color 0.15s, border-color 0.15s; }
+        .nav-sub-link:hover { color:#22C55E; border-bottom-color:#22C55E; }
+        .nav-fav-link { display:flex; align-items:center; gap:5px; color:#555; text-decoration:none; font-size:13px; font-weight:500; transition:color 0.15s; }
+        .nav-fav-link:hover { color:#22C55E; }
       `}</style>
 
       {/* Top row */}
@@ -81,7 +86,9 @@ export default function Nav() {
         {/* Logo */}
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", flexShrink: 0 }}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900 }}>Z</div>
-          <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f", letterSpacing: "-0.3px" }}>Zlavickovo<span style={{ color: "#22C55E" }}>.sk</span></span>
+          <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f", letterSpacing: "-0.3px" }}>
+            Zlavickovo<span style={{ color: "#22C55E" }}>.sk</span>
+          </span>
         </a>
 
         {/* Center search */}
@@ -90,19 +97,16 @@ export default function Nav() {
         </div>
 
         {/* Right */}
-        <div className="nav-right-full" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-          <a href="/oblibene" style={{ display: "flex", alignItems: "center", gap: 5, color: "#555", textDecoration: "none", fontSize: 13, fontWeight: 500 }}>
-            <span style={{ fontSize: 16 }}>♡</span> Obľúbené
-          </a>
-          <a href="/ucet" style={{ display: "flex", alignItems: "center", gap: 5, color: "#555", textDecoration: "none", fontSize: 13, fontWeight: 500 }}>
-            <span style={{ fontSize: 16 }}>👤</span> Môj účet
+        <div className="nav-right-desktop" style={{ display: "flex", alignItems: "center", gap: 14, flexShrink: 0 }}>
+          <a href="/oblibene" className="nav-fav-link">
+            <span style={{ fontSize: 16 }}>♡</span> {t("favorites")}
           </a>
           <LanguageSwitcher />
         </div>
 
         {/* Mobile: lang + hamburger */}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          <div className="nav-right-full" style={{ display: "flex" }}></div>
+          <div className="nav-right-desktop" style={{ display: "none" }} />
           <LanguageSwitcher />
           <button
             className="nav-mobile-btn"

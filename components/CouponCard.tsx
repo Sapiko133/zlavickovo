@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import ShopLogo from "@/components/ShopLogo";
 
 const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F","#FF4081","#006A35","#8B1A1A"];
@@ -13,6 +14,7 @@ function decodeCode(token: string): string {
 }
 
 export default function CouponCard({ coupon, token, sponsored }: { coupon: any; token?: string | null; sponsored?: boolean }) {
+  const t = useTranslations("coupon");
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -62,12 +64,12 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
         <ShopLogo name={storeName} size={40} radius={10} color={logoColor} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontWeight:700, fontSize:13, color:"#1d1d1f", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{storeName}</div>
-          {expires && <div style={{ fontSize:11, color:"#aaa", marginTop:1 }}>do {expires}</div>}
+          {expires && <div style={{ fontSize:11, color:"#aaa", marginTop:1 }}>{t("expires")} {expires}</div>}
         </div>
         {sponsored ? (
-          <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, background:"#fff7ed", color:"#ea580c", flexShrink:0 }}>Sponz.</span>
+          <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, background:"#fff7ed", color:"#ea580c", flexShrink:0 }}>{t("sponsored")}</span>
         ) : (
-          <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, background:"#dcfce7", color:"#16a34a", flexShrink:0 }}>✓</span>
+          <span style={{ fontSize:10, fontWeight:700, padding:"2px 6px", borderRadius:5, background:"#dcfce7", color:"#16a34a", flexShrink:0 }}>{t("verified")}</span>
         )}
       </div>
 
@@ -91,21 +93,21 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
         {token ? (
           revealed ? (
             <div>
-              <div onClick={copyCode} title="Kliknúť pre kopírovanie" style={{ fontFamily:"monospace", fontWeight:800, fontSize:14, color:"#16A34A", background:"#F0FDF4", border:"2px dashed #22C55E", borderRadius:7, padding:"8px 12px", letterSpacing:2, textAlign:"center", cursor:"pointer", marginBottom:7 }}>
+              <div onClick={copyCode} title={t("copy")} style={{ fontFamily:"monospace", fontWeight:800, fontSize:14, color:"#16A34A", background:"#F0FDF4", border:"2px dashed #22C55E", borderRadius:7, padding:"8px 12px", letterSpacing:2, textAlign:"center", cursor:"pointer", marginBottom:7 }}>
                 {code}
               </div>
               <button onClick={copyCode} style={{ width:"100%", padding:"8px", borderRadius:7, border:"1px solid #e8e8e8", background:copied?"#16a34a":"#fff", color:copied?"#fff":"#444", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"background 0.15s, color 0.15s" }}>
-                {copied ? "✓ Skopírované" : "Kopírovať"}
+                {copied ? t("copied") : t("copy")}
               </button>
             </div>
           ) : (
             <button onClick={handleShowCode} style={{ width:"100%", padding:"10px", borderRadius:9, border:"none", background:"#22C55E", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>
-              Získať kód
+              {t("show_code")}
             </button>
           )
         ) : (
           <a href={link||"#"} target="_blank" rel="noopener noreferrer nofollow" style={{ display:"block", padding:"10px", borderRadius:9, background:"#22C55E", color:"#fff", fontWeight:700, fontSize:14, textAlign:"center", textDecoration:"none", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>
-            Prejsť na akciu →
+            {t("go_to_shop")}
           </a>
         )}
       </div>

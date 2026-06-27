@@ -1,15 +1,22 @@
 {
   "nav": {
+    "coupons": "Coupons",
     "shops": "Shops",
     "leaflets": "Leaflets",
     "cashback": "Cashback",
-    "blog": "Blog",
+    "categories": "Categories ▾",
+    "favorites": "Favourites",
+    "search_placeholder": "Search shop or coupon...",
     "all_shops": "All shops",
     "home": "Home"
   },
   "hero": {
-    "title": "Save on every purchase",
-    "subtitle": "Enter a shop and AI finds current discount codes in seconds."
+    "badge": "Search and save",
+    "title": "Find a product and save even more",
+    "subtitle": "Zlavickovo.sk helps you find coupons, cashback, leaflets and relevant shops before you buy.",
+    "placeholder": "Enter a product or shop, e.g. iPhone 16, Nike, Lidl",
+    "search_btn": "Search",
+    "popular_label": "Popular:"
   },
   "search": {
     "button": "Search",
@@ -19,13 +26,13 @@
     "mode_url": "🔗 URL"
   },
   "coupon": {
-    "show_code": "🎁 Show code",
+    "show_code": "Get code",
     "copy": "Copy",
-    "copied": "✓",
-    "expires": "Expires",
-    "verified": "Verified",
-    "sponsored": "Sponsored",
-    "go_to_shop": "Go to shop →",
+    "copied": "✓ Copied",
+    "expires": "until",
+    "verified": "✓",
+    "sponsored": "Spons.",
+    "go_to_shop": "Go to deal →",
     "use_deal": "Use deal →"
   }
 }

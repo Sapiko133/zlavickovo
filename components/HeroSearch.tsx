@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 const POPULAR = [
@@ -9,6 +10,7 @@ const POPULAR = [
 ];
 
 export default function HeroSearch() {
+  const t = useTranslations("hero");
   const router = useRouter();
   const [q, setQ] = useState("");
 
@@ -30,14 +32,14 @@ export default function HeroSearch() {
 
       <div style={{ maxWidth: 700, margin: "0 auto", position: "relative" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 14px", borderRadius:100, background:"rgba(34,197,94,0.12)", border:"1px solid #BBF7D0", fontSize:12, color:"#16A34A", marginBottom:20, fontWeight:600 }}>
-          ✦ Vyhľadaj a ušetri
+          ✦ {t("badge")}
         </div>
 
         <h1 style={{ fontSize:"clamp(26px,5vw,48px)", fontWeight:800, color:"#1d1d1f", letterSpacing:"-1px", lineHeight:1.15, margin:"0 0 14px" }}>
-          Vyhľadaj produkt a ušetri ešte viac
+          {t("title")}
         </h1>
         <p style={{ fontSize:16, color:"#555", margin:"0 auto 36px", maxWidth:520, lineHeight:1.6 }}>
-          Zlavickovo.sk ti pomôže pred nákupom nájsť kupóny, cashback, letáky a relevantné obchody.
+          {t("subtitle")}
         </p>
 
         {/* Search bar */}
@@ -47,7 +49,7 @@ export default function HeroSearch() {
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => e.key === "Enter" && go()}
-            placeholder="Zadaj produkt alebo obchod, napr. iPhone 16, Nike, Lidl"
+            placeholder={t("placeholder")}
             style={{
               flex:1, padding:"16px 20px", border:"none", background:"#fff",
               color:"#1d1d1f", fontSize:15, outline:"none", fontFamily:"inherit",
@@ -63,13 +65,13 @@ export default function HeroSearch() {
             onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
             onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
           >
-            🔍 Hľadať
+            🔍 {t("search_btn")}
           </button>
         </div>
 
         {/* Popular searches */}
         <div style={{ marginTop:20, display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
-          <span style={{ fontSize:13, color:"#888", marginRight:4 }}>Populárne:</span>
+          <span style={{ fontSize:13, color:"#888", marginRight:4 }}>{t("popular_label")}</span>
           {POPULAR.map(p => (
             <button
               key={p}

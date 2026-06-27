@@ -1,15 +1,22 @@
 {
   "nav": {
+    "coupons": "Kupóny",
     "shops": "Obchody",
     "leaflets": "Letáky",
     "cashback": "Cashback",
-    "blog": "Blog",
+    "categories": "Kategórie ▾",
+    "favorites": "Obľúbené",
+    "search_placeholder": "Vyhľadaj obchod alebo kupón...",
     "all_shops": "Všetky obchody",
     "home": "Domov"
   },
   "hero": {
-    "title": "Ušetri na každom nákupe",
-    "subtitle": "Zadaj obchod a AI nájde aktuálne zľavové kódy za pár sekúnd."
+    "badge": "Vyhľadaj a ušetri",
+    "title": "Vyhľadaj produkt a ušetri ešte viac",
+    "subtitle": "Zlavickovo.sk ti pomôže pred nákupom nájsť kupóny, cashback, letáky a relevantné obchody.",
+    "placeholder": "Zadaj produkt alebo obchod, napr. iPhone 16, Nike, Lidl",
+    "search_btn": "Hľadať",
+    "popular_label": "Populárne:"
   },
   "search": {
     "button": "Hľadať",
@@ -19,13 +26,13 @@
     "mode_url": "🔗 URL"
   },
   "coupon": {
-    "show_code": "🎁 Zobraziť kód",
+    "show_code": "Získať kód",
     "copy": "Kopírovať",
-    "copied": "✓",
-    "expires": "Vyprší",
-    "verified": "Overený",
-    "sponsored": "Sponzorované",
-    "go_to_shop": "Prejsť do obchodu →",
+    "copied": "✓ Skopírované",
+    "expires": "do",
+    "verified": "✓",
+    "sponsored": "Sponz.",
+    "go_to_shop": "Prejsť na akciu →",
     "use_deal": "Využiť akciu →"
   }
 }
