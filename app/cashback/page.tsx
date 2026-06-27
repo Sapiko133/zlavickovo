@@ -39,18 +39,15 @@ export default async function CashbackPage() {
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
       <Nav />
 
-      {/* Hero */}
+      {/* Hero – always light background, hardcode text dark */}
       <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #eff6ff 60%, var(--bg) 100%)", padding: "64px 24px 56px", textAlign: "center" }}>
         <div style={{ display: "inline-block", padding: "6px 16px", borderRadius: 100, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", fontSize: 12, color: "#7C3AED", marginBottom: 20, fontWeight: 600 }}>
-          💸 Zarob na každom nákupe
+          💸 Cashback program
         </div>
-        <h1 style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, letterSpacing: "-1.5px", margin: "0 0 16px", color: "var(--text)" }}>
-          Nakupuj a{" "}
-          <span style={{ background: "linear-gradient(135deg, #7C3AED, #2563EB)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            dostávaj peniaze späť
-          </span>
+        <h1 style={{ fontSize: "clamp(32px, 5vw, 56px)", fontWeight: 800, letterSpacing: "-1.5px", margin: "0 0 16px", color: "#1d1d1f" }}>
+          Ušetri na každom nákupe
         </h1>
-        <p style={{ fontSize: 17, color: "var(--text2)", maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 17, color: "#555", maxWidth: 480, margin: "0 auto", lineHeight: 1.6 }}>
           Cashback funguje jednoducho — nakupuj v svojich obľúbených obchodoch a získavaj späť časť ceny nákupu.
         </p>
       </div>

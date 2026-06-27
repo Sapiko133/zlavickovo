@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
+import { NextIntlClientProvider } from "next-intl";
 import { cookies } from "next/headers";
+import Script from "next/script";
 import OneSignalInit from "@/components/OneSignalInit";
 import InstallBanner from "@/components/InstallBanner";
 import "./globals.css";
@@ -40,6 +42,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const cookieStore = await cookies();
   const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sk";
   const locale: Locale = (SUPPORTED as readonly string[]).includes(raw) ? (raw as Locale) : "sk";
+  const messages = (await import(`@/messages/${locale}.json`)).default;
 
   return (
     <html
@@ -49,10 +52,17 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     >
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <OneSignalInit />
-          <InstallBanner />
-          {children}
+          <NextIntlClientProvider messages={messages} locale={locale}>
+            <OneSignalInit />
+            <InstallBanner />
+            {children}
+          </NextIntlClientProvider>
         </ThemeProvider>
+        <Script
+          async
+          src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );

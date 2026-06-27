@@ -6,6 +6,7 @@ import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import HeurekaSearch from "@/components/HeurekaSearch";
+import HeurekaWidget from "@/components/HeurekaWidget";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 
@@ -258,6 +259,10 @@ export default async function ShopPage({ params }: Props) {
         }>
           <AiCoupons shopName={`${capitalized}${isCz ? " CZ" : ""}`} />
         </Suspense>
+
+        <div style={{ marginTop: 32 }}>
+          <HeurekaWidget />
+        </div>
 
         </div>{/* end left col */}
 
