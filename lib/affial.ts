@@ -27,9 +27,9 @@ async function fetchAffialCoupons() {
         code: item.code ?? item.coupon_code ?? "",
         discount: item.discount ?? item.value ?? "",
         description: item.description ?? "",
-        campaign_name: item.shop_name ?? item.merchant_name ?? item.campaign_name ?? "",
+        campaign_name: item.offerName ?? item.shop_name ?? item.merchant_name ?? item.campaign_name ?? "",
         affiliate_link: item.url ?? item.affiliate_url ?? item.link ?? "#",
-        valid_to: item.valid_to ?? item.expiry_date ?? null,
+        valid_to: item.validTill ?? item.validTo ?? item.valid_to ?? item.expiry_date ?? null,
         type: 1,
         source: "affial" as const,
       }));
