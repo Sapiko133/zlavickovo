@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 const CAT_COLORS: Record<string, { bg: string; color: string }> = {
   tipy:       { bg: "#eff6ff", color: "#1d4ed8" },
   kupony:     { bg: "#f0fdf4", color: "#16a34a" },
-  navody:     { bg: "#fdf4ff", color: "#9333ea" },
+  navody:     { bg: "#f0fdf4", color: "#16a34a" },
   porovnanie: { bg: "#fff7ed", color: "#ea580c" },
 };
 
@@ -35,12 +35,12 @@ function blogImageUrl(post: BlogPost): string {
 export default function BlogPage() {
   const posts = getAllPosts();
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
       <Nav />
 
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "56px 24px 48px", textAlign: "center" }}>
-        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "var(--text)" }}>Blog</h1>
-        <p style={{ fontSize: 16, color: "var(--text2)", margin: 0 }}>Tipy, návody a porovnania pre inteligentných nakupovateľov</p>
+      <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "56px 24px 48px", textAlign: "center" }}>
+        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "#1d1d1f" }}>Blog</h1>
+        <p style={{ fontSize: 16, color: "#555", margin: 0 }}>Tipy, návody a porovnania pre inteligentných nakupovateľov</p>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
@@ -49,9 +49,8 @@ export default function BlogPage() {
             const cat = CAT_COLORS[post.category] || { bg: "#f5f5f5", color: "#555" };
             const imgUrl = blogImageUrl(post);
             return (
-              <a key={post.slug} href={`/blog/${post.slug}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
-                {/* Obrázok */}
-                <div style={{ position: "relative", height: 180, overflow: "hidden", background: "var(--step-bg)" }}>
+              <a key={post.slug} href={`/blog/${post.slug}`} style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb", boxShadow: "0 2px 12px rgba(0,0,0,0.05)", overflow: "hidden" }}>
+                <div style={{ position: "relative", height: 180, overflow: "hidden", background: "#f9fafb" }}>
                   <img
                     src={imgUrl}
                     alt={post.title}
@@ -64,15 +63,14 @@ export default function BlogPage() {
                     </span>
                   </div>
                 </div>
-                {/* Content */}
                 <div style={{ padding: "20px 24px", flex: 1 }}>
-                  {post.shop && <div style={{ fontSize: 11, color: "var(--text2)", marginBottom: 6 }}>{post.shop}</div>}
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "var(--text)", lineHeight: 1.4, marginBottom: 10 }}>{post.title}</div>
-                  <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>{post.description}</div>
+                  {post.shop && <div style={{ fontSize: 11, color: "#666", marginBottom: 6 }}>{post.shop}</div>}
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 10 }}>{post.title}</div>
+                  <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>{post.description}</div>
                 </div>
-                <div style={{ padding: "12px 24px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid var(--border)" }}>
-                  <span style={{ fontSize: 12, color: "var(--text2)" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
-                  <span style={{ fontSize: 13, color: "#7C3AED", fontWeight: 600 }}>Čítať →</span>
+                <div style={{ padding: "12px 24px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #e5e7eb" }}>
+                  <span style={{ fontSize: 12, color: "#666" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
+                  <span style={{ fontSize: 13, color: "#22C55E", fontWeight: 600 }}>Čítať →</span>
                 </div>
               </a>
             );

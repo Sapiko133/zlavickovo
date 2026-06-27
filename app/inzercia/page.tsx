@@ -13,9 +13,7 @@ const PLANS = [
   {
     name: "Starter",
     price: "49€/mes",
-    color: "#f5f3ff",
-    border: "rgba(124,58,237,0.2)",
-    badge: null,
+    highlight: false,
     features: [
       "Featured umiestnenie v kategórii",
       "Logo a popis obchodu",
@@ -25,8 +23,7 @@ const PLANS = [
   {
     name: "Pro",
     price: "99€/mes",
-    color: "linear-gradient(135deg, #f5f3ff, #eff6ff)",
-    border: "#7C3AED",
+    highlight: true,
     badge: "Populárny",
     features: [
       "Featured na hlavnej stránke",
@@ -39,9 +36,7 @@ const PLANS = [
   {
     name: "Premium",
     price: "199€/mes",
-    color: "#fff8f0",
-    border: "#f97316",
-    badge: "Najlepší",
+    highlight: false,
     features: [
       "Všetko z Pro balíka",
       "Zaradenie do newslettera",
@@ -54,23 +49,23 @@ const PLANS = [
 
 export default function InzerciaPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
 
       <Nav />
 
       {/* Hero */}
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "64px 24px 56px", textAlign: "center" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, letterSpacing: "-1.5px", margin: "0 0 16px", color: "var(--text)" }}>
+      <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "64px 24px 56px", textAlign: "center" }}>
+        <h1 style={{ fontSize: "clamp(30px, 5vw, 52px)", fontWeight: 800, letterSpacing: "-1.5px", margin: "0 0 16px", color: "#1d1d1f" }}>
           Inzerujte na Zlavickovo
         </h1>
-        <p style={{ fontSize: 17, color: "var(--text2)", maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>
+        <p style={{ fontSize: 17, color: "#555", maxWidth: 560, margin: "0 auto", lineHeight: 1.7 }}>
           Oslovte zákazníkov, ktorí aktívne hľadajú zľavy. Naša platforma poháňaná AI pokrýva slovenský a český trh.
         </p>
       </div>
 
       {/* Prečo inzerovať */}
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "56px 24px 0" }}>
-        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 36px", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 36px", color: "#1d1d1f" }}>
           Prečo inzerovať na Zlavickovo?
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 20 }}>
@@ -80,10 +75,10 @@ export default function InzerciaPage() {
             { icon: "🤖", title: "AI platforma",         desc: "Moderná AI platforma s rastúcou návštevnosťou." },
             { icon: "📊", title: "Merateľné výsledky",   desc: "Transparentné reporty o kliknutiach a konverziách." },
           ].map((item, i) => (
-            <div key={i} style={{ background: "var(--step-bg)", borderRadius: 16, padding: "24px 20px", border: "1px solid var(--step-border)", textAlign: "center" }}>
+            <div key={i} style={{ background: "#f9fafb", borderRadius: 16, padding: "24px 20px", border: "1px solid #e5e7eb", textAlign: "center" }}>
               <div style={{ fontSize: 32, marginBottom: 10 }}>{item.icon}</div>
-              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "var(--text)" }}>{item.title}</div>
-              <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>{item.desc}</div>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6, color: "#1d1d1f" }}>{item.title}</div>
+              <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>{item.desc}</div>
             </div>
           ))}
         </div>
@@ -91,28 +86,28 @@ export default function InzerciaPage() {
 
       {/* Cenník */}
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "64px 24px 0" }}>
-        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 36px", color: "var(--text)" }}>Cenník</h2>
+        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 36px", color: "#1d1d1f" }}>Cenník</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
           {PLANS.map((plan) => (
             <div key={plan.name} style={{
               borderRadius: 20, padding: "32px 28px",
-              background: plan.color,
-              border: `2px solid ${plan.border}`,
+              background: plan.highlight ? "#F0FDF4" : "#f9fafb",
+              border: `2px solid ${plan.highlight ? "#22C55E" : "#e5e7eb"}`,
               position: "relative",
             }}>
               {plan.badge && (
                 <div style={{
                   position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)",
-                  background: "linear-gradient(135deg, #7C3AED, #2563EB)", color: "#fff",
+                  background: "#22C55E", color: "#fff",
                   padding: "4px 14px", borderRadius: 100, fontSize: 12, fontWeight: 700, whiteSpace: "nowrap",
                 }}>{plan.badge}</div>
               )}
               <div style={{ fontWeight: 800, fontSize: 22, color: "#1d1d1f", marginBottom: 4 }}>{plan.name}</div>
-              <div style={{ fontWeight: 800, fontSize: 28, color: "#7C3AED", marginBottom: 24 }}>{plan.price}</div>
+              <div style={{ fontWeight: 800, fontSize: 28, color: "#22C55E", marginBottom: 24 }}>{plan.price}</div>
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 10 }}>
                 {plan.features.map((f, i) => (
                   <li key={i} style={{ fontSize: 14, color: "#444", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span style={{ color: "#7C3AED", fontWeight: 700, flexShrink: 0 }}>✓</span>
+                    <span style={{ color: "#22C55E", fontWeight: 700, flexShrink: 0 }}>✓</span>
                     {f}
                   </li>
                 ))}
@@ -120,17 +115,17 @@ export default function InzerciaPage() {
             </div>
           ))}
         </div>
-        <p style={{ textAlign: "center", fontSize: 13, color: "var(--text2)", marginTop: 20 }}>
+        <p style={{ textAlign: "center", fontSize: 13, color: "#666", marginTop: 20 }}>
           Všetky ceny sú bez DPH. Možná aj jednorázová spolupráca — kontaktujte nás.
         </p>
       </div>
 
       {/* Kontaktný formulár */}
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "64px 24px 80px" }}>
-        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 8px", color: "var(--text)" }}>
+        <h2 style={{ fontSize: 26, fontWeight: 700, letterSpacing: "-0.5px", textAlign: "center", margin: "0 0 8px", color: "#1d1d1f" }}>
           Mám záujem o inzerciu
         </h2>
-        <p style={{ textAlign: "center", fontSize: 14, color: "var(--text2)", margin: "0 0 36px" }}>
+        <p style={{ textAlign: "center", fontSize: 14, color: "#666", margin: "0 0 36px" }}>
           Vyplňte formulár a ozveme sa vám do 24 hodín.
         </p>
         <ContactForm />

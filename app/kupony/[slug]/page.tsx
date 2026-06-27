@@ -216,7 +216,7 @@ export default async function ShopPage({ params }: Props) {
             <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "24px", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
               <Suspense fallback={
                 <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", margin: "0 auto 14px", border: "3px solid #f0f0f0", borderTopColor: "#7C3AED", animation: "spin 0.8s linear infinite" }} />
+                  <div style={{ width: 36, height: 36, borderRadius: "50%", margin: "0 auto 14px", border: "3px solid #f0f0f0", borderTopColor: "#22C55E", animation: "spin 0.8s linear infinite" }} />
                   <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>AI hľadá kódy pre {capitalized}...</div>
                   <div style={{ fontSize: 12, marginTop: 4, color: "#aaa" }}>Môže to trvať 10–20 sekúnd</div>

@@ -1,5 +1,6 @@
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { notFound } from "next/navigation";
+import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 
 export const revalidate = 3600;
@@ -81,16 +82,7 @@ export default async function LetatPage({ params }: Props) {
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      {/* Nav */}
-      <nav style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100, background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
-        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #7C3AED, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800 }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo</span>
-        </a>
-        <div style={{ display: "flex", gap: 20, fontSize: 13 }}>
-          <a href="/letaky" style={{ color: "#7C3AED", textDecoration: "none" }}>← Letáky</a>
-        </div>
-      </nav>
+      <Nav />
 
       {/* Breadcrumb */}
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "#aaa" }}>
@@ -102,7 +94,7 @@ export default async function LetatPage({ params }: Props) {
       </div>
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #fff 100%)", padding: "48px 24px 40px", textAlign: "center" }}>
+      <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "48px 24px 40px", textAlign: "center", marginTop: 12 }}>
         <div style={{
           width: 72, height: 72, borderRadius: 18, margin: "0 auto 20px",
           background: letak.color, display: "flex", alignItems: "center", justifyContent: "center",
@@ -115,7 +107,7 @@ export default async function LetatPage({ params }: Props) {
           {letak.name} leták {month} {year}
         </h1>
         <div style={{ display: "flex", gap: 10, justifyContent: "center", marginTop: 12, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, fontWeight: 600, padding: "5px 12px", borderRadius: 8, background: "#f0fdf4", color: "#16a34a" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, padding: "5px 12px", borderRadius: 8, background: "#F0FDF4", border: "1px solid #BBF7D0", color: "#16a34a" }}>
             Platný do {formatDate(expiry)}
           </span>
           {expiringSoon && (
@@ -138,9 +130,9 @@ export default async function LetatPage({ params }: Props) {
             rel="nofollow noopener noreferrer"
             style={{
               display: "inline-block", padding: "16px 40px", borderRadius: 14,
-              background: "linear-gradient(135deg, #7C3AED, #2563EB)",
+              background: "#22C55E",
               color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none",
-              boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
+              boxShadow: "0 4px 16px rgba(34,197,94,0.3)",
             }}
           >
             Zobraziť aktuálny {letak.name} leták →
@@ -148,12 +140,12 @@ export default async function LetatPage({ params }: Props) {
         </div>
 
         {/* FAQ */}
-        <div style={{ background: "#fafafa", borderRadius: 20, padding: "32px" }}>
+        <div style={{ background: "#f9fafb", borderRadius: 20, padding: "32px", border: "1px solid #e5e7eb" }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 24px" }}>
             Časté otázky – {letak.name} leták
           </h2>
           {faq.map((item, i) => (
-            <div key={i} style={{ padding: "18px 0", borderBottom: i < faq.length - 1 ? "1px solid #ebebeb" : "none" }}>
+            <div key={i} style={{ padding: "18px 0", borderBottom: i < faq.length - 1 ? "1px solid #e5e7eb" : "none" }}>
               <div style={{ fontWeight: 600, fontSize: 15, color: "#1d1d1f", marginBottom: 8 }}>{item.q}</div>
               <div style={{ fontSize: 14, color: "#666", lineHeight: 1.6 }}>{item.a}</div>
             </div>

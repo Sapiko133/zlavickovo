@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 
 type TopCode = { code: string; shop: string; discount: string; clicks: number; slug: string };
 
-const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F"];
+const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#22C55E","#003580","#D32F2F"];
 function shopColor(name: string) { return COLORS[name.charCodeAt(0) % COLORS.length]; }
 
 export default function TopCodes({ shopFilter, limit = 6, title = "🔥 Trending kódy" }: {
@@ -49,18 +49,15 @@ export default function TopCodes({ shopFilter, limit = 6, title = "🔥 Trending
               {item.shop.charAt(0)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13, color: "#F97316", letterSpacing: 1 }}>
+              <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13, color: "#22C55E", letterSpacing: 1 }}>
                 {item.code}
               </div>
-              {item.discount && (
-                <div style={{ fontSize: 11, color: "#aaa" }}>{item.shop} · {item.discount}</div>
-              )}
-              {!item.discount && (
-                <div style={{ fontSize: 11, color: "#aaa" }}>{item.shop}</div>
-              )}
+              <div style={{ fontSize: 11, color: "#aaa" }}>
+                {item.shop}{item.discount ? ` · ${item.discount}` : ""}
+              </div>
             </div>
             {item.discount && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.1)", color: "#F97316", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "#F0FDF4", color: "#22C55E", flexShrink: 0 }}>
                 {item.discount}
               </span>
             )}
@@ -71,7 +68,7 @@ export default function TopCodes({ shopFilter, limit = 6, title = "🔥 Trending
               onClick={() => trackAndCopy(item.code, item.shop)}
               style={{
                 padding: "6px 10px", borderRadius: 7, border: "none", flexShrink: 0,
-                background: copied === item.code ? "#16a34a" : "#1d1d1f",
+                background: copied === item.code ? "#16a34a" : "#22C55E",
                 color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer",
               }}
             >

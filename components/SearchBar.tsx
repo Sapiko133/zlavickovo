@@ -31,7 +31,7 @@ export default function SearchBar() {
     if (mode === "shop") {
       router.push("/kupony/" + q.toLowerCase().replace(/\s+/g, "-"));
     } else {
-      router.push("/hladat?url=" + encodeURIComponent(q));
+      router.push("/hladat?q=" + encodeURIComponent(q));
     }
   };
 
@@ -47,11 +47,7 @@ export default function SearchBar() {
 
   return (
     <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
-      {/* Mode tabs */}
-      <div style={{
-        display: "inline-flex", background: "#f0f0f0",
-        borderRadius: 10, padding: 3, marginBottom: 10, gap: 2,
-      }}>
+      <div style={{ display: "inline-flex", background: "#f0f0f0", borderRadius: 10, padding: 3, marginBottom: 10, gap: 2 }}>
         {modes.map(m => (
           <button
             key={m.key}
@@ -69,7 +65,6 @@ export default function SearchBar() {
         ))}
       </div>
 
-      {/* Search input + button */}
       <div style={{ display: "flex", gap: 0, position: "relative", background: "#fff", borderRadius: 14, border: "2px solid #e8e8e8", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "visible" }}>
         <div style={{ flex: 1, position: "relative" }}>
           <input
@@ -84,10 +79,7 @@ export default function SearchBar() {
               color: "#1d1d1f", fontSize: 15, outline: "none",
               boxSizing: "border-box",
             }}
-            onFocus={e => { (e.target.closest("div[style]") as HTMLElement | null)?.parentElement?.setAttribute("style", "display:flex;gap:0;position:relative;background:#fff;border-radius:14px;border:2px solid #F97316;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:visible"); }}
-            onBlur={e => { (e.target.closest("div[style]") as HTMLElement | null)?.parentElement?.setAttribute("style", "display:flex;gap:0;position:relative;background:#fff;border-radius:14px;border:2px solid #e8e8e8;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:visible"); }}
           />
-
           {suggestions.length > 0 && (
             <div style={{
               position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
@@ -99,11 +91,8 @@ export default function SearchBar() {
                 <div
                   key={s}
                   onClick={() => handleSearch(s)}
-                  style={{
-                    padding: "11px 20px", cursor: "pointer", fontSize: 14,
-                    color: "#1d1d1f", borderBottom: "1px solid #f5f5f5",
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#fff7ed")}
+                  style={{ padding: "11px 20px", cursor: "pointer", fontSize: 14, color: "#1d1d1f", borderBottom: "1px solid #f5f5f5" }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#F0FDF4")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
                   {s}
@@ -112,15 +101,15 @@ export default function SearchBar() {
             </div>
           )}
         </div>
-
         <button
           onClick={() => handleSearch()}
           style={{
             padding: "16px 28px", borderRadius: "0 12px 12px 0", border: "none",
-            background: "#F97316",
-            color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+            background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
             whiteSpace: "nowrap", flexShrink: 0,
           }}
+          onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
+          onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}
         >
           Hľadať
         </button>

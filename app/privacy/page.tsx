@@ -11,18 +11,18 @@ export const metadata: Metadata = {
 const UPDATED = "26. 6. 2026";
 
 export default function PrivacyPage() {
-  const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "40px 0 12px", letterSpacing: "-0.3px" };
-  const p: React.CSSProperties = { fontSize: 15, color: "var(--text2)", lineHeight: 1.8, margin: "0 0 12px" };
-  const li: React.CSSProperties = { fontSize: 15, color: "var(--text2)", lineHeight: 1.8 };
+  const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, color: "#1d1d1f", margin: "40px 0 12px", letterSpacing: "-0.3px" };
+  const p: React.CSSProperties = { fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 12px" };
+  const li: React.CSSProperties = { fontSize: 15, color: "#555", lineHeight: 1.8 };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
 
       <Nav />
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "56px 24px 80px" }}>
-        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px", color: "var(--text)" }}>Ochrana súkromia</h1>
-        <p style={{ fontSize: 13, color: "var(--text2)", margin: "0 0 48px" }}>Aktualizované: {UPDATED}</p>
+        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px", color: "#1d1d1f" }}>Ochrana súkromia</h1>
+        <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 48px" }}>Aktualizované: {UPDATED}</p>
 
         <h2 style={h2}>1. Aké údaje zbierame</h2>
         <p style={p}>Zlavickovo.sk zbiera minimálne množstvo osobných údajov nevyhnutných pre prevádzku portálu:</p>
@@ -53,12 +53,12 @@ export default function PrivacyPage() {
           <li style={li}><strong>Právo na prenosnosť</strong> — môžete získať vaše údaje v strojovo čitateľnom formáte.</li>
           <li style={li}><strong>Právo na námietku</strong> — môžete namietať proti spracovaniu vašich údajov na marketingové účely.</li>
         </ul>
-        <p style={p}>Pre uplatnenie práv nás kontaktujte na: <a href="mailto:info@zlavickovo.sk" style={{ color: "#7C3AED" }}>info@zlavickovo.sk</a></p>
+        <p style={p}>Pre uplatnenie práv nás kontaktujte na: <a href="mailto:info@zlavickovo.sk" style={{ color: "#22C55E" }}>info@zlavickovo.sk</a></p>
 
         <h2 style={h2}>5. Kontakt</h2>
         <p style={p}>
           Prevádzkovateľ: Zlavickovo.sk<br />
-          Email: <a href="mailto:info@zlavickovo.sk" style={{ color: "#7C3AED" }}>info@zlavickovo.sk</a>
+          Email: <a href="mailto:info@zlavickovo.sk" style={{ color: "#22C55E" }}>info@zlavickovo.sk</a>
         </p>
       </div>
 

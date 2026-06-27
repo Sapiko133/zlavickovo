@@ -27,10 +27,10 @@ function LetatCard({ letak }: { letak: typeof LETAKY[0] }) {
 
   return (
     <div style={{
-      background: "var(--card)", borderRadius: 16, border: "1px solid var(--border)",
+      background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb",
       boxShadow: "0 2px 8px rgba(0,0,0,0.04)", overflow: "hidden",
     }}>
-      <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #e5e7eb" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
           <div style={{
             width: 48, height: 48, borderRadius: 12, background: letak.color, flexShrink: 0,
@@ -41,8 +41,8 @@ function LetatCard({ letak }: { letak: typeof LETAKY[0] }) {
             {letak.letter}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 15, color: "var(--text)" }}>{letak.name}</div>
-            <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>Platný do {formatDate(expiry)}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{letak.name}</div>
+            <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>Platný do {formatDate(expiry)}</div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
             <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: letak.country === "sk" ? "#dbeafe" : "#fce7f3", color: letak.country === "sk" ? "#1d4ed8" : "#be185d" }}>
@@ -55,20 +55,17 @@ function LetatCard({ letak }: { letak: typeof LETAKY[0] }) {
             )}
           </div>
         </div>
-        <div style={{ fontSize: 12, color: "var(--text2)" }}>Aktualizácia: {letak.updateText}</div>
+        <div style={{ fontSize: 12, color: "#666" }}>Aktualizácia: {letak.updateText}</div>
       </div>
       <div style={{ padding: "14px 20px", display: "flex", gap: 8 }}>
-        <a
-          href={`/letaky/${letak.slug}`}
-          style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1.5px solid var(--border)", fontSize: 13, fontWeight: 600, color: "var(--text2)", textAlign: "center", textDecoration: "none" }}
-        >
+        <a href={`/letaky/${letak.slug}`} style={{ flex: 1, padding: "10px", borderRadius: 9, border: "1.5px solid #e5e7eb", fontSize: 13, fontWeight: 600, color: "#666", textAlign: "center", textDecoration: "none" }}>
           Info
         </a>
         <a
           href={letak.url}
           target="_blank"
           rel="nofollow noopener noreferrer"
-          style={{ flex: 2, padding: "10px", borderRadius: 9, background: "linear-gradient(135deg, #7C3AED, #2563EB)", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center", textDecoration: "none" }}
+          style={{ flex: 2, padding: "10px", borderRadius: 9, background: "#22C55E", fontSize: 13, fontWeight: 700, color: "#fff", textAlign: "center", textDecoration: "none" }}
         >
           Zobraziť leták →
         </a>
@@ -82,8 +79,8 @@ function SectionHeader({ emoji, title, subtitle }: { emoji: string; title: strin
     <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
       <div style={{ fontSize: 32 }}>{emoji}</div>
       <div>
-        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "var(--text)" }}>{title}</h2>
-        <p style={{ fontSize: 13, color: "var(--text2)", margin: 0 }}>{subtitle}</p>
+        <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#1d1d1f" }}>{title}</h2>
+        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{subtitle}</p>
       </div>
     </div>
   );
@@ -91,24 +88,23 @@ function SectionHeader({ emoji, title, subtitle }: { emoji: string; title: strin
 
 export default function LetakyPage() {
   return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
+    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
       <Nav />
 
       {/* Header */}
-      <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "60px 24px 48px", textAlign: "center" }}>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", fontSize: 12, color: "#7C3AED", marginBottom: 20, fontWeight: 600 }}>
+      <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "60px 24px 48px", textAlign: "center" }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, background: "rgba(34,197,94,0.12)", border: "1px solid #BBF7D0", fontSize: 12, color: "#16A34A", marginBottom: 20, fontWeight: 600 }}>
           🛒 Potraviny & Reťazce
         </div>
-        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "var(--text)" }}>
+        <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "#1d1d1f" }}>
           Aktuálne letáky
         </h1>
-        <p style={{ color: "var(--text2)", fontSize: 16, margin: 0 }}>
+        <p style={{ color: "#555", fontSize: 16, margin: 0 }}>
           Týždenné letáky supermarketov – aktualizované automaticky
         </p>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
-        {/* SK section */}
         <div style={{ marginBottom: 56 }}>
           <SectionHeader emoji="🇸🇰" title="Slovensko — Potraviny & Reťazce" subtitle="Lidl, Kaufland, Tesco, Billa, COOP Jednota a ďalšie" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
@@ -116,7 +112,6 @@ export default function LetakyPage() {
           </div>
         </div>
 
-        {/* CZ section */}
         <div>
           <SectionHeader emoji="🇨🇿" title="Česko — Potraviny & Reťazce" subtitle="Penny, Albert, Globus a ďalšie" />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
