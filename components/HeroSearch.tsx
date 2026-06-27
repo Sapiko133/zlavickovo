@@ -24,12 +24,14 @@ export default function HeroSearch() {
   return (
     <div style={{
       background: "linear-gradient(160deg, #F0FDF4 0%, #DCFCE7 50%, #F0FDF4 100%)",
-      padding: "64px 24px 56px", textAlign: "center", borderBottom: "1px solid #BBF7D0",
-      position: "relative", overflow: "hidden",
+      padding: "64px 24px 80px", textAlign: "center", borderBottom: "1px solid #BBF7D0",
+      position: "relative",
     }}>
-      {/* BG decoration */}
-      <div style={{ position:"absolute", top:-80, left:"10%", width:300, height:300, borderRadius:"50%", background:"rgba(34,197,94,0.08)", pointerEvents:"none" }} />
-      <div style={{ position:"absolute", bottom:-60, right:"8%", width:240, height:240, borderRadius:"50%", background:"rgba(34,197,94,0.06)", pointerEvents:"none" }} />
+      {/* BG decoration — own clipping layer so dropdown is not clipped */}
+      <div style={{ position:"absolute", inset:0, overflow:"hidden", pointerEvents:"none" }}>
+        <div style={{ position:"absolute", top:-80, left:"10%", width:300, height:300, borderRadius:"50%", background:"rgba(34,197,94,0.08)" }} />
+        <div style={{ position:"absolute", bottom:-60, right:"8%", width:240, height:240, borderRadius:"50%", background:"rgba(34,197,94,0.06)" }} />
+      </div>
 
       <div style={{ maxWidth: 700, margin: "0 auto", position: "relative" }}>
         <div style={{ display:"inline-flex", alignItems:"center", gap:6, padding:"4px 14px", borderRadius:100, background:"rgba(34,197,94,0.12)", border:"1px solid #BBF7D0", fontSize:12, color:"#16A34A", marginBottom:20, fontWeight:600 }}>

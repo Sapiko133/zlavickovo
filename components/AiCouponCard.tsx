@@ -19,6 +19,7 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
     if (link) window.open(link, "_blank", "noopener,noreferrer");
     setRevealed(true);
     if (codeStr) {
+      navigator.clipboard.writeText(codeStr).catch(() => {});
       fetch("/api/track", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

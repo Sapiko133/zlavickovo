@@ -99,14 +99,10 @@ export default function SearchBar() {
   );
 
   const suggestions = useMemo(() => {
-    if (mode !== "shop" || query.length < 1) return [];
+    if (mode !== "shop" || query.length < 2) return [];
     const lq = query.toLowerCase();
     return allShops
-      .filter(s =>
-        query.length === 1
-          ? s.name.toLowerCase().startsWith(lq)
-          : s.name.toLowerCase().includes(lq)
-      )
+      .filter(s => s.name.toLowerCase().includes(lq))
       .slice(0, 8);
   }, [query, mode, allShops]);
 

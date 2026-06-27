@@ -2,7 +2,7 @@
   "nav": {
     "coupons": "Kupóny",
     "shops": "Obchody",
-    "leaflets": "Letáky",
+    "leaflets": "Akcie",
     "cashback": "Cashback",
     "categories": "Kategórie ▾",
     "favorites": "Obľúbené",
@@ -12,8 +12,8 @@
   },
   "hero": {
     "badge": "Vyhľadaj a ušetri",
-    "title": "Vyhľadaj produkt a ušetri ešte viac",
-    "subtitle": "Zlavickovo.sk ti pomôže pred nákupom nájsť kupóny, cashback, letáky a relevantné obchody.",
+    "title": "Zisti ešte pred nákupom, kde nakúpiš najvýhodnejšie.",
+    "subtitle": "Nájdi produkty, kupóny, cashback a akcie na jednom mieste.",
     "placeholder": "Zadaj produkt alebo obchod, napr. iPhone 16, Nike, Lidl",
     "search_btn": "Hľadať",
     "popular_label": "Populárne:"

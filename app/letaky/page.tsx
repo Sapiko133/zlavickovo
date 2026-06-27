@@ -6,12 +6,12 @@ import type { Metadata } from "next";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Aktuálne letáky supermarketov | Potraviny & Reťazce",
-  description: "Aktuálne týždenné letáky Lidl, Kaufland, Tesco, Billa a ďalších obchodov. Nájdi najlepšie akcie a zľavy.",
+  title: "Aktuálne akcie supermarketov | Potraviny & Reťazce",
+  description: "Aktuálne týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalších obchodov. Nájdi najlepšie zľavy.",
   alternates: { canonical: "https://zlavickovo.sk/letaky" },
   openGraph: {
-    title: "Aktuálne letáky supermarketov | Zlavickovo",
-    description: "Týždenné letáky Lidl, Kaufland, Tesco, Billa a ďalšie. Aktualizované automaticky.",
+    title: "Aktuálne akcie supermarketov | Zlavickovo",
+    description: "Týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalšie. Aktualizované automaticky.",
     url: "https://zlavickovo.sk/letaky",
     type: "website",
     locale: "sk_SK",
@@ -98,10 +98,10 @@ export default function LetakyPage() {
           🛒 Potraviny & Reťazce
         </div>
         <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "#1d1d1f" }}>
-          Aktuálne letáky
+          Aktuálne akcie
         </h1>
         <p style={{ color: "#555", fontSize: 16, margin: 0 }}>
-          Týždenné letáky supermarketov – aktualizované automaticky
+          Týždenné akcie supermarketov – aktualizované automaticky
         </p>
       </div>
 
