@@ -49,7 +49,7 @@ export default function TopCodes({ shopFilter, limit = 6, title = "🔥 Trending
               {item.shop.charAt(0)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13, color: "#7C3AED", letterSpacing: 1 }}>
+              <div style={{ fontFamily: "monospace", fontWeight: 800, fontSize: 13, color: "#F97316", letterSpacing: 1 }}>
                 {item.code}
               </div>
               {item.discount && (
@@ -60,7 +60,7 @@ export default function TopCodes({ shopFilter, limit = 6, title = "🔥 Trending
               )}
             </div>
             {item.discount && (
-              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "rgba(124,58,237,0.08)", color: "#7C3AED", flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "rgba(249,115,22,0.1)", color: "#F97316", flexShrink: 0 }}>
                 {item.discount}
               </span>
             )}

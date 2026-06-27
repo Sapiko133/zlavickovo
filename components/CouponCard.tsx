@@ -26,6 +26,9 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
   const code = token ? decodeCode(token) : null;
   const expires = coupon.valid_to ? new Date(coupon.valid_to).toLocaleDateString("sk-SK") : null;
 
+  const discountMatch = (coupon.title || coupon.name || "").match(/(\d+)\s*%/);
+  const discountBadge = discountMatch ? `${discountMatch[1]}%` : null;
+
   function handleShowCode() {
     if (link) window.open(link, "_blank", "noopener,noreferrer");
     setRevealed(true);
@@ -47,49 +50,60 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 14, border: "1px solid #e8e8e8",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+      background: "#fff", borderRadius: 12, border: "1px solid #e8e8e8",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
       display: "flex", flexDirection: "column", overflow: "hidden",
+      position: "relative",
     }}>
+      {discountBadge && (
+        <div style={{
+          position: "absolute", top: 12, right: 12,
+          background: "#F97316", color: "#fff",
+          fontWeight: 800, fontSize: 12, padding: "3px 8px", borderRadius: 6,
+        }}>
+          -{discountBadge}
+        </div>
+      )}
+
       {/* Header */}
-      <div style={{ padding: "16px 20px 12px", display: "flex", alignItems: "center", gap: 12, borderBottom: "1px solid #f5f5f5" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 10, background: logoColor, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 18 }}>
+      <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f5f5f5" }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: logoColor, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 16 }}>
           {storeName.charAt(0)}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {storeName}
           </div>
-          {expires && <div style={{ fontSize: 11, color: "#aaa", marginTop: 2 }}>do {expires}</div>}
+          {expires && <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>do {expires}</div>}
         </div>
         {sponsored ? (
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "#fff7ed", color: "#ea580c", flexShrink: 0 }}>
-            Sponzorované
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 5, background: "#fff7ed", color: "#ea580c", flexShrink: 0 }}>
+            Sponz.
           </span>
         ) : (
-          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 6, background: "#dcfce7", color: "#16a34a", flexShrink: 0 }}>
-            ✓ Overený
+          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 5, background: "#dcfce7", color: "#16a34a", flexShrink: 0 }}>
+            ✓
           </span>
         )}
       </div>
 
       {/* Body */}
-      <div style={{ padding: "14px 20px", flex: 1 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: "#475569", background: "#f1f5f9", display: "inline-block", padding: "2px 8px", borderRadius: 5, marginBottom: 8 }}>
+      <div style={{ padding: "12px 16px", flex: 1 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: "#666", background: "#f5f5f5", display: "inline-block", padding: "2px 7px", borderRadius: 4, marginBottom: 7 }}>
           {TYPE_LABELS[coupon.type] || "Akcia"}
         </div>
-        <div style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 6 }}>
+        <div style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 5 }}>
           {coupon.title || coupon.name}
         </div>
         {coupon.description && (
-          <div style={{ fontSize: 13, color: "#666", lineHeight: 1.5 }}>
-            {coupon.description.length > 90 ? coupon.description.slice(0, 90) + "..." : coupon.description}
+          <div style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>
+            {coupon.description.length > 80 ? coupon.description.slice(0, 80) + "..." : coupon.description}
           </div>
         )}
       </div>
 
       {/* Footer */}
-      <div style={{ padding: "12px 20px 16px", borderTop: "1px dashed #f0f0f0" }}>
+      <div style={{ padding: "10px 16px 14px", borderTop: "1px dashed #f0f0f0" }}>
         {token ? (
           revealed ? (
             <div>
@@ -97,10 +111,10 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
                 onClick={copyCode}
                 title="Kliknúť pre kopírovanie"
                 style={{
-                  fontFamily: "monospace", fontWeight: 800, fontSize: 15, color: "#7C3AED",
-                  background: "#f5f3ff", border: "2px dashed #7C3AED", borderRadius: 8,
-                  padding: "9px 12px", letterSpacing: 2, textAlign: "center",
-                  cursor: "pointer", marginBottom: 8,
+                  fontFamily: "monospace", fontWeight: 800, fontSize: 14, color: "#F97316",
+                  background: "#fff7ed", border: "2px dashed #F97316", borderRadius: 7,
+                  padding: "8px 12px", letterSpacing: 2, textAlign: "center",
+                  cursor: "pointer", marginBottom: 7,
                 }}
               >
                 {code}
@@ -108,7 +122,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
               <button
                 onClick={copyCode}
                 style={{
-                  width: "100%", padding: "8px", borderRadius: 8, border: "1px solid #e0e0e0",
+                  width: "100%", padding: "8px", borderRadius: 7, border: "1px solid #e8e8e8",
                   background: copied ? "#16a34a" : "#fff", color: copied ? "#fff" : "#444",
                   fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
                 }}
@@ -120,23 +134,23 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
             <button
               onClick={handleShowCode}
               style={{
-                width: "100%", padding: "11px", borderRadius: 10, border: "none",
-                background: "linear-gradient(135deg, #7C3AED, #2563EB)",
+                width: "100%", padding: "10px", borderRadius: 9, border: "none",
+                background: "#F97316",
                 color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
                 fontFamily: "inherit",
               }}
             >
-              🎁 Zobraziť kód
+              Získať kód
             </button>
           )
         ) : (
           <a
             href={link || "#"}
             target="_blank"
-            rel="noopener noreferrer"
+            rel="noopener noreferrer nofollow"
             style={{
-              display: "block", padding: "11px", borderRadius: 10,
-              background: "linear-gradient(135deg, #7C3AED, #2563EB)",
+              display: "block", padding: "10px", borderRadius: 9,
+              background: "#F97316",
               color: "#fff", fontWeight: 700, fontSize: 14, textAlign: "center", textDecoration: "none",
             }}
           >

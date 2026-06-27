@@ -18,10 +18,7 @@ export default function SearchBar() {
   const handleInput = (val: string) => {
     setQuery(val);
     if (mode === "shop" && val.length > 0) {
-      const filtered = POPULAR_SHOPS.filter(s =>
-        s.toLowerCase().startsWith(val.toLowerCase())
-      );
-      setSuggestions(filtered);
+      setSuggestions(POPULAR_SHOPS.filter(s => s.toLowerCase().startsWith(val.toLowerCase())));
     } else {
       setSuggestions([]);
     }
@@ -49,22 +46,22 @@ export default function SearchBar() {
   };
 
   return (
-    <div style={{ maxWidth: 620, margin: "0 auto", position: "relative" }}>
+    <div style={{ maxWidth: 640, margin: "0 auto", position: "relative" }}>
       {/* Mode tabs */}
       <div style={{
-        display: "inline-flex", background: "rgba(0,0,0,0.05)",
-        borderRadius: 12, padding: 4, marginBottom: 12, gap: 2,
+        display: "inline-flex", background: "#f0f0f0",
+        borderRadius: 10, padding: 3, marginBottom: 10, gap: 2,
       }}>
         {modes.map(m => (
           <button
             key={m.key}
             onClick={() => { setMode(m.key); setQuery(""); setSuggestions([]); }}
             style={{
-              padding: "8px 20px", borderRadius: 9, border: "none", cursor: "pointer",
-              fontSize: 13, fontWeight: 500, transition: "all 0.15s",
+              padding: "7px 18px", borderRadius: 8, border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 500, transition: "all 0.12s",
               background: mode === m.key ? "#fff" : "transparent",
               color: mode === m.key ? "#1d1d1f" : "#888",
-              boxShadow: mode === m.key ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+              boxShadow: mode === m.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
             }}
           >
             {m.label}
@@ -72,8 +69,8 @@ export default function SearchBar() {
         ))}
       </div>
 
-      {/* Search input */}
-      <div style={{ display: "flex", gap: 8, position: "relative" }}>
+      {/* Search input + button */}
+      <div style={{ display: "flex", gap: 0, position: "relative", background: "#fff", borderRadius: 14, border: "2px solid #e8e8e8", boxShadow: "0 2px 12px rgba(0,0,0,0.06)", overflow: "visible" }}>
         <div style={{ flex: 1, position: "relative" }}>
           <input
             type="text"
@@ -82,34 +79,31 @@ export default function SearchBar() {
             onKeyDown={e => e.key === "Enter" && handleSearch()}
             placeholder={placeholders[mode]}
             style={{
-              width: "100%", padding: "16px 20px", borderRadius: 14,
-              border: "1.5px solid var(--border)", background: "var(--bg)",
-              color: "var(--text)", fontSize: 15, outline: "none",
-              boxSizing: "border-box", transition: "border-color 0.15s",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              width: "100%", padding: "16px 20px", borderRadius: "12px 0 0 12px",
+              border: "none", background: "transparent",
+              color: "#1d1d1f", fontSize: 15, outline: "none",
+              boxSizing: "border-box",
             }}
-            onFocus={e => (e.target.style.borderColor = "#7C3AED")}
-            onBlur={e => (e.target.style.borderColor = "#e0e0e0")}
+            onFocus={e => { (e.target.closest("div[style]") as HTMLElement | null)?.parentElement?.setAttribute("style", "display:flex;gap:0;position:relative;background:#fff;border-radius:14px;border:2px solid #F97316;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:visible"); }}
+            onBlur={e => { (e.target.closest("div[style]") as HTMLElement | null)?.parentElement?.setAttribute("style", "display:flex;gap:0;position:relative;background:#fff;border-radius:14px;border:2px solid #e8e8e8;box-shadow:0 2px 12px rgba(0,0,0,0.06);overflow:visible"); }}
           />
 
-          {/* Suggestions */}
           {suggestions.length > 0 && (
             <div style={{
-              position: "absolute", top: "calc(100% + 8px)", left: 0, right: 0,
-              background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 14,
+              position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0,
+              background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12,
               overflow: "hidden", zIndex: 100,
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
             }}>
               {suggestions.map(s => (
                 <div
                   key={s}
                   onClick={() => handleSearch(s)}
                   style={{
-                    padding: "12px 20px", cursor: "pointer", fontSize: 14,
-                    color: "var(--text)", borderBottom: "1px solid var(--bg2)",
-                    transition: "background 0.1s",
+                    padding: "11px 20px", cursor: "pointer", fontSize: 14,
+                    color: "#1d1d1f", borderBottom: "1px solid #f5f5f5",
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#f5f3ff")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "#fff7ed")}
                   onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                 >
                   {s}
@@ -122,10 +116,10 @@ export default function SearchBar() {
         <button
           onClick={() => handleSearch()}
           style={{
-            padding: "16px 28px", borderRadius: 14, border: "none",
-            background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-            color: "#fff", fontWeight: 600, fontSize: 15, cursor: "pointer",
-            whiteSpace: "nowrap", boxShadow: "0 4px 16px rgba(124,58,237,0.3)",
+            padding: "16px 28px", borderRadius: "0 12px 12px 0", border: "none",
+            background: "#F97316",
+            color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer",
+            whiteSpace: "nowrap", flexShrink: 0,
           }}
         >
           Hľadať
