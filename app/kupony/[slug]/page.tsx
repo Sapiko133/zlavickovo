@@ -154,12 +154,7 @@ export default async function ShopPage({ params }: Props) {
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "var(--bg)", color: "var(--text)" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
-      <Nav links={[
-        { label: "Obchody", href: "/obchody" },
-        { label: "🛒 Potraviny", href: "/letaky" },
-        { label: "Cashback", href: "/cashback" },
-        { label: "← Domov", href: "/" },
-      ]} />
+      <Nav />
 
       {/* Breadcrumb */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "var(--text2)" }}>

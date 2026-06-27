@@ -1,4 +1,5 @@
 import Footer from "@/components/Footer";
+import Nav from "@/components/Nav";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -10,30 +11,18 @@ export const metadata: Metadata = {
 const UPDATED = "26. 6. 2026";
 
 export default function PrivacyPage() {
-  const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, color: "#1d1d1f", margin: "40px 0 12px", letterSpacing: "-0.3px" };
-  const p: React.CSSProperties = { fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 12px" };
-  const li: React.CSSProperties = { fontSize: 15, color: "#555", lineHeight: 1.8 };
+  const h2: React.CSSProperties = { fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "40px 0 12px", letterSpacing: "-0.3px" };
+  const p: React.CSSProperties = { fontSize: 15, color: "var(--text2)", lineHeight: 1.8, margin: "0 0 12px" };
+  const li: React.CSSProperties = { fontSize: 15, color: "var(--text2)", lineHeight: 1.8 };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
 
-      {/* Nav */}
-      <nav style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 48px", height: 56, position: "sticky", top: 0, zIndex: 100,
-        background: "rgba(255,255,255,0.85)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(0,0,0,0.08)",
-      }}>
-        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none", color: "#1d1d1f" }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "linear-gradient(135deg, #7C3AED, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 800 }}>Z</div>
-          <span style={{ fontWeight: 700, fontSize: 16 }}>Zlavickovo</span>
-        </a>
-        <a href="/" style={{ fontSize: 13, color: "#555", textDecoration: "none" }}>← Domov</a>
-      </nav>
+      <Nav />
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "56px 24px 80px" }}>
-        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px" }}>Ochrana súkromia</h1>
-        <p style={{ fontSize: 13, color: "#aaa", margin: "0 0 48px" }}>Aktualizované: {UPDATED}</p>
+        <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px", color: "var(--text)" }}>Ochrana súkromia</h1>
+        <p style={{ fontSize: 13, color: "var(--text2)", margin: "0 0 48px" }}>Aktualizované: {UPDATED}</p>
 
         <h2 style={h2}>1. Aké údaje zbierame</h2>
         <p style={p}>Zlavickovo.sk zbiera minimálne množstvo osobných údajov nevyhnutných pre prevádzku portálu:</p>

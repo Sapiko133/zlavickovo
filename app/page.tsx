@@ -92,14 +92,7 @@ export default async function Home() {
         }
       `}</style>
 
-      <Nav links={[
-        { label: "Obchody", href: "#obchody" },
-        { label: "Zľavy", href: "#zlavy" },
-        { label: "Letáky", href: "/letaky" },
-        { label: "Cashback", href: "/cashback" },
-        { label: "Blog", href: "/blog" },
-        { label: "Všetky obchody", href: "/obchody" },
-      ]} />
+      <Nav />
 
       {/* Hero */}
       <div className="home-hero" style={{

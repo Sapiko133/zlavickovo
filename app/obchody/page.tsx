@@ -38,11 +38,7 @@ export default async function ObchodyPage() {
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
 
-      <Nav links={[
-        { label: "Obchody", href: "/#obchody" },
-        { label: "Cashback", href: "/cashback" },
-        { label: "← Domov", href: "/" },
-      ]} />
+      <Nav />
 
       {/* Header */}
       <div style={{

@@ -37,12 +37,7 @@ export default async function CashbackPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
-      <Nav links={[
-        { label: "Obchody", href: "/obchody" },
-        { label: "🛒 Potraviny", href: "/letaky" },
-        { label: "Cashback", href: "/cashback" },
-        { label: "Blog", href: "/blog" },
-      ]} />
+      <Nav />
 
       {/* Hero */}
       <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, #eff6ff 60%, var(--bg) 100%)", padding: "64px 24px 56px", textAlign: "center" }}>

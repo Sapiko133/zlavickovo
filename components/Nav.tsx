@@ -31,16 +31,17 @@ function NotifButton() {
   );
 }
 
-interface NavLink { label: string; href: string }
+interface NavLink { label: string; href: string; }
 
-const DEFAULT_LINKS: NavLink[] = [
+const LINKS: NavLink[] = [
   { label: "Obchody", href: "/obchody" },
   { label: "🛒 Potraviny", href: "/letaky" },
   { label: "Cashback", href: "/cashback" },
   { label: "Blog", href: "/blog" },
 ];
 
-export default function Nav({ links = DEFAULT_LINKS }: { links?: NavLink[] }) {
+export default function Nav() {
+  const links = LINKS;
   const [open, setOpen] = useState(false);
 
   return (

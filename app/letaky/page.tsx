@@ -92,12 +92,7 @@ function SectionHeader({ emoji, title, subtitle }: { emoji: string; title: strin
 export default function LetakyPage() {
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Inter', system-ui, sans-serif", color: "var(--text)" }}>
-      <Nav links={[
-        { label: "Obchody", href: "/obchody" },
-        { label: "🛒 Potraviny", href: "/letaky" },
-        { label: "Cashback", href: "/cashback" },
-        { label: "Blog", href: "/blog" },
-      ]} />
+      <Nav />
 
       {/* Header */}
       <div style={{ background: "linear-gradient(180deg, #f5f3ff 0%, var(--bg) 100%)", padding: "60px 24px 48px", textAlign: "center" }}>
