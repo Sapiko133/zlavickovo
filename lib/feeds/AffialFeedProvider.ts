@@ -109,7 +109,7 @@ function parseXML(xml: string, domain: string, category: string): FeedProduct[] 
         description: stripHtml(String(item.DESCRIPTION ?? item.description ?? "")).slice(0, 200),
         price: String(item.PRICE_VAT ?? item.PRICE ?? item.price ?? "").trim(),
         url: String(item.URL ?? item.url ?? "").trim(),
-        imgUrl: String(item.IMGURL ?? item.IMGURL_ALTERNATIVE ?? item.imgurl ?? "").trim(),
+        imgUrl: String(item.IMGURL ?? item.IMAGE_MAIN ?? item.IMGURL_ALTERNATIVE ?? item.imgurl ?? "").trim(),
         domain,
         affiliateUrl: AFFILIATE_LINKS[domain] ?? String(item.URL ?? item.url ?? "").trim(),
         category,
@@ -164,6 +164,40 @@ async function fetchAndCacheFeed(url: string, domain: string, category: string):
     return products;
   } catch {
     return [];
+  }
+}
+
+export async function importAllAffialFeeds(): Promise<{ count: number; feeds: number }> {
+  const allFeeds = [...FEEDS];
+  try {
+    const custom = await redis.get<{ url: string; domain: string; category: string }[]>("affial:feed_urls");
+    if (custom && Array.isArray(custom)) allFeeds.push(...custom);
+  } catch {}
+
+  const counts = await Promise.all(
+    allFeeds.map(async (f) => {
+      const products = await fetchAndCacheFeed(f.url, f.domain, f.category);
+      if (products.length > 0) {
+        try { await redis.sadd("affial:feed_domains", f.domain); } catch {}
+      }
+      return products.length;
+    })
+  );
+  return { count: counts.reduce((a, b) => a + b, 0), feeds: allFeeds.length };
+}
+
+export async function getAffialProductCount(): Promise<number> {
+  try {
+    const domains = await redis.smembers("affial:feed_domains") as string[];
+    const counts = await Promise.all(
+      domains.map(async (d) => {
+        const p = await redis.get<any[]>(`feed:${d}`);
+        return p?.length ?? 0;
+      })
+    );
+    return counts.reduce((a, b) => a + b, 0);
+  } catch {
+    return 0;
   }
 }
 
