@@ -17,6 +17,14 @@ export default function RevealCode({ token, affiliateLink, shop }: Props) {
   async function reveal() {
     setLoading(true);
     setError(null);
+
+    // Otvoriť affiliate link SYNCHRONNE – musí byť pred akýmkoľvek await,
+    // inak ho prehliadač zablokuje ako popup (nie user gesture).
+    const hasLink = !!(affiliateLink && affiliateLink !== "#");
+    if (hasLink) {
+      window.open(affiliateLink, "_blank", "noopener,noreferrer");
+    }
+
     try {
       const res = await fetch("/api/reveal", {
         method: "POST",
@@ -28,11 +36,6 @@ export default function RevealCode({ token, affiliateLink, shop }: Props) {
         setError(data.error);
       } else {
         setCode(data.code);
-        // Open affiliate link in new tab (cookie tracking)
-        if (affiliateLink && affiliateLink !== "#") {
-          window.open(affiliateLink, "_blank", "noopener,noreferrer");
-        }
-        // Track the click
         if (shop && data.code) {
           fetch("/api/track", {
             method: "POST",
