@@ -124,7 +124,7 @@ export default function Nav() {
   }, [catOpen]);
 
   const NAV_LINKS = [
-    { label: t("coupons"),  href: "/#zlavy" },
+    { label: t("coupons"),  href: "/kupony" },
     { label: t("shops"),    href: "/obchody" },
     { label: t("leaflets"), href: "/letaky" },
     { label: t("cashback"), href: "/cashback" },
