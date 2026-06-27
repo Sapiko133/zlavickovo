@@ -205,8 +205,14 @@ export async function searchProducts(query: string): Promise<FeedProduct[]> {
   const lq = query.toLowerCase().trim();
   if (!lq) return [];
 
+  const allFeeds = [...FEEDS];
+  try {
+    const custom = await redis.get<{ url: string; domain: string; category: string }[]>("affial:feed_urls");
+    if (custom && Array.isArray(custom)) allFeeds.push(...custom);
+  } catch {}
+
   const perFeedResults = await Promise.all(
-    FEEDS.map((feed) =>
+    allFeeds.map((feed) =>
       fetchAndCacheFeed(feed.url, feed.domain, feed.category).then((products) =>
         products
           .filter(

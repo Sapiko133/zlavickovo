@@ -2,6 +2,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { redis } from "@/lib/redis";
 import { feedManager } from "@/lib/feeds/FeedManager";
+import { getCustomFeeds } from "@/lib/feeds/AffialDiscovery";
+import AffialFeedSection from "./AffialFeedSection";
 
 const SESSION_COOKIE = "admin_session";
 const FEEDS_KEY = "feeds:config";
@@ -90,14 +92,17 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
   if (!adminPassword || session !== adminPassword) redirect("/admin");
 
   const sp = await searchParams;
-  const [feeds, stats] = await Promise.allSettled([
+  const [feeds, stats, customAffialFeeds] = await Promise.allSettled([
     redis.get<FeedConfig[]>(FEEDS_KEY),
     feedManager.getStats(),
+    getCustomFeeds(),
   ]);
 
   const feedList: FeedConfig[] = (feeds.status === "fulfilled" ? feeds.value : null) ?? [];
   const feedStats = stats.status === "fulfilled" ? stats.value : null;
   const lastImport = feedStats?.lastImport;
+  const affialCustomFeeds = (customAffialFeeds.status === "fulfilled" ? customAffialFeeds.value : null) ?? [];
+  const hasLoginCredentials = !!(process.env.AFFIAL_EMAIL && process.env.AFFIAL_PASSWORD);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
@@ -250,6 +255,11 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
           💡 Automatický import prebieha každých 6 hodín cez Vercel Cron (<code>/api/cron/import-feeds</code>).
           Zahrňuje Dognet, Affial (37 feedov) a eHub (5 datadepo feedov).
         </div>
+
+        <AffialFeedSection
+          initialFeeds={affialCustomFeeds}
+          hasLoginCredentials={hasLoginCredentials}
+        />
       </div>
     </div>
   );
