@@ -8,12 +8,11 @@ const SHOP_COLORS: Record<string, string> = {
   martinus: "#D32F2F", zara: "#000000", hm: "#E50010", tchibo: "#7B3F20",
   lidl: "#0050AA", kaufland: "#E2001A", tesco: "#EE1C25", billa: "#C8002D",
 };
+const FALLBACK = ["#7C3AED","#0065BD","#E8001D","#00A551","#FF6900","#003580","#D32F2F"];
 
-const FALLBACK_COLORS = ["#7C3AED","#0065BD","#E8001D","#00A551","#FF6900","#003580","#D32F2F"];
-
-function shopColor(name: string): string {
+function shopColor(name: string) {
   const key = name.toLowerCase().split(" ")[0];
-  return SHOP_COLORS[key] ?? FALLBACK_COLORS[name.charCodeAt(0) % FALLBACK_COLORS.length];
+  return SHOP_COLORS[key] ?? FALLBACK[name.charCodeAt(0) % FALLBACK.length];
 }
 
 export type HeroItem = {
@@ -27,10 +26,16 @@ export type HeroItem = {
 
 export default function HeroCarousel({ items }: { items: HeroItem[] }) {
   const [active, setActive] = useState(0);
+  const [fading, setFading] = useState(false);
   const count = items.length;
 
-  const next = useCallback(() => setActive(a => (a + 1) % count), [count]);
-  const prev = () => setActive(a => (a - 1 + count) % count);
+  const goTo = useCallback((idx: number) => {
+    setFading(true);
+    setTimeout(() => { setActive(idx); setFading(false); }, 220);
+  }, []);
+
+  const next = useCallback(() => goTo((active + 1) % count), [active, count, goTo]);
+  const prev = () => goTo((active - 1 + count) % count);
 
   useEffect(() => {
     if (count < 2) return;
@@ -42,37 +47,56 @@ export default function HeroCarousel({ items }: { items: HeroItem[] }) {
 
   const item = items[active];
   const color = shopColor(item.shopName);
+  const darkColor = color + "dd";
 
   return (
-    <div style={{ position: "relative", overflow: "hidden" }}>
+    <div style={{ position: "relative" }}>
       <style>{`
-        .hero-card { transition: opacity 0.35s ease; }
-        .hero-dot { width: 7px; height: 7px; border-radius: 50%; border: none; cursor: pointer; padding: 0; transition: background 0.2s; }
+        @keyframes heroFadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .hero-content { animation: heroFadeIn 0.4s ease forwards; }
+        .hero-cta { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+        .hero-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.2); }
+        .hero-arrow { transition: background 0.15s, transform 0.15s; }
+        .hero-arrow:hover { background: rgba(255,255,255,0.35) !important; transform: translateY(-50%) scale(1.1); }
+        .hero-dot-btn { transition: background 0.2s, transform 0.2s; }
+        .hero-dot-btn:active { transform: scale(0.85); }
         @media(max-width:640px){
-          .hero-inner { flex-direction: column !important; padding: 28px 20px !important; min-height: 220px !important; }
-          .hero-letter { font-size: 60px !important; width: 80px !important; height: 80px !important; }
-          .hero-title { font-size: 18px !important; }
-          .hero-shop { font-size: 24px !important; }
+          .hero-inner { flex-direction:column !important; padding:28px 20px 32px !important; min-height:auto !important; gap:20px !important; }
+          .hero-avatar { width:72px !important; height:72px !important; font-size:32px !important; border-radius:18px !important; }
+          .hero-title { font-size:19px !important; }
+          .hero-shop-name { font-size:14px !important; }
         }
       `}</style>
 
-      {/* Main card */}
-      <div
-        className="hero-card"
-        style={{
-          background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
-          minHeight: 280, position: "relative", overflow: "hidden",
-        }}
-      >
-        {/* Decorative circles */}
-        <div style={{ position: "absolute", top: -60, right: -60, width: 240, height: 240, borderRadius: "50%", background: "rgba(255,255,255,0.07)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", bottom: -40, left: -40, width: 180, height: 180, borderRadius: "50%", background: "rgba(255,255,255,0.05)", pointerEvents: "none" }} />
+      {/* Banner */}
+      <div style={{
+        background: `linear-gradient(135deg, ${color} 0%, ${darkColor} 60%, ${color}88 100%)`,
+        position: "relative", overflow: "hidden",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08)",
+      }}>
+        {/* Gloss overlay */}
+        <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg,rgba(255,255,255,0.1) 0%,transparent 50%)", pointerEvents:"none" }} />
+        {/* Decorative orbs */}
+        <div style={{ position:"absolute", top:-80, right:-80, width:280, height:280, borderRadius:"50%", background:"rgba(255,255,255,0.06)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", bottom:-60, left:-60, width:220, height:220, borderRadius:"50%", background:"rgba(255,255,255,0.04)", pointerEvents:"none" }} />
+        <div style={{ position:"absolute", top:"30%", right:"20%", width:120, height:120, borderRadius:"50%", background:"rgba(255,255,255,0.05)", pointerEvents:"none" }} />
 
-        <div className="hero-inner" style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 32px", display: "flex", alignItems: "center", gap: 40, minHeight: 280, boxSizing: "border-box" }}>
-          {/* Shop letter */}
-          <div className="hero-letter" style={{
-            width: 110, height: 110, borderRadius: 24, flexShrink: 0,
-            background: "rgba(255,255,255,0.2)", backdropFilter: "blur(8px)",
+        <div
+          className="hero-inner"
+          key={active}
+          style={{
+            maxWidth: 1100, margin: "0 auto", padding: "52px 40px",
+            display: "flex", alignItems: "center", gap: 48, minHeight: 300, boxSizing: "border-box",
+            opacity: fading ? 0 : 1, transition: "opacity 0.22s ease",
+          }}
+        >
+          {/* Avatar — glassmorphism */}
+          <div className="hero-avatar" style={{
+            width: 120, height: 120, borderRadius: 28, flexShrink: 0,
+            background: "rgba(255,255,255,0.15)",
+            backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)",
+            border: "1.5px solid rgba(255,255,255,0.35)",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.4)",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "#fff", fontWeight: 900, fontSize: 52, letterSpacing: -2,
           }}>
@@ -80,82 +104,62 @@ export default function HeroCarousel({ items }: { items: HeroItem[] }) {
           </div>
 
           {/* Text */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="hero-content" style={{ flex: 1, minWidth: 0 }}>
             {item.discount && (
               <div style={{
-                display: "inline-block", marginBottom: 10,
-                background: "#fff", color: color,
-                fontWeight: 800, fontSize: 13, padding: "4px 12px", borderRadius: 100,
+                display: "inline-flex", alignItems: "center", gap: 6, marginBottom: 12,
+                background: "rgba(255,255,255,0.95)", color: color,
+                fontWeight: 800, fontSize: 13, padding: "5px 14px", borderRadius: 100,
+                boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
               }}>
-                {item.discount} ZĽAVA
+                🏷️ {item.discount} ZĽAVA
               </div>
             )}
-            <div className="hero-shop" style={{ color: "rgba(255,255,255,0.9)", fontSize: 18, fontWeight: 600, marginBottom: 6 }}>
+            <div className="hero-shop-name" style={{ color: "rgba(255,255,255,0.85)", fontSize: 15, fontWeight: 600, marginBottom: 8, letterSpacing: "0.2px" }}>
               {item.shopName}
             </div>
-            <div className="hero-title" style={{ color: "#fff", fontSize: 26, fontWeight: 800, lineHeight: 1.25, marginBottom: 20 }}>
-              {item.title.length > 80 ? item.title.slice(0, 80) + "…" : item.title}
+            <div className="hero-title" style={{ color: "#fff", fontSize: 28, fontWeight: 800, lineHeight: 1.2, marginBottom: 24, letterSpacing: "-0.5px", textShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+              {item.title.length > 90 ? item.title.slice(0, 90) + "…" : item.title}
             </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
               <a
                 href={item.link}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
+                className="hero-cta"
                 style={{
-                  display: "inline-block", padding: "12px 24px", borderRadius: 10,
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "13px 28px", borderRadius: 12,
                   background: "#fff", color: color,
-                  fontWeight: 700, fontSize: 14, textDecoration: "none",
+                  fontWeight: 800, fontSize: 14, textDecoration: "none",
+                  boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
                 }}
               >
                 Zobraziť akciu →
               </a>
               {item.expires && (
-                <span style={{ color: "rgba(255,255,255,0.75)", fontSize: 12 }}>
-                  Platí do {item.expires}
+                <span style={{ color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 500 }}>
+                  ⏱ Platí do {item.expires}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Prev / Next arrows */}
+        {/* Arrows */}
         {count > 1 && (
           <>
-            <button
-              onClick={prev}
-              aria-label="Predchádzajúce"
-              style={{
-                position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
-                width: 36, height: 36, borderRadius: "50%", border: "none",
-                background: "rgba(255,255,255,0.2)", color: "#fff",
-                fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >‹</button>
-            <button
-              onClick={next}
-              aria-label="Ďalšie"
-              style={{
-                position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
-                width: 36, height: 36, borderRadius: "50%", border: "none",
-                background: "rgba(255,255,255,0.2)", color: "#fff",
-                fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-            >›</button>
+            <button onClick={prev} aria-label="Predchádzajúce" className="hero-arrow" style={{ position:"absolute", left:14, top:"50%", transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.18)", backdropFilter:"blur(8px)", color:"#fff", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+            <button onClick={next} aria-label="Ďalšie" className="hero-arrow" style={{ position:"absolute", right:14, top:"50%", transform:"translateY(-50%)", width:40, height:40, borderRadius:"50%", border:"none", background:"rgba(255,255,255,0.18)", backdropFilter:"blur(8px)", color:"#fff", fontSize:20, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
           </>
         )}
       </div>
 
       {/* Dot indicators */}
       {count > 1 && (
-        <div style={{ display: "flex", gap: 6, justifyContent: "center", padding: "12px 0 4px", background: "#fff" }}>
+        <div style={{ display:"flex", gap:6, justifyContent:"center", padding:"10px 0 2px", background:"#fff" }}>
           {items.map((_, i) => (
-            <button
-              key={i}
-              className="hero-dot"
-              onClick={() => setActive(i)}
-              style={{ background: i === active ? "#7C3AED" : "#ddd" }}
-              aria-label={`Slide ${i + 1}`}
-            />
+            <button key={i} className="hero-dot-btn" onClick={() => goTo(i)} aria-label={`Slide ${i + 1}`} style={{ width: i === active ? 20 : 7, height:7, borderRadius:100, border:"none", cursor:"pointer", padding:0, background: i === active ? "#7C3AED" : "#ddd", transition:"all 0.25s ease" }} />
           ))}
         </div>
       )}
