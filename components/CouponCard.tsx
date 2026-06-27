@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ShopLogo from "@/components/ShopLogo";
 
 const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F","#FF4081","#006A35","#8B1A1A"];
 const TYPE_LABELS: Record<number, string> = {
@@ -47,10 +48,10 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
       {discountBadge && (
         <div style={{
           position:"absolute", top:10, right:10,
-          background:"linear-gradient(135deg,#7C3AED,#5b21b6)",
+          background:"#22C55E",
           color:"#fff", fontWeight:800, fontSize:11,
           padding:"3px 8px", borderRadius:6,
-          boxShadow:"0 2px 8px rgba(124,58,237,0.4)",
+          boxShadow:"0 2px 8px rgba(34,197,94,0.4)",
         }}>
           -{discountBadge}
         </div>
@@ -58,9 +59,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
 
       {/* Header */}
       <div style={{ padding:"14px 16px 10px", display:"flex", alignItems:"center", gap:10, borderBottom:"1px solid #f5f5f5" }}>
-        <div style={{ width:40, height:40, borderRadius:10, background:logoColor, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", color:"#fff", fontWeight:900, fontSize:16, boxShadow:`0 3px 10px ${logoColor}44` }}>
-          {storeName.charAt(0)}
-        </div>
+        <ShopLogo name={storeName} size={40} radius={10} color={logoColor} />
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontWeight:700, fontSize:13, color:"#1d1d1f", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{storeName}</div>
           {expires && <div style={{ fontSize:11, color:"#aaa", marginTop:1 }}>do {expires}</div>}
@@ -74,7 +73,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
 
       {/* Body */}
       <div style={{ padding:"12px 16px", flex:1 }}>
-        <div style={{ fontSize:11, fontWeight:600, color:"#7C3AED", background:"#f0eeff", display:"inline-block", padding:"2px 8px", borderRadius:4, marginBottom:7 }}>
+        <div style={{ fontSize:11, fontWeight:600, color:"#16A34A", background:"#F0FDF4", display:"inline-block", padding:"2px 8px", borderRadius:4, marginBottom:7 }}>
           {TYPE_LABELS[coupon.type] || "Akcia"}
         </div>
         <div style={{ fontWeight:600, fontSize:13, color:"#1d1d1f", lineHeight:1.4, marginBottom:5 }}>
@@ -92,7 +91,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
         {token ? (
           revealed ? (
             <div>
-              <div onClick={copyCode} title="Kliknúť pre kopírovanie" style={{ fontFamily:"monospace", fontWeight:800, fontSize:14, color:"#7C3AED", background:"#f0eeff", border:"2px dashed #7C3AED", borderRadius:7, padding:"8px 12px", letterSpacing:2, textAlign:"center", cursor:"pointer", marginBottom:7 }}>
+              <div onClick={copyCode} title="Kliknúť pre kopírovanie" style={{ fontFamily:"monospace", fontWeight:800, fontSize:14, color:"#16A34A", background:"#F0FDF4", border:"2px dashed #22C55E", borderRadius:7, padding:"8px 12px", letterSpacing:2, textAlign:"center", cursor:"pointer", marginBottom:7 }}>
                 {code}
               </div>
               <button onClick={copyCode} style={{ width:"100%", padding:"8px", borderRadius:7, border:"1px solid #e8e8e8", background:copied?"#16a34a":"#fff", color:copied?"#fff":"#444", fontWeight:600, fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"background 0.15s, color 0.15s" }}>
@@ -100,12 +99,12 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
               </button>
             </div>
           ) : (
-            <button onClick={handleShowCode} style={{ width:"100%", padding:"10px", borderRadius:9, border:"none", background:"linear-gradient(135deg,#7C3AED,#5b21b6)", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(124,58,237,0.35)" }}>
+            <button onClick={handleShowCode} style={{ width:"100%", padding:"10px", borderRadius:9, border:"none", background:"#22C55E", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", fontFamily:"inherit", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>
               Získať kód
             </button>
           )
         ) : (
-          <a href={link||"#"} target="_blank" rel="noopener noreferrer nofollow" style={{ display:"block", padding:"10px", borderRadius:9, background:"linear-gradient(135deg,#7C3AED,#5b21b6)", color:"#fff", fontWeight:700, fontSize:14, textAlign:"center", textDecoration:"none", boxShadow:"0 4px 14px rgba(124,58,237,0.35)" }}>
+          <a href={link||"#"} target="_blank" rel="noopener noreferrer nofollow" style={{ display:"block", padding:"10px", borderRadius:9, background:"#22C55E", color:"#fff", fontWeight:700, fontSize:14, textAlign:"center", textDecoration:"none", boxShadow:"0 4px 14px rgba(34,197,94,0.35)" }}>
             Prejsť na akciu →
           </a>
         )}

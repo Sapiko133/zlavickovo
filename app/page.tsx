@@ -2,6 +2,7 @@ import CouponCard from "@/components/CouponCard";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import HeroSearch from "@/components/HeroSearch";
 import HeroCarousel, { type HeroItem } from "@/components/HeroCarousel";
 import { getCouponsFeed, getSalesCoupons, getLatestSales, getCashbackShops, getShops } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
@@ -174,6 +175,9 @@ export default async function Home() {
 
       <Nav />
 
+      {/* ── HERO ── */}
+      <HeroSearch />
+
       {/* ── HERO CAROUSEL ── */}
       <HeroCarousel items={heroItems} />
 
@@ -183,7 +187,7 @@ export default async function Home() {
       </div>
 
       {/* ── KATEGÓRIE ── */}
-      <section style={{ background:"linear-gradient(135deg,#f8f0ff 0%,#eef4ff 100%)", padding:"48px 0" }}>
+      <section style={{ background:"linear-gradient(135deg,#F0FDF4 0%,#ECFDF5 100%)", padding:"48px 0" }}>
         <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 24px" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
             <h2 className="sec-title">Nakupuj podľa kategórie</h2>
