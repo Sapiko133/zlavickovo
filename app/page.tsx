@@ -42,14 +42,16 @@ function shopSlug(name: string) {
 }
 
 const CATEGORIES = [
-  { emoji: "💻", label: "Elektronika", href: "/obchody?cat=elektronika", color: "#0065BD", from: "#dbeafe", to: "#eff6ff" },
-  { emoji: "👗", label: "Móda",        href: "/obchody?cat=moda",        color: "#E8001D", from: "#fce7f3", to: "#fff1f2" },
-  { emoji: "🛒", label: "Potraviny",   href: "/letaky",                   color: "#00A551", from: "#dcfce7", to: "#f0fdf4" },
-  { emoji: "💄", label: "Kozmetika",   href: "/obchody?cat=kozmetika",    color: "#db2777", from: "#fce7f3", to: "#fdf2f8" },
-  { emoji: "⚽", label: "Šport",       href: "/obchody?cat=sport",        color: "#FF6900", from: "#fed7aa", to: "#fff7ed" },
-  { emoji: "🏠", label: "Dom",         href: "/obchody?cat=dom",          color: "#7C3AED", from: "#ede9fe", to: "#f5f3ff" },
-  { emoji: "📚", label: "Knihy",       href: "/obchody?cat=knihy",        color: "#D32F2F", from: "#fee2e2", to: "#fff5f5" },
-  { emoji: "🎮", label: "Hry & tech",  href: "/obchody?cat=hry",          color: "#1d4ed8", from: "#dbeafe", to: "#eff6ff" },
+  { emoji: "💻", label: "Elektronika", href: "/kategoria/elektronika", color: "#0065BD", from: "#dbeafe", to: "#eff6ff" },
+  { emoji: "👗", label: "Móda",        href: "/kategoria/moda",        color: "#E8001D", from: "#fce7f3", to: "#fff1f2" },
+  { emoji: "💊", label: "Zdravie",     href: "/kategoria/zdravie",     color: "#00A551", from: "#dcfce7", to: "#f0fdf4" },
+  { emoji: "💄", label: "Krása",       href: "/kategoria/krasa",       color: "#db2777", from: "#fce7f3", to: "#fdf2f8" },
+  { emoji: "⚽", label: "Šport",       href: "/kategoria/sport",       color: "#FF6900", from: "#fed7aa", to: "#fff7ed" },
+  { emoji: "🏠", label: "Bývanie",     href: "/kategoria/byvanie",     color: "#7C3AED", from: "#ede9fe", to: "#f5f3ff" },
+  { emoji: "🛒", label: "Potraviny",   href: "/kategoria/potraviny",   color: "#16a34a", from: "#dcfce7", to: "#f0fdf4" },
+  { emoji: "👶", label: "Deti",        href: "/kategoria/deti",        color: "#f59e0b", from: "#fef3c7", to: "#fffbeb" },
+  { emoji: "✈️", label: "Cestovanie",  href: "/kategoria/cestovanie",  color: "#0ea5e9", from: "#e0f2fe", to: "#f0f9ff" },
+  { emoji: "📚", label: "Knihy",       href: "/kategoria/knihy",       color: "#D32F2F", from: "#fee2e2", to: "#fff5f5" },
 ];
 
 export default async function Home() {
@@ -159,11 +161,14 @@ export default async function Home() {
         }
 
         /* ── responsive ── */
+        @media(max-width:900px){
+          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
+        }
         @media(max-width:768px){
           .shops-grid { grid-template-columns:repeat(2,1fr) !important; }
           .coupons-grid { grid-template-columns:1fr !important; }
           .letaky-grid { grid-template-columns:repeat(2,1fr) !important; }
-          .cat-grid { grid-template-columns:repeat(4,1fr) !important; }
+          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
           .section-row { padding-left:16px !important; padding-right:16px !important; }
         }
         @media(max-width:480px){
@@ -193,7 +198,7 @@ export default async function Home() {
             <h2 className="sec-title">Nakupuj podľa kategórie</h2>
             <a href="/obchody" className="see-all">Všetky obchody →</a>
           </div>
-          <div className="cat-grid" style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", gap:10 }}>
+          <div className="cat-grid" style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:10 }}>
             {CATEGORIES.map(cat => (
               <a
                 key={cat.label}
