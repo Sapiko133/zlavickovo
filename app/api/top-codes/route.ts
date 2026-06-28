@@ -1,12 +1,19 @@
 import { redis } from "@/lib/redis";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 
-const FALLBACK = [
-  { code: "ALZA20",    shop: "Alza",    discount: "20%",            clicks: 0, slug: "alza" },
-  { code: "AFFILI30",  shop: "Shein",   discount: "30%",            clicks: 0, slug: "shein" },
-  { code: "ZALA20SK",  shop: "Zalando", discount: "20%",            clicks: 0, slug: "zalando" },
-  { code: "ALZAFREE",  shop: "Alza",    discount: "Doprava zadarmo",clicks: 0, slug: "alza" },
-  { code: "ROHLIK10",  shop: "Rohlik",  discount: "10€",            clicks: 0, slug: "rohlik" },
-];
+// Build real fallback from AFFIAL_COUPONS static array
+function buildFallback() {
+  return AFFIAL_COUPONS
+    .filter(c => /\d+/.test(c.discount))
+    .map(c => ({
+      code: c.code,
+      shop: c.shop.replace(/\.(sk|cz|com|eu|net)$/i, ""),
+      discount: c.discount,
+      clicks: 0,
+      slug: c.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-"),
+    }))
+    .slice(0, 10);
+}
 
 export const dynamic = "force-dynamic";
 
@@ -38,5 +45,8 @@ export async function GET(req: Request) {
 }
 
 function filterFallback(shop: string | null) {
-  return shop ? FALLBACK.filter(f => f.shop.toLowerCase() === shop) : FALLBACK;
+  const fallback = buildFallback();
+  if (!shop) return fallback;
+  const filtered = fallback.filter(f => f.shop.toLowerCase().includes(shop) || f.slug.includes(shop));
+  return filtered;
 }

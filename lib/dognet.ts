@@ -61,7 +61,7 @@ export async function getCouponsByShop(shopName: string) {
     .filter((c: any) => c.campaign?.name?.toLowerCase().includes(lower))
     .map((c: any) => ({ ...c, source: "dognet" }));
 
-  const affial = affialAll.filter((c: any) =>
+  const affialXml = affialAll.filter((c: any) =>
     c.campaign_name?.toLowerCase().includes(lower)
   );
 
@@ -79,14 +79,41 @@ export async function getCouponsByShop(shopName: string) {
     source: "cj",
   }));
 
+  // Static AFFIAL_COUPONS — match by shop name or domain base
+  const affialStatic = AFFIAL_COUPONS
+    .filter(c => {
+      const domainBase = c.domain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-");
+      return (
+        c.shop.toLowerCase().includes(lower) ||
+        c.domain.toLowerCase().includes(lower) ||
+        domainBase.toLowerCase() === lower
+      );
+    })
+    .map((c, i) => ({
+      id: `affial-static-${c.domain}-${i}`,
+      title: `${c.discount} zľava`,
+      name: `${c.discount} zľava`,
+      code: c.code,
+      type: 1 as const,
+      affiliate_link: `https://${c.domain}`,
+      url: `https://${c.domain}`,
+      valid_to: c.expires !== "neomedzená" ? c.expires : null,
+      campaign: { name: c.shop },
+      campaign_name: c.shop,
+      description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
+      source: "affial-static" as const,
+    }));
+
   const seenCodes = new Set(
-    [...dognet, ...cj].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
+    [...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
   );
-  const uniqueAffial = affial.filter(
+  const uniqueAffialXml = affialXml.filter(
     (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
   );
 
-  return [...dognet, ...cj, ...uniqueAffial];
+  console.log(`[getCouponsByShop] "${shopName}": dognet=${dognet.length} affialXml=${uniqueAffialXml.length} cj=${cj.length} affialStatic=${affialStatic.length}`);
+
+  return [...dognet, ...cj, ...uniqueAffialXml, ...affialStatic];
 }
 
 export async function getLatestCoupons(limit = 6) {
