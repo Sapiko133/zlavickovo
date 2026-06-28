@@ -104,6 +104,16 @@ export default async function ShopPage({ params }: Props) {
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
 
+  // Shop visit URL — priority: Dognet affiliate → Affial → direct domain
+  const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
+  const dognetAffiliateUrl = coupons.find((c: any) =>
+    typeof c.url === "string" && c.url.includes("go.dognet.com")
+  )?.url ?? null;
+  const shopVisitUrl: string =
+    dognetAffiliateUrl ??
+    affialShop?.affiliateUrl ??
+    `https://${shopDomain}`;
+
   // Also directly match AFFIAL_COUPONS by domain pattern: slug "zalando" → zalando.sk / zalando.cz
   const domainBases = [
     `${baseSlug}.sk`, `${baseSlug}.cz`, `${baseSlug}.com`,
@@ -221,6 +231,21 @@ export default async function ShopPage({ params }: Props) {
                   {shopDesc.length > 220 ? shopDesc.slice(0, 220) + "…" : shopDesc}
                 </p>
               )}
+              <a
+                href={shopVisitUrl}
+                target="_blank"
+                rel="nofollow noopener noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  marginTop: 16, padding: "12px 24px", borderRadius: 12,
+                  background: "#22C55E", color: "#fff",
+                  fontWeight: 700, fontSize: 15, textDecoration: "none",
+                  boxShadow: "0 4px 14px rgba(34,197,94,0.30)",
+                  transition: "background 0.15s",
+                }}
+              >
+                Prejsť do {capitalized} →
+              </a>
             </div>
           </div>
         </div>
