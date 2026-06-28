@@ -73,7 +73,7 @@ function mergeShops(base: ShopEntry[], extra: ShopEntry[]): ShopEntry[] {
   return [...base, ...extra.filter(s => !seen.has(s.slug.toLowerCase()))];
 }
 
-type SearchMode = "shop" | "url";
+type SearchMode = "shop" | "product";
 
 export default function SearchBar() {
   const router = useRouter();
@@ -85,9 +85,9 @@ export default function SearchBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch eHub shops once on mount
+  // Fetch Dognet + eHub shops from autocomplete API
   useEffect(() => {
-    fetch("/api/shops-list")
+    fetch("/api/autocomplete")
       .then(r => r.json())
       .then((data: ShopEntry[]) => setEhubShops(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -99,11 +99,15 @@ export default function SearchBar() {
   );
 
   const suggestions = useMemo(() => {
-    if (mode !== "shop" || query.length < 2) return [];
+    if (mode !== "shop" || query.length < 1) return [];
     const lq = query.toLowerCase();
-    return allShops
-      .filter(s => s.name.toLowerCase().includes(lq))
-      .slice(0, 8);
+    const matches = allShops.filter(s => s.name.toLowerCase().includes(lq));
+    matches.sort((a, b) => {
+      const aStarts = a.name.toLowerCase().startsWith(lq) ? 0 : 1;
+      const bStarts = b.name.toLowerCase().startsWith(lq) ? 0 : 1;
+      return aStarts - bStarts;
+    });
+    return matches.slice(0, 8);
   }, [query, mode, allShops]);
 
   // Reset highlight when suggestions change
@@ -151,7 +155,7 @@ export default function SearchBar() {
       } else if (mode === "shop" && query.trim()) {
         setOpen(false);
         router.push(`/kupony/${query.trim().toLowerCase().replace(/\s+/g, "-")}`);
-      } else if (mode === "url" && query.trim()) {
+      } else if (mode === "product" && query.trim()) {
         setOpen(false);
         router.push("/hladat?q=" + encodeURIComponent(query.trim()));
       }
@@ -159,13 +163,13 @@ export default function SearchBar() {
   }
 
   const modes: { key: SearchMode; label: string }[] = [
-    { key: "shop", label: "🏪 Obchod" },
-    { key: "url",  label: "🔗 URL / kód" },
+    { key: "shop",    label: "🏪 Obchod" },
+    { key: "product", label: "📦 Produkt" },
   ];
 
   const placeholders: Record<SearchMode, string> = {
-    shop: "Napr. Alza, Shein, Zalando...",
-    url:  "Vlož link produktu alebo kód...",
+    shop:    "Napr. Alza, Shein, Zalando...",
+    product: "Napr. iPhone, Nike tenisky...",
   };
 
   return (
@@ -233,8 +237,8 @@ export default function SearchBar() {
             if (mode === "shop") {
               if (suggestions.length > 0) navigate(suggestions[highlight >= 0 ? highlight : 0]);
               else if (query.trim()) router.push(`/kupony/${query.trim().toLowerCase().replace(/\s+/g, "-")}`);
-            } else {
-              if (query.trim()) router.push("/hladat?q=" + encodeURIComponent(query.trim()));
+            } else if (query.trim()) {
+              router.push("/hladat?q=" + encodeURIComponent(query.trim()));
             }
           }}
           style={{
