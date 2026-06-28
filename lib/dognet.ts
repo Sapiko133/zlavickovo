@@ -1,5 +1,8 @@
 import { getAffialCoupons } from "@/lib/affial";
 import { getCjCouponsByShop } from "@/lib/cj";
+import { redis } from "@/lib/redis";
+import { getShopDomain } from "@/lib/shop-domains";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -210,4 +213,82 @@ export async function getShops() {
   } catch {
     return [];
   }
+}
+
+export interface CarouselDeal {
+  shop: string;
+  domain: string;
+  title: string;
+  discount: string | null;
+  color: string;
+  affiliateUrl: string;
+}
+
+const CAROUSEL_COLORS = ["#0065BD", "#FF6900", "#8B1A1A", "#FF6B35", "#E31837", "#7C3AED", "#16A34A"];
+
+const STATIC_CAROUSEL_DEALS: CarouselDeal[] = [
+  { shop: "Alza",    domain: "alza.sk",    title: "Až 20% zľava na elektroniku",    discount: "20%", color: "#0065BD", affiliateUrl: "https://www.alza.sk" },
+  { shop: "Zalando", domain: "zalando.sk", title: "Výpredaj módy až -50%",          discount: "50%", color: "#FF6900", affiliateUrl: "https://www.zalando.sk" },
+  { shop: "Notino",  domain: "notino.sk",  title: "Parfémy so zľavou až 30%",       discount: "30%", color: "#8B1A1A", affiliateUrl: "https://www.notino.sk" },
+  { shop: "GymBeam", domain: "gymbeam.sk", title: "Proteíny a doplnky -15%",        discount: "15%", color: "#FF6B35", affiliateUrl: "https://www.gymbeam.sk" },
+  { shop: "Mall",    domain: "mall.sk",    title: "Domáce spotrebiče v akcii -25%", discount: "25%", color: "#E31837", affiliateUrl: "https://www.mall.sk" },
+];
+
+export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
+  const CACHE_KEY = "carousel:deals";
+
+  try {
+    const cached = await redis.get<CarouselDeal[]>(CACHE_KEY);
+    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+  } catch {}
+
+  // Try Dognet: coupons with type 1 (Discount) or 3 (Sale) that have a % value
+  try {
+    const all = await getCoupons();
+    const deals: CarouselDeal[] = all
+      .filter((c: any) => {
+        const text = (c.title || c.name || c.description || "");
+        return (c.type === 1 || c.type === 3) && /\d+\s*%/.test(text);
+      })
+      .slice(0, limit)
+      .map((c: any, i: number) => {
+        const text = c.title || c.name || "";
+        const m = text.match(/(\d+)\s*%/);
+        const shopName: string = c.campaign?.name || "Obchod";
+        const domain = getShopDomain(shopName) || "";
+        return {
+          shop: shopName,
+          domain,
+          title: text,
+          discount: m ? `${m[1]}%` : null,
+          color: CAROUSEL_COLORS[i % CAROUSEL_COLORS.length],
+          affiliateUrl: c.affiliate_link || c.url || "#",
+        } satisfies CarouselDeal;
+      });
+
+    if (deals.length >= 3) {
+      try { await redis.setex(CACHE_KEY, 3600, deals); } catch {}
+      return deals;
+    }
+  } catch {}
+
+  // Fallback: AFFIAL_COUPONS that have a % discount
+  const affialDeals: CarouselDeal[] = AFFIAL_COUPONS
+    .filter(c => /\d+\s*%/.test(c.discount))
+    .slice(0, limit)
+    .map((c, i) => ({
+      shop: c.shop,
+      domain: c.domain,
+      title: `${c.discount} zľava v ${c.shop}`,
+      discount: c.discount,
+      color: CAROUSEL_COLORS[i % CAROUSEL_COLORS.length],
+      affiliateUrl: `https://${c.domain}`,
+    }));
+
+  if (affialDeals.length >= 3) {
+    try { await redis.setex(CACHE_KEY, 3600, affialDeals); } catch {}
+    return affialDeals;
+  }
+
+  return STATIC_CAROUSEL_DEALS;
 }

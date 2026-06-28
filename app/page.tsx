@@ -7,7 +7,7 @@ import DealsCarousel from "@/components/DealsCarousel";
 import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
-import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops } from "@/lib/dognet";
+import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops, getCarouselDeals } from "@/lib/dognet";
 import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
 import { getEhubShops } from "@/lib/ehub";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
@@ -65,9 +65,10 @@ export default async function Home() {
   let sales: any[] = [];
   let feed: any[] = [];
   let latestPosts: any[] = [];
+  let carouselDeals: Awaited<ReturnType<typeof getCarouselDeals>> = [];
 
   try {
-    [heroItems, dognetShops, ehubShops, sales, feed] = await Promise.all([
+    [heroItems, dognetShops, ehubShops, sales, feed, carouselDeals] = await Promise.all([
       getLatestSales(8).then((items: any[]) => items.map(c => ({
         id: c.id,
         shopName: c.campaign?.name || "Obchod",
@@ -79,6 +80,7 @@ export default async function Home() {
       getEhubShops().catch(() => []),
       getSalesCoupons(6).catch(() => []),
       getCouponsFeed(9).catch(() => []),
+      getCarouselDeals(7).catch(() => []),
     ]);
     latestPosts = getLatestPosts(3);
   } catch {
@@ -201,7 +203,7 @@ export default async function Home() {
       <Nav />
 
       {/* ── CAROUSEL — full-width ── */}
-      <DealsCarousel />
+      <DealsCarousel initialDeals={carouselDeals} />
 
       {/* ── HERO — motto + search + Heureka ── */}
       <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "44px 24px 40px", textAlign: "center" }}>
