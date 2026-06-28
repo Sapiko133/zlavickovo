@@ -27,9 +27,8 @@ export default function HeroSearch() {
 
   const shopSuggestions    = useAutocomplete(q, "shop");
   const productSuggestions = useAutocomplete(q, "product");
-
-  const suggestions = mode === "shop" ? shopSuggestions : productSuggestions;
-  const isShop = mode === "shop";
+  const suggestions        = mode === "shop" ? shopSuggestions : productSuggestions;
+  const isShop             = mode === "shop";
 
   useEffect(() => { setHighlight(-1); }, [q, mode]);
   useEffect(() => {
@@ -94,27 +93,29 @@ export default function HeroSearch() {
     inputRef.current?.focus();
   }
 
+  function openHeureka() {
+    const url = "https://www.heureka.sk/" + (q.trim() ? `?h[frm][q]=${encodeURIComponent(q.trim())}` : "");
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   const dropVisible = open && suggestions.length > 0;
 
   return (
-    <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "48px 24px 40px", textAlign: "center", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-      <div style={{ maxWidth: 660, margin: "0 auto" }}>
-        <h1 style={{ fontSize: "clamp(22px,4.5vw,42px)", fontWeight: 800, color: "#1d1d1f", letterSpacing: "-1px", lineHeight: 1.15, margin: "0 0 26px" }}>
-          Nájdi zľavy pred každým nákupom
-        </h1>
+    <div style={{ fontFamily: "system-ui,-apple-system,sans-serif" }}>
+      {/* Mode tabs */}
+      <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
+        {(["shop", "product"] as Mode[]).map(m => (
+          <button key={m} onClick={() => handleModeSwitch(m)}
+            style={{ padding: "8px 22px", borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1.5px solid", fontFamily: "inherit", transition: "all .15s", background: mode === m ? "#22C55E" : "#fff", color: mode === m ? "#fff" : "#666", borderColor: mode === m ? "#22C55E" : "#e0e0e0" }}>
+            {m === "shop" ? "🏪 Obchod" : "📦 Produkt"}
+          </button>
+        ))}
+      </div>
 
-        {/* Mode tabs */}
-        <div style={{ display: "flex", justifyContent: "center", gap: 6, marginBottom: 14 }}>
-          {(["shop", "product"] as Mode[]).map(m => (
-            <button key={m} onClick={() => handleModeSwitch(m)}
-              style={{ padding: "8px 22px", borderRadius: 100, fontSize: 13, fontWeight: 600, cursor: "pointer", border: "1.5px solid", fontFamily: "inherit", transition: "all .15s", background: mode === m ? "#22C55E" : "#fff", color: mode === m ? "#fff" : "#666", borderColor: mode === m ? "#22C55E" : "#e0e0e0" }}>
-              {m === "shop" ? "🏪 Obchod" : "📦 Produkt"}
-            </button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div ref={containerRef} style={{ position: "relative", maxWidth: 560, margin: "0 auto" }}>
+      {/* Search row + Heureka button */}
+      <div ref={containerRef} style={{ position: "relative", maxWidth: 680, margin: "0 auto", display: "flex", gap: 8, alignItems: "flex-start" }}>
+        {/* Search box */}
+        <div style={{ flex: 1, position: "relative" }}>
           <div style={{ display: "flex", border: `2px solid ${open ? "#22C55E" : "#e0e0e0"}`, borderRadius: 14, background: "#fff", boxShadow: open ? "0 0 0 4px rgba(34,197,94,0.10)" : "0 2px 12px rgba(0,0,0,0.06)", transition: "border-color .15s,box-shadow .15s" }}>
             <input ref={inputRef} type="text" value={q}
               onChange={e => { setQ(e.target.value); setOpen(true); }}
@@ -122,14 +123,14 @@ export default function HeroSearch() {
               onKeyDown={handleKeyDown}
               placeholder={isShop ? "Napr. Alza, Zalando, Lidl..." : "Napr. iPhone 16, Nike tenisky..."}
               autoComplete="off"
-              style={{ flex: 1, padding: "14px 20px", borderRadius: "12px 0 0 12px", border: "none", background: "transparent", fontSize: 15, color: "#1d1d1f", outline: "none", fontFamily: "inherit" }}
+              style={{ flex: 1, padding: "14px 18px", borderRadius: "12px 0 0 12px", border: "none", background: "transparent", fontSize: 15, color: "#1d1d1f", outline: "none", fontFamily: "inherit" }}
             />
             {q && (
               <button onClick={() => { setQ(""); setOpen(mode === "product"); inputRef.current?.focus(); }} tabIndex={-1}
                 style={{ padding: "0 10px", border: "none", background: "transparent", color: "#bbb", cursor: "pointer", fontSize: 18 }}>×</button>
             )}
             <button onClick={go}
-              style={{ padding: "14px 28px", borderRadius: "0 12px 12px 0", border: "none", background: "#22C55E", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "background .15s" }}
+              style={{ padding: "14px 24px", borderRadius: "0 12px 12px 0", border: "none", background: "#22C55E", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "background .15s" }}
               onMouseEnter={e => (e.currentTarget.style.background = "#16A34A")}
               onMouseLeave={e => (e.currentTarget.style.background = "#22C55E")}>
               Hľadať
@@ -162,18 +163,37 @@ export default function HeroSearch() {
           )}
         </div>
 
-        {/* Popular tags */}
-        <div style={{ marginTop: 20, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
-          <span style={{ fontSize: 13, color: "#aaa" }}>Populárne:</span>
-          {POPULAR_TAGS.map(tag => (
-            <button key={tag.label} onClick={() => { setOpen(false); router.push("/hladat?q=" + encodeURIComponent(tag.q)); }}
-              style={{ padding: "5px 14px", borderRadius: 100, border: "1.5px solid #e8e8e8", background: "#f5f5f7", color: "#555", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#22C55E"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "#22C55E"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#f5f5f7"; e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#e8e8e8"; }}>
-              {tag.label}
-            </button>
-          ))}
-        </div>
+        {/* Heureka button */}
+        <button
+          onClick={openHeureka}
+          title="Porovnať ceny na Heureka.sk"
+          style={{
+            padding: "14px 18px", borderRadius: 14, border: "none",
+            background: "#FF6600", color: "#fff",
+            fontWeight: 700, fontSize: 13, cursor: "pointer",
+            fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0,
+            boxShadow: "0 4px 14px rgba(255,102,0,0.30)",
+            transition: "background .15s, transform .15s",
+            lineHeight: 1.3,
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = "#e55a00"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "#FF6600"; e.currentTarget.style.transform = "none"; }}
+        >
+          🔍 Porovnať<br />na Heureke
+        </button>
+      </div>
+
+      {/* Popular tags */}
+      <div style={{ marginTop: 16, display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", maxWidth: 680, margin: "16px auto 0" }}>
+        <span style={{ fontSize: 13, color: "#aaa", lineHeight: "28px" }}>Populárne:</span>
+        {POPULAR_TAGS.map(tag => (
+          <button key={tag.label} onClick={() => { setOpen(false); router.push("/hladat?q=" + encodeURIComponent(tag.q)); }}
+            style={{ padding: "5px 14px", borderRadius: 100, border: "1.5px solid #e8e8e8", background: "#f5f5f7", color: "#555", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "#22C55E"; e.currentTarget.style.color = "#fff"; e.currentTarget.style.borderColor = "#22C55E"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "#f5f5f7"; e.currentTarget.style.color = "#555"; e.currentTarget.style.borderColor = "#e8e8e8"; }}>
+            {tag.label}
+          </button>
+        ))}
       </div>
     </div>
   );
