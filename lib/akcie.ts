@@ -24,7 +24,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Pri objednávke nad 59 € máte dopravu zadarmo kuriérom alebo na AlzaBox.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.alza.sk",
+    affiliateUrl: "https://www.alza.sk/doporucujeme",
     source: "static",
   },
   {
@@ -35,7 +35,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Zalando ponúka dopravu zadarmo na každú objednávku a bezplatné vrátenie do 100 dní.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.zalando.sk",
+    affiliateUrl: "https://www.zalando.sk/vypredaj/",
     source: "static",
   },
   {
@@ -46,7 +46,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Na Mall.sk máte pri nákupe nad 39 € dopravu zadarmo.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.mall.sk",
+    affiliateUrl: "https://www.mall.sk/vypredaj",
     source: "static",
   },
   {
@@ -57,7 +57,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Nakúpte nad 40 € a doprava je zadarmo. Každý mesiac nové vzorky k objednávke.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.notino.sk",
+    affiliateUrl: "https://www.notino.sk/znacky/",
     source: "static",
   },
   {
@@ -68,7 +68,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Objednajte lieky, vitamíny a kozmetiku s dopravou zadarmo pri nákupe nad 29,90 €.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.drmax.sk",
+    affiliateUrl: "https://www.drmax.sk/akcie",
     source: "static",
   },
   {
@@ -79,7 +79,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Temu ponúka dopravu zadarmo bez minimálnej sumy objednávky.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.temu.com",
+    affiliateUrl: "https://www.temu.com/best-sellers.html",
     source: "static",
   },
   {
@@ -90,7 +90,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "SHEIN — módne oblečenie s dopravou zadarmo nad 29 €.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.shein.com",
+    affiliateUrl: "https://www.shein.com/promotion/flash-sale",
     source: "static",
   },
   {
@@ -101,7 +101,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "ZOOT — doprava zadarmo a vrátenie tovaru do 365 dní bez udania dôvodu.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.zoot.sk",
+    affiliateUrl: "https://www.zoot.sk/vypredaj",
     source: "static",
   },
   {
@@ -123,7 +123,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Lidl Shop online — každý pondelok nové cenové akcie na potraviny aj nepotravinársky tovar.",
     type: "event",
     badge: "TÝŽDENNÉ",
-    affiliateUrl: "https://www.lidl.sk",
+    affiliateUrl: "https://www.lidl.sk/c/online-letak/s10008489",
     source: "static",
   },
   {
@@ -145,7 +145,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "S AlzaPlus+ predplatným máte dopravu zadarmo na každú objednávku a ďalšie výhody.",
     type: "welcome",
     badge: "PREDPLATNÉ",
-    affiliateUrl: "https://www.alza.sk/alza-plus",
+    affiliateUrl: "https://www.alza.sk/alzaplus",
     source: "static",
   },
   {
@@ -156,7 +156,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Nike výpredaj — topánky, oblečenie a doplnky za výhodné ceny.",
     type: "vypredaj",
     badge: "AŽ -40%",
-    affiliateUrl: "https://www.nike.com/sk",
+    affiliateUrl: "https://www.nike.com/sk/w/sale-3yaep",
     source: "static",
   },
   {
@@ -167,7 +167,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Zaregistrujte sa na AboutYou a získajte 10% zľavu na prvý nákup.",
     type: "welcome",
     badge: "-10%",
-    affiliateUrl: "https://www.aboutyou.sk",
+    affiliateUrl: "https://www.aboutyou.sk/sale",
     source: "static",
   },
   {
@@ -178,7 +178,7 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "Notino pridáva vzorky a darčeky kozmetiky k objednávkam nad 30 €.",
     type: "gift",
     badge: "DARČEK",
-    affiliateUrl: "https://www.notino.sk",
+    affiliateUrl: "https://www.notino.sk/darceky/",
     source: "static",
   },
   {
@@ -189,27 +189,31 @@ export const STATIC_AKCIE: Akcia[] = [
     description: "eobuv.sk ponúka dopravu zadarmo a vrátenie topánok do 365 dní.",
     type: "doprava",
     badge: "ZADARMO",
-    affiliateUrl: "https://www.eobuv.sk",
+    affiliateUrl: "https://www.eobuv.sk/vypredaj",
     source: "static",
   },
 ];
 
-// Maps Dognet coupon type 3 (výpredaj) / type 1 (zľava) to Akcia
+// Maps Dognet coupon (type 3=výpredaj / type 1=zľava) to Akcia.
+// API field "url" is the Dognet tracking redirect (go.dognet.com) pointing to the landing page.
 export function dognetCouponToAkcia(c: any): Akcia {
   const shopName = c.campaign?.name ?? c.name ?? "Obchod";
-  const domain = (c.campaign?.website_url ?? "")
+  const campaignUrl = c.campaign?.url ?? c.campaign?.website_url ?? "";
+  const domain = campaignUrl
     .replace(/^https?:\/\/(www\.)?/, "")
     .replace(/\/.*$/, "") || "";
-  const pct = (c.title || c.name || "").match(/(\d+)\s*%/);
+  const pct = (c.title || c.name || c.description || "").match(/(\d+)\s*%/);
+  // c.url is the Dognet affiliate redirect; campaign url is just the homepage fallback
+  const affiliateUrl = c.url || `https://${domain}`;
   return {
     id: `dognet-${c.id}`,
     shopName,
     domain,
     title: c.title || c.name || `Akcia v ${shopName}`,
-    description: c.description || "",
+    description: c.description || c.detailed_description || "",
     type: c.type === 3 ? "vypredaj" : "vypredaj",
-    badge: pct ? `-${pct[1]}%` : "AKCIA",
-    affiliateUrl: c.affiliate_link || c.url || `https://${domain}`,
+    badge: pct ? `-${pct[1]}%` : c.discount_value ? `-${c.discount_value}` : "AKCIA",
+    affiliateUrl,
     validTo: c.valid_to ?? null,
     source: "dognet",
   };
