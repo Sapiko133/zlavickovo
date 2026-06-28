@@ -43,21 +43,12 @@ function AkciaCard({ akcia }: { akcia: Akcia }) {
       href={akcia.affiliateUrl}
       target="_blank"
       rel="nofollow noopener noreferrer"
+      className="akcia-card"
       style={{
         display: "flex", flexDirection: "column",
         background: "#fff", borderRadius: 14, border: "1.5px solid #e8e8e8",
         padding: "18px 16px", textDecoration: "none", color: "#1d1d1f",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
-        transition: "transform 0.15s, box-shadow 0.15s",
         gap: 10,
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)";
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.transform = "";
-        (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
       }}
     >
       {/* Top row: logo + shop name + badge */}
@@ -133,6 +124,7 @@ export default async function AkciePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
+      <style>{`.akcia-card{box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:transform .15s,box-shadow .15s}.akcia-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.10)}`}</style>
       <Nav />
 
       {/* Header */}
