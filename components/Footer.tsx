@@ -25,6 +25,10 @@ const LEGAL = [
 export default function Footer() {
   return (
     <footer style={{ fontFamily: T.fontSans }}>
+      <style>{`
+        .footer-link { display: block; font-size: 13px; color: #9CA3AF; text-decoration: none; margin-bottom: 10px; transition: color 0.15s ease; }
+        .footer-link:hover { color: #22C55E; }
+      `}</style>
       {/* Trust feature strip */}
       <div style={{ background: T.bgAlt, borderTop: `1px solid ${T.border}`, padding: "32px 24px" }}>
         <div style={{
@@ -74,15 +78,7 @@ export default function Footer() {
             <div style={{ minWidth: 120 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Portál</div>
               {LINKS.map(l => (
-                <a key={l.href} href={l.href} style={{
-                  display: "block", fontSize: 13, color: "#9CA3AF", textDecoration: "none",
-                  marginBottom: 10, transition: T.transBase,
-                }}
-                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = T.green}
-                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = "#9CA3AF"}
-                >
-                  {l.label}
-                </a>
+                <a key={l.href} href={l.href} className="footer-link">{l.label}</a>
               ))}
             </div>
 
@@ -90,15 +86,7 @@ export default function Footer() {
             <div style={{ minWidth: 120 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14 }}>Spoločnosť</div>
               {LEGAL.map(l => (
-                <a key={l.href} href={l.href} style={{
-                  display: "block", fontSize: 13, color: "#9CA3AF", textDecoration: "none",
-                  marginBottom: 10, transition: T.transBase,
-                }}
-                  onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.color = T.green}
-                  onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.color = "#9CA3AF"}
-                >
-                  {l.label}
-                </a>
+                <a key={l.href} href={l.href} className="footer-link">{l.label}</a>
               ))}
             </div>
           </div>
