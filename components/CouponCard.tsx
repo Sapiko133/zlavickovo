@@ -15,9 +15,8 @@ function decodeCode(token: string): string {
 
 export default function CouponCard({ coupon, token, sponsored }: { coupon: any; token?: string | null; sponsored?: boolean }) {
   const t = useTranslations("coupon");
-  const [revealed, setRevealed]       = useState(false);
-  const [copied, setCopied]           = useState(false);
-  const [showOverlay, setShowOverlay] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [copied, setCopied]     = useState(false);
 
   const storeName    = coupon.campaign?.name || coupon.campaign_name || "Obchod";
   const domain       = getShopDomain(storeName) || "";
@@ -33,8 +32,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
       navigator.clipboard.writeText(code).catch(() => {});
       fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, shop: storeName }) }).catch(() => {});
     }
-    setShowOverlay(true);
-    setTimeout(() => { setShowOverlay(false); setRevealed(true); }, 2000);
+    setRevealed(true);
   }
 
   function copyCode() {
@@ -46,21 +44,6 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
 
   return (
     <>
-      {/* Redirect overlay */}
-      {showOverlay && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-          <div style={{ background: "#fff", borderRadius: 20, padding: "36px 44px", textAlign: "center", boxShadow: "0 24px 64px rgba(0,0,0,0.28)", minWidth: 260, maxWidth: 340 }}>
-            <ShopFavicon domain={domain} name={storeName} size={60} />
-            <div style={{ marginTop: 18, fontSize: 15, fontWeight: 600, color: "#1d1d1f", lineHeight: 1.4 }}>
-              Otvárame <strong>{storeName}</strong> pre vás...
-            </div>
-            <div style={{ marginTop: 4, fontSize: 12, color: "#aaa" }}>Kód bol skopírovaný do schránky</div>
-            <div style={{ marginTop: 20, width: 28, height: 28, border: "3px solid #e8e8e8", borderTopColor: "#22C55E", borderRadius: "50%", margin: "20px auto 0", animation: "coupon-spin 0.8s linear infinite" }} />
-          </div>
-          <style>{`@keyframes coupon-spin { to { transform: rotate(360deg); } }`}</style>
-        </div>
-      )}
-
       <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #e5e7eb", boxShadow: "0 2px 6px rgba(0,0,0,0.04)", display: "flex", flexDirection: "column", overflow: "hidden", position: "relative", height: "100%" }}>
         {/* Discount badge */}
         {discountBadge && (
