@@ -1,6 +1,7 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 import { getCoupons } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
 import { getEhubCoupons } from "@/lib/ehub";
@@ -351,7 +352,7 @@ export default async function KuponyPage({
                 >
                   {/* Card header */}
                   <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f5f5f5" }}>
-                    <ShopLogo name={c.shopName} size={40} radius={10} />
+                    <ShopFavicon domain={getShopDomain(c.shopName) || ""} name={c.shopName} size={40} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {c.shopName || "Obchod"}

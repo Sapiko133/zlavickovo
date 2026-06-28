@@ -1,7 +1,8 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import CouponCard from "@/components/CouponCard";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 import { getCoupons } from "@/lib/dognet";
 import { getEhubCoupons } from "@/lib/ehub";
 import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
@@ -176,7 +177,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                   }}
                 >
-                  <ShopLogo name={shop.name} size={52} />
+                  <ShopFavicon domain={getShopDomain(shop.name) || `${shop.slug}.sk`} name={shop.name} size={52} />
                   <span style={{ fontSize: 13, fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>
                     {shop.name}
                   </span>
@@ -203,7 +204,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                     boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                   }}
                 >
-                  <ShopLogo name={shop.name} domain={shop.domain} size={52} />
+                  <ShopFavicon domain={shop.domain || ""} name={shop.name} size={52} />
                   <span style={{ fontSize: 13, fontWeight: 600, textAlign: "center", lineHeight: 1.3 }}>
                     {shop.name}
                   </span>

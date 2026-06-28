@@ -1,7 +1,7 @@
 import { getShops } from "@/lib/dognet";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { CATEGORIES_LIST, inferCategory } from "@/lib/categories";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import type { Metadata } from "next";
@@ -179,7 +179,7 @@ export default async function ObchodyPage({
                   boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
                 }}
               >
-                <ShopLogo name={shop.name} domain={shop.domain} size={52} />
+                <ShopFavicon domain={shop.domain || ""} name={shop.name} size={52} />
                 <span style={{ fontSize: 13, fontWeight: 600, color: "#222", textAlign: "center", lineHeight: 1.3 }}>
                   {shop.name}
                 </span>
