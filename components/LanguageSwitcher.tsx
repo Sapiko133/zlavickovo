@@ -39,7 +39,7 @@ export default function LanguageSwitcher() {
           fontWeight: 600, color: "#555", fontFamily: "inherit",
         }}
       >
-        {active.flag} {active.label} ▾
+        {active.label} ▾
       </button>
 
       {open && (

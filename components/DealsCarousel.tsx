@@ -42,7 +42,7 @@ export default function DealsCarousel({ initialDeals }: Props) {
 
   return (
     <div
-      style={{ position: "relative", overflow: "hidden", transition: "background 0.5s ease", background: deal.color, cursor: "pointer" }}
+      style={{ position: "relative", overflow: "hidden", background: "#22C55E", cursor: "pointer" }}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={e => { touchX.current = e.touches[0].clientX; }}

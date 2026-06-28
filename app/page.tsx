@@ -69,13 +69,27 @@ export default async function Home() {
 
   try {
     [heroItems, dognetShops, ehubShops, sales, feed, carouselDeals] = await Promise.all([
-      getLatestSales(8).then((items: any[]) => items.map(c => ({
-        id: c.id,
-        shopName: c.campaign?.name || "Obchod",
-        title: c.title || c.name || "Akcia",
-        discount: (() => { const m = (c.title || c.name || "").match(/(\d+)\s*%/); return m ? `${m[1]}%` : null; })(),
-        link: c.affiliate_link || c.url || "#",
-      }))).catch(() => []),
+      getLatestSales(8).then((items: any[]) => {
+        const dognetItems = items.map(c => ({
+          id: c.id,
+          shopName: c.campaign?.name || "Obchod",
+          title: c.title || c.name || "Akcia",
+          discount: (() => { const m = (c.title || c.name || "").match(/(\d+)\s*%/); return m ? `${m[1]}%` : null; })(),
+          link: c.affiliate_link || c.url || "#",
+        }));
+        // Merge Affial coupons with % discount as "akcie"
+        const affialItems = AFFIAL_COUPONS
+          .filter(c => /\d+/.test(c.discount))
+          .slice(0, Math.max(0, 8 - dognetItems.length))
+          .map((c, i) => ({
+            id: `affial-hero-${i}`,
+            shopName: c.shop,
+            title: `${c.discount} zľava`,
+            discount: /\d+%/.test(c.discount) ? c.discount : null,
+            link: `https://${c.domain}`,
+          }));
+        return [...dognetItems, ...affialItems].slice(0, 8);
+      }).catch(() => []),
       getShops().catch(() => []),
       getEhubShops().catch(() => []),
       getSalesCoupons(6).catch(() => []),
