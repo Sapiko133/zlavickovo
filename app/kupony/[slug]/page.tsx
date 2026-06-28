@@ -7,7 +7,6 @@ import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import HeurekaSearch from "@/components/HeurekaSearch";
-import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopTabs from "@/components/ShopTabs";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
@@ -233,9 +232,6 @@ export default async function ShopPage({ params }: Props) {
             </div>
 
             {/* Heureka */}
-            <div style={{ marginBottom: 24 }}>
-              <HeurekaWidget />
-            </div>
             <HeurekaSearch shopName={capitalized} />
 
             {/* Mobile sidebar */}
@@ -301,7 +297,7 @@ export default async function ShopPage({ params }: Props) {
               return (
                 <a key={s} href={`/kupony/${s}`} style={{ textDecoration: "none" }}>
                   <div style={{ background: "#fff", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, border: "1px solid #eaecf0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                    <ShopLogo name={name} size={34} />
+                    <ShopFavicon domain={getShopDomain(name) || `${s}.sk`} name={name} size={34} />
                     <span style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f" }}>{name}</span>
                   </div>
                 </a>
