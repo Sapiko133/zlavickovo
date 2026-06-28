@@ -19,7 +19,8 @@ const CAT_LIST = [
 const NAV_LINKS = [
   { label: "Obchody", href: "/obchody" },
   { label: "Kupóny",  href: "/kupony" },
-  { label: "Akcie",   href: "/letaky" },
+  { label: "Akcie",   href: "/akcie" },
+  { label: "Letáky",  href: "/letaky" },
 ];
 
 function CatDropdown({ onClose }: { onClose: () => void }) {

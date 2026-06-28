@@ -6,6 +6,7 @@ import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
 import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops } from "@/lib/dognet";
+import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
 import { getEhubShops } from "@/lib/ehub";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
@@ -40,6 +41,7 @@ interface HomepageShop {
   slug: string;
   count?: number;
   commission?: string;
+  logoUrl?: string;
 }
 
 const CATEGORIES = [
@@ -74,7 +76,7 @@ export default async function Home() {
           link: c.affiliate_link || c.url || "#",
           expires: c.valid_to ? new Date(c.valid_to).toLocaleDateString("sk-SK") : null,
         }))
-      ),
+      ).catch(() => [] as HeroItem[]),
       getShops().catch(() => []),
       getEhubShops().catch(() => []),
       getSalesCoupons(8).catch(() => []),
@@ -93,7 +95,7 @@ export default async function Home() {
     const key = s.name.toLowerCase().trim();
     if (!seenShops.has(key)) {
       seenShops.add(key);
-      allShops.push({ name: s.name, slug: shopSlug(s.name), count: s.count });
+      allShops.push({ name: s.name, slug: shopSlug(s.name), count: s.count || undefined, logoUrl: (s as any).logoUrl });
     }
   }
 
@@ -106,7 +108,7 @@ export default async function Home() {
       const slug = domain
         ? domain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-")
         : shopSlug(s.name);
-      allShops.push({ name: s.name, slug, commission: s.commission });
+      allShops.push({ name: s.name, slug, commission: s.commission, logoUrl: s.logoUrl });
     }
   }
 
@@ -118,6 +120,12 @@ export default async function Home() {
       allShops.push({ name: s.name, slug, commission: s.commission });
     }
   }
+
+  // Build homepage akcie: Dognet sales + static
+  const homepageAkcie = [
+    ...sales.filter((c: any) => c.campaign?.name).slice(0, 4).map(dognetCouponToAkcia),
+    ...STATIC_AKCIE.slice(0, 8),
+  ].slice(0, 8);
 
   // Build sidebar coupons (right panel): feed coupons with code + Affial static
   const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s]));
@@ -258,7 +266,7 @@ export default async function Home() {
                         textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                       }}
                     >
-                      <ShopLogo name={shop.name} size={44} />
+                      <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size={44} />
                       <div style={{ textAlign: "center" }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f" }}>{shop.name.length > 12 ? shop.name.slice(0, 12) + "…" : shop.name}</div>
                         <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
@@ -327,6 +335,45 @@ export default async function Home() {
                 );
               })}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── AKCIE ── */}
+      {homepageAkcie.length > 0 && (
+        <section style={{ maxWidth: 1100, margin: "40px auto 0", padding: "0 20px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <h2 className="sec-title">🏷️ Akcie a výhodné ponuky</h2>
+            <a href="/akcie" className="see-all">Všetky akcie →</a>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+            {homepageAkcie.map(akcia => (
+              <a
+                key={akcia.id}
+                href={akcia.affiliateUrl}
+                target="_blank"
+                rel="nofollow noopener noreferrer"
+                style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8",
+                  padding: "12px 14px", textDecoration: "none", color: "#1d1d1f",
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                }}
+              >
+                <ShopLogo name={akcia.shopName} domain={akcia.domain || undefined} size={40} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.25, marginBottom: 3 }}>
+                    {akcia.shopName}
+                  </div>
+                  <div style={{ fontSize: 11, color: "#555", lineHeight: 1.3, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
+                    {akcia.title}
+                  </div>
+                </div>
+                <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "#22C55E", borderRadius: 6, padding: "3px 7px", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {akcia.badge ?? "AKCIA"}
+                </span>
+              </a>
+            ))}
           </div>
         </section>
       )}

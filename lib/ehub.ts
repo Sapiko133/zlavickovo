@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 
 const BASE = "https://api.ehub.cz/v3";
 
+
 function getCredentials() {
   return {
     partnerId: process.env.EHUB_PARTNER_ID ?? "",
@@ -31,46 +32,9 @@ export interface EhubShop {
   category: string;
 }
 
-async function fetchEhubCoupons(): Promise<EhubCoupon[]> {
-  const { partnerId, apiKey } = getCredentials();
-  if (!partnerId || !apiKey) return [];
-
-  try {
-    const res = await fetch(
-      `${BASE}/publishers/${partnerId}/vouchers?apiKey=${apiKey}`,
-      { next: { revalidate: 3600 } }
-    );
-    if (!res.ok) return [];
-    const data = await res.json();
-    const vouchers: any[] = Array.isArray(data?.vouchers) ? data.vouchers : [];
-
-    return vouchers.map((v: any, i: number) => ({
-      id: `ehub-${v.id ?? i}`,
-      title: String(v.title ?? v.name ?? v.shortDescription ?? ""),
-      code: String(v.code ?? v.voucherCode ?? ""),
-      description: String(v.description ?? v.shortDescription ?? ""),
-      discount: String(v.value ?? v.discount ?? ""),
-      campaign_name: String(v.campaign?.name ?? v.campaignName ?? ""),
-      affiliate_link: String(v.affiliateUrl ?? v.url ?? v.campaign?.defaultLink ?? "#"),
-      valid_to: v.validTo ?? v.expiresAt ?? null,
-      source: "ehub" as const,
-    }));
-  } catch {
-    return [];
-  }
-}
-
-export const getEhubCoupons = unstable_cache(
-  fetchEhubCoupons,
-  ["ehub-coupons"],
-  { revalidate: 3600 }
-);
-
-export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon[]> {
-  const all = await getEhubCoupons();
-  const q = shopName.toLowerCase();
-  return all.filter((c) => c.campaign_name.toLowerCase().includes(q));
-}
+// eHub voucher API returns 0 results for this account — skip the call entirely
+export async function getEhubCoupons(): Promise<EhubCoupon[]> { return []; }
+export async function getEhubCouponsByShop(_shopName: string): Promise<EhubCoupon[]> { return []; }
 
 async function fetchEhubShops(): Promise<EhubShop[]> {
   const { partnerId, apiKey } = getCredentials();

@@ -20,6 +20,7 @@ function colorFromName(name: string): string {
 export default function ShopLogo({
   name,
   domain: domainProp,
+  logoUrl,
   size: sizeProp = 40,
   radius: radiusProp,
   color: colorProp,
@@ -27,20 +28,28 @@ export default function ShopLogo({
 }: {
   name: string;
   domain?: string;
+  logoUrl?: string;
   size?: number | "sm" | "md" | "lg";
   radius?: number;
   color?: string;
   className?: string;
 }) {
-  const [failed, setFailed] = useState(false);
-
   const size = typeof sizeProp === "string" ? SIZE_PRESETS[sizeProp] : sizeProp;
   const radius = radiusProp ?? Math.round(size * 0.24);
   const domain = domainProp || getShopDomain(name);
   const color = colorProp ?? colorFromName(name);
   const fontSize = Math.round(size * 0.38);
+  const imgSize = Math.round(size * 0.75);
 
-  if (domain && !failed) {
+  // Build ordered source list: local → direct API logo → clearbit
+  const sources: string[] = [];
+  if (domain) sources.push(`/logos/${domain}.png`);
+  if (logoUrl) sources.push(logoUrl);
+  if (domain) sources.push(`https://logo.clearbit.com/${domain}`);
+
+  const [step, setStep] = useState(0);
+
+  if (sources.length > 0 && step < sources.length) {
     return (
       <div
         className={className}
@@ -52,12 +61,12 @@ export default function ShopLogo({
         }}
       >
         <img
-          src={`https://logo.clearbit.com/${domain}`}
+          src={sources[step]}
           alt={name}
-          width={Math.round(size * 0.7)}
-          height={Math.round(size * 0.7)}
+          width={imgSize}
+          height={imgSize}
           style={{ objectFit: "contain", display: "block" }}
-          onError={() => setFailed(true)}
+          onError={() => setStep((s) => s + 1)}
         />
       </div>
     );

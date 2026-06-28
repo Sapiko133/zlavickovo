@@ -1,7 +1,8 @@
 import { getAffialCoupons } from "@/lib/affial";
+import { getCjCouponsByShop } from "@/lib/cj";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
-const AD_CHANNEL_ID = 8875;
+const AD_CHANNEL_ID = 33415;
 
 let token: string | null = null;
 
@@ -46,7 +47,11 @@ export async function getCoupons() {
 }
 
 export async function getCouponsByShop(shopName: string) {
-  const [dognetAll, affialAll] = await Promise.all([getCoupons(), getAffialCoupons()]);
+  const [dognetAll, affialAll, cjAll] = await Promise.all([
+    getCoupons().catch(() => []),
+    getAffialCoupons().catch(() => []),
+    getCjCouponsByShop(shopName).catch(() => []),
+  ]);
   const lower = shopName.toLowerCase();
 
   const dognet = dognetAll
@@ -57,14 +62,28 @@ export async function getCouponsByShop(shopName: string) {
     c.campaign_name?.toLowerCase().includes(lower)
   );
 
+  const cj = cjAll.map((c: any) => ({
+    id: c.id,
+    code: c.code,
+    title: c.description,
+    name: c.description,
+    type: 1,
+    affiliate_link: c.link,
+    url: c.link,
+    valid_to: c.endDate || null,
+    campaign: { name: c.advertiserName },
+    campaign_name: c.advertiserName,
+    source: "cj",
+  }));
+
   const seenCodes = new Set(
-    dognet.map((c: any) => c.code?.toUpperCase()).filter(Boolean)
+    [...dognet, ...cj].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
   );
   const uniqueAffial = affial.filter(
     (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
   );
 
-  return [...dognet, ...uniqueAffial];
+  return [...dognet, ...cj, ...uniqueAffial];
 }
 
 export async function getLatestCoupons(limit = 6) {
@@ -151,25 +170,44 @@ async function getCouponsForChannel(channelId: number) {
 }
 
 export async function getShops() {
-  const results = await Promise.allSettled([
-    getCouponsForChannel(8875),
-    getCouponsForChannel(33415),
-  ]);
+  try {
+    const t = await getToken();
 
-  const all = results.flatMap(r => r.status === "fulfilled" ? r.value : []);
+    // Run coupon channel + campaigns endpoint in parallel
+    const [ch1, cmpRes] = await Promise.allSettled([
+      getCouponsForChannel(33415),
+      fetch(`${API_BASE}/campaigns/filter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
+        body: JSON.stringify({ "per-page": 200 }),
+      }).then(r => r.json()).catch(() => null),
+    ]);
 
-  // Deduplicate by campaign name (case-insensitive)
-  const map = new Map<string, { id: number; name: string; count: number }>();
-  for (const c of all) {
-    const campaign = c.campaign;
-    if (!campaign?.name) continue;
-    const key = campaign.name.toLowerCase();
-    const entry = map.get(key);
-    if (entry) {
-      entry.count++;
-    } else {
-      map.set(key, { id: campaign.id ?? 0, name: campaign.name, count: 1 });
+    // Build map from shops with active coupons (higher priority, have coupon count)
+    const map = new Map<string, { id: number; name: string; count: number; logoUrl?: string }>();
+    const coupons = ch1.status === "fulfilled" ? ch1.value : [];
+    for (const c of coupons) {
+      const cam = c.campaign;
+      if (!cam?.name) continue;
+      const key = cam.name.toLowerCase();
+      const entry = map.get(key);
+      if (entry) { entry.count++; }
+      else { map.set(key, { id: cam.id ?? 0, name: cam.name, count: 1, logoUrl: cam.logo_url }); }
     }
+
+    // Add all campaigns without coupons (fill remaining 200 slots)
+    if (cmpRes.status === "fulfilled" && Array.isArray(cmpRes.value?.data)) {
+      for (const c of cmpRes.value.data) {
+        if (!c.name) continue;
+        const key = c.name.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { id: c.id ?? 0, name: c.name, count: 0, logoUrl: c.logo_url });
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  } catch {
+    return [];
   }
-  return Array.from(map.values()).sort((a, b) => b.count - a.count);
 }
