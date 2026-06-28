@@ -20,7 +20,8 @@ export const metadata: Metadata = {
     default: "Zlavickovo – zľavové kódy a kupóny 2026",
     template: "%s | Zlavickovo",
   },
-  description: "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
+  description:
+    "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
   keywords: ["zlavove kody", "kupony", "zlava", "zlavickovo", "zlavovy kod", "Slovakia"],
   manifest: "/manifest.json",
   appleWebApp: { capable: true, title: "Zlavickovo", statusBarStyle: "default" },
@@ -37,10 +38,14 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://zlavickovo.sk"),
 };
 
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   const cookieStore = await cookies();
   const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sk";
-  const locale: Locale = (SUPPORTED as readonly string[]).includes(raw) ? (raw as Locale) : "sk";
+  const locale: Locale = (SUPPORTED as readonly string[]).includes(raw)
+    ? (raw as Locale)
+    : "sk";
   const messages = (await import(`@/messages/${locale}.json`)).default;
 
   return (
@@ -55,12 +60,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <InstallBanner />
           {children}
         </NextIntlClientProvider>
+
         <Script
-          async
-          src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
-          strategy="lazyOnload"
-        />
-                <Script
           async
           src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
           strategy="lazyOnload"
@@ -86,3 +87,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           `}
         </Script>
       </body>
+    </html>
+  );
+}
