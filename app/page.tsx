@@ -3,9 +3,9 @@ import { getShopDomain } from "@/lib/shop-domains";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
-import HomeCarousel, { type CarouselSlide } from "@/components/HomeCarousel";
+import DealsCarousel from "@/components/DealsCarousel";
 import CouponCard from "@/components/CouponCard";
-import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops } from "@/lib/dognet";
+import { getCouponsFeed, getSalesCoupons, getShops } from "@/lib/dognet";
 import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
 import { getEhubShops } from "@/lib/ehub";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
@@ -56,7 +56,6 @@ const CATEGORIES = [
 ];
 
 export default async function Home() {
-  let carouselSlides: CarouselSlide[] = [];
   let dognetShops: { id: number; name: string; count: number }[] = [];
   let ehubShops: Awaited<ReturnType<typeof getEhubShops>> = [];
   let sales: any[] = [];
@@ -64,17 +63,7 @@ export default async function Home() {
   let latestPosts: any[] = [];
 
   try {
-    [carouselSlides, dognetShops, ehubShops, sales, feed] = await Promise.all([
-      getLatestSales(6).then(items =>
-        items.map((c: any): CarouselSlide => ({
-          id: c.id,
-          shopName: c.campaign?.name || "Obchod",
-          title: c.title || c.name || "Akcia",
-          discount: (() => { const m = (c.title || c.name || "").match(/(\d+)\s*%/); return m ? `${m[1]}%` : null; })(),
-          link: c.affiliate_link || c.url || "#",
-          expires: c.valid_to ? new Date(c.valid_to).toLocaleDateString("sk-SK") : null,
-        }))
-      ).catch(() => [] as CarouselSlide[]),
+    [dognetShops, ehubShops, sales, feed] = await Promise.all([
       getShops().catch(() => []),
       getEhubShops().catch(() => []),
       getSalesCoupons(6).catch(() => []),
@@ -171,7 +160,7 @@ export default async function Home() {
       <Nav />
 
       {/* ── CAROUSEL (full-width, outside container) ── */}
-      {carouselSlides.length > 0 && <HomeCarousel slides={carouselSlides} />}
+      <DealsCarousel />
 
       {/* ── POPULÁRNE OBCHODY ── */}
       {allShops.length > 0 && (
