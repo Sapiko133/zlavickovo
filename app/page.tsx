@@ -5,7 +5,8 @@ import Nav from "@/components/Nav";
 import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
-import { getCouponsFeed, getSalesCoupons, getLatestSales, getCashbackShops, getShops } from "@/lib/dognet";
+import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops } from "@/lib/dognet";
+import { getEhubShops } from "@/lib/ehub";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
@@ -34,6 +35,13 @@ function shopSlug(name: string) {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
+interface HomepageShop {
+  name: string;
+  slug: string;
+  count?: number;
+  commission?: string;
+}
+
 const CATEGORIES = [
   { emoji: "💻", label: "Elektronika", href: "/kategoria/elektronika", color: "#0065BD", bg: "#dbeafe" },
   { emoji: "👗", label: "Móda",        href: "/kategoria/moda",        color: "#E8001D", bg: "#fce7f3" },
@@ -49,13 +57,14 @@ const CATEGORIES = [
 
 export default async function Home() {
   let heroItems: HeroItem[] = [];
-  let popularShops: any[] = [];
+  let dognetShops: { id: number; name: string; count: number }[] = [];
+  let ehubShops: Awaited<ReturnType<typeof getEhubShops>> = [];
   let sales: any[] = [];
   let feed: any[] = [];
   let latestPosts: any[] = [];
 
   try {
-    [heroItems, popularShops, sales, feed] = await Promise.all([
+    [heroItems, dognetShops, ehubShops, sales, feed] = await Promise.all([
       getLatestSales(8).then(items =>
         items.map((c: any): HeroItem => ({
           id: c.id,
@@ -66,13 +75,48 @@ export default async function Home() {
           expires: c.valid_to ? new Date(c.valid_to).toLocaleDateString("sk-SK") : null,
         }))
       ),
-      getShops(),
-      getSalesCoupons(8),
-      getCouponsFeed(8),
+      getShops().catch(() => []),
+      getEhubShops().catch(() => []),
+      getSalesCoupons(8).catch(() => []),
+      getCouponsFeed(8).catch(() => []),
     ]);
     latestPosts = getLatestPosts(3);
   } catch {
     latestPosts = getLatestPosts(3);
+  }
+
+  // Merge shops from all sources — Dognet > eHub > AFFIAL (static fallback)
+  const seenShops = new Set<string>();
+  const allShops: HomepageShop[] = [];
+
+  for (const s of dognetShops) {
+    const key = s.name.toLowerCase().trim();
+    if (!seenShops.has(key)) {
+      seenShops.add(key);
+      allShops.push({ name: s.name, slug: shopSlug(s.name), count: s.count });
+    }
+  }
+
+  for (const s of ehubShops) {
+    if (!s.name) continue;
+    const key = s.name.toLowerCase().trim();
+    if (!seenShops.has(key)) {
+      seenShops.add(key);
+      const domain = s.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+      const slug = domain
+        ? domain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-")
+        : shopSlug(s.name);
+      allShops.push({ name: s.name, slug, commission: s.commission });
+    }
+  }
+
+  for (const s of AFFIAL_SHOPS) {
+    const key = s.name.toLowerCase().trim();
+    if (!seenShops.has(key)) {
+      seenShops.add(key);
+      const slug = s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
+      allShops.push({ name: s.name, slug, commission: s.commission });
+    }
   }
 
   // Build sidebar coupons (right panel): feed coupons with code + Affial static
@@ -194,18 +238,18 @@ export default async function Home() {
           {/* CENTER 60% */}
           <div className="home-center" style={{ flex: 1, minWidth: 0 }}>
 
-            {/* Populárne obchody */}
-            {popularShops.length > 0 && (
+            {/* Populárne obchody — Dognet + eHub + AFFIAL */}
+            {allShops.length > 0 && (
               <div style={{ marginBottom: 28 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <h2 className="sec-title">🏪 Populárne obchody</h2>
                   <a href="/obchody" className="see-all">Všetky →</a>
                 </div>
                 <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                  {popularShops.slice(0, 12).map((shop: any) => (
+                  {allShops.slice(0, 12).map((shop) => (
                     <a
-                      key={shop.name}
-                      href={`/kupony/${shopSlug(shop.name)}`}
+                      key={shop.slug}
+                      href={`/kupony/${shop.slug}`}
                       className="shop-card-hp"
                       style={{
                         display: "flex", flexDirection: "column", alignItems: "center",
@@ -216,9 +260,13 @@ export default async function Home() {
                     >
                       <ShopLogo name={shop.name} size={44} />
                       <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f" }}>{shop.name.length > 10 ? shop.name.slice(0, 10) + "…" : shop.name}</div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f" }}>{shop.name.length > 12 ? shop.name.slice(0, 12) + "…" : shop.name}</div>
                         <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
-                          {shop.count} kupón{shop.count === 1 ? "" : shop.count < 5 ? "y" : "ov"}
+                          {shop.count != null
+                            ? `${shop.count} kupón${shop.count === 1 ? "" : shop.count < 5 ? "y" : "ov"}`
+                            : shop.commission
+                            ? `💰 ${shop.commission}`
+                            : "kupóny"}
                         </div>
                       </div>
                     </a>
