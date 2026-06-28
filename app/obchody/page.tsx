@@ -30,15 +30,17 @@ export default async function ObchodyPage() {
     ]);
   } catch {}
 
-  const seen = new Set<string>();
+  const seenNames = new Set<string>();
+  const seenSlugs = new Set<string>();
   const allShops: ShopItem[] = [];
 
   // 1. Dognet (primary — has coupon counts)
   for (const s of dognetShops) {
     const key = s.name.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
     const slug = shopSlug(s.name);
+    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
+    seenNames.add(key);
+    seenSlugs.add(slug);
     const domain = getShopDomain(s.name) || `${slug}.sk`;
     allShops.push({ name: s.name, slug, domain, count: s.count || undefined, source: "dognet" });
   }
@@ -47,12 +49,13 @@ export default async function ObchodyPage() {
   for (const s of ehubShops) {
     if (!s.name) continue;
     const key = s.name.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
     const rawDomain = s.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
     const slug = rawDomain
       ? rawDomain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-")
       : shopSlug(s.name);
+    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
+    seenNames.add(key);
+    seenSlugs.add(slug);
     const domain = rawDomain || getShopDomain(s.name) || `${slug}.sk`;
     allShops.push({ name: s.name, slug, domain, commission: s.commission, source: "ehub" });
   }
@@ -60,9 +63,10 @@ export default async function ObchodyPage() {
   // 3. Affial (static, has domain + commission)
   for (const s of AFFIAL_SHOPS) {
     const key = s.name.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
     const slug = s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
+    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
+    seenNames.add(key);
+    seenSlugs.add(slug);
     allShops.push({ name: s.name, slug, domain: s.domain, commission: s.commission, source: "affial" });
   }
 

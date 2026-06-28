@@ -214,8 +214,8 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
                 gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
                 gap: 10,
               }}>
-                {letterShops.map(shop => (
-                  <ShopCard key={`${shop.source}-${shop.slug}`} shop={shop} />
+                {letterShops.map((shop, i) => (
+                  <ShopCard key={`${shop.source}-${shop.slug}-${i}`} shop={shop} />
                 ))}
               </div>
             </section>
