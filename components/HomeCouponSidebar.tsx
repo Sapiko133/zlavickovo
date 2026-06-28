@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
+import { T } from "@/lib/design-tokens";
 
 export interface SidebarCoupon {
   shopName: string;
@@ -14,14 +15,14 @@ export interface SidebarCoupon {
 
 function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean }) {
   const [revealed, setRevealed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]     = useState(false);
 
   function handleReveal() {
     if (coupon.affiliateLink && coupon.affiliateLink !== "#") {
       window.open(coupon.affiliateLink, "_blank", "noopener,noreferrer");
     }
-    setRevealed(true);
     navigator.clipboard.writeText(coupon.code).catch(() => {});
+    setRevealed(true);
   }
 
   function handleCopy() {
@@ -31,48 +32,66 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
   }
 
   return (
-    <div style={{ padding: "10px 0", borderBottom: isLast ? "none" : "1px solid #f0f0f0" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <ShopFavicon domain={coupon.domain || ""} name={coupon.shopName} size={28} />
+    <div style={{
+      padding: "10px 0",
+      borderBottom: isLast ? "none" : `1px solid ${T.borderLight}`,
+    }}>
+      {/* Shop row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: T.rSm, flexShrink: 0,
+          background: T.bgAlt, display: "flex", alignItems: "center", justifyContent: "center",
+          overflow: "hidden",
+        }}>
+          <ShopFavicon domain={coupon.domain || ""} name={coupon.shopName} size={26} />
+        </div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: T.textPrimary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {coupon.shopName}
           </div>
-          <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {coupon.title.length > 28 ? coupon.title.slice(0, 28) + "…" : coupon.title}
+          <div style={{ fontSize: 10, color: T.textMuted, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>
+            {coupon.title.length > 26 ? coupon.title.slice(0, 26) + "…" : coupon.title}
           </div>
         </div>
         {coupon.discount && (
-          <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "#22C55E", borderRadius: 5, padding: "2px 6px", flexShrink: 0 }}>
+          <span style={{
+            fontSize: 10, fontWeight: 800, color: T.white, background: T.green,
+            borderRadius: T.rFull, padding: "2px 7px", flexShrink: 0,
+          }}>
             {coupon.discount}
           </span>
         )}
       </div>
+
+      {/* Code reveal */}
       {!revealed ? (
         <button
           onClick={handleReveal}
           style={{
-            width: "100%", padding: "5px 10px", borderRadius: 7,
-            border: "1.5px dashed #22C55E", background: "#F0FDF4", color: "#16A34A",
-            fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "inherit",
-            letterSpacing: 1,
+            width: "100%", padding: "6px 10px", borderRadius: T.rMd,
+            border: `1.5px dashed ${T.green}`, background: T.greenLight,
+            color: T.greenDark, fontWeight: 700, fontSize: 11, cursor: "pointer",
+            fontFamily: T.fontSans, letterSpacing: "0.04em", transition: T.transBase,
           }}
+          onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = T.greenMid}
+          onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = T.greenLight}
         >
-          ••••••• Zobraziť
+          ••••• Zobraziť kód
         </button>
       ) : (
         <button
           onClick={handleCopy}
           style={{
-            width: "100%", padding: "5px 10px", borderRadius: 7,
-            border: "1.5px solid #22C55E",
-            background: copied ? "#22C55E" : "#F0FDF4",
-            color: copied ? "#fff" : "#16A34A",
-            fontWeight: 700, fontSize: 11, cursor: "pointer", fontFamily: "monospace",
-            letterSpacing: 1,
+            width: "100%", padding: "6px 10px", borderRadius: T.rMd,
+            border: `1.5px solid ${copied ? T.green : T.greenDark}`,
+            background: copied ? T.green : T.greenLight,
+            color: copied ? T.white : T.greenDark,
+            fontWeight: 700, fontSize: 11, cursor: "pointer",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.08em", transition: T.transBase,
           }}
         >
-          {copied ? "✓ Skopírované" : coupon.code}
+          {copied ? "✓ Skopírované!" : coupon.code}
         </button>
       )}
     </div>
@@ -81,11 +100,19 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
 
 export default function HomeCouponSidebar({ coupons }: { coupons: SidebarCoupon[] }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-      <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", marginBottom: 2 }}>🏷️ Najnovšie kupóny</div>
-      <div style={{ fontSize: 11, color: "#aaa", marginBottom: 12 }}>Klikni pre zobrazenie kódu</div>
+    <div style={{
+      background: T.white, borderRadius: T.rLg, border: `1px solid ${T.border}`,
+      padding: "16px 16px 12px", boxShadow: T.shadowSm,
+      fontFamily: T.fontSans,
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+        <div style={{ fontWeight: 700, fontSize: 14, color: T.textPrimary }}>🏷️ Najnovšie kupóny</div>
+      </div>
+      <div style={{ fontSize: 11, color: T.textFaint, marginBottom: 12 }}>Klikni pre zobrazenie kódu</div>
+
       {coupons.length === 0 ? (
-        <div style={{ fontSize: 12, color: "#aaa", textAlign: "center", padding: "16px 0" }}>
+        <div style={{ fontSize: 12, color: T.textFaint, textAlign: "center", padding: "20px 0" }}>
           Žiadne kupóny
         </div>
       ) : (
@@ -93,11 +120,17 @@ export default function HomeCouponSidebar({ coupons }: { coupons: SidebarCoupon[
           <CouponRow key={i} coupon={c} isLast={i === coupons.length - 1} />
         ))
       )}
+
       <a href="/kupony" style={{
-        display: "block", marginTop: 14, textAlign: "center",
-        padding: "8px 12px", borderRadius: 8, background: "#f5f5f7",
-        color: "#22C55E", fontSize: 12, fontWeight: 700, textDecoration: "none",
-      }}>
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 4,
+        marginTop: 14, padding: "8px 12px", borderRadius: T.rMd,
+        background: T.greenLight, color: T.greenDark,
+        fontSize: 12, fontWeight: 700, textDecoration: "none",
+        border: `1px solid ${T.greenMid}`, transition: T.transBase,
+      }}
+        onMouseEnter={e => (e.currentTarget as HTMLAnchorElement).style.background = T.greenMid}
+        onMouseLeave={e => (e.currentTarget as HTMLAnchorElement).style.background = T.greenLight}
+      >
         Všetky kupóny →
       </a>
     </div>

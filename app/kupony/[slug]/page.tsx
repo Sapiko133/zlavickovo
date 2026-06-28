@@ -167,50 +167,58 @@ export default async function ShopPage({ params }: Props) {
   };
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#f7f8fa", color: "#1d1d1f" }}>
+    <div style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif", minHeight: "100vh", background: "#F8FAFC", color: "#111827" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       <Nav />
 
       {/* Breadcrumb */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #eaecf0" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", fontSize: 12, color: "#888" }}>
-          <a href="/" style={{ color: "#888", textDecoration: "none" }}>Zlavickovo</a>
-          {" › "}
-          <a href="/obchody" style={{ color: "#888", textDecoration: "none" }}>Kupóny</a>
-          {" › "}
-          <span style={{ color: "#1d1d1f", fontWeight: 500 }}>{capitalized}</span>
+      <div style={{ background: "#fff", borderBottom: "1px solid #F3F4F6" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", fontSize: 12, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}>
+          <a href="/" style={{ color: "#9CA3AF", textDecoration: "none" }}>Zlavickovo</a>
+          <span>›</span>
+          <a href="/obchody" style={{ color: "#9CA3AF", textDecoration: "none" }}>Kupóny</a>
+          <span>›</span>
+          <span style={{ color: "#374151", fontWeight: 600 }}>{capitalized}</span>
         </div>
       </div>
 
       {/* Shop header */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #eaecf0", padding: "28px 24px 24px" }}>
+      <div style={{ background: "#fff", borderBottom: "1px solid #F3F4F6", padding: "28px 24px 26px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
-            <ShopFavicon domain={getShopDomain(capitalized) || `${baseSlug}.sk`} name={capitalized} size={72} />
+            {/* Favicon in framed box */}
+            <div style={{
+              width: 76, height: 76, borderRadius: 18, flexShrink: 0,
+              background: "#F8FAFC", border: "1.5px solid #E5E7EB",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+            }}>
+              <ShopFavicon domain={getShopDomain(capitalized) || `${baseSlug}.sk`} name={capitalized} size={52} />
+            </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <h1 style={{ fontSize: "clamp(20px, 3vw, 28px)", fontWeight: 800, margin: "0 0 10px", color: "#1d1d1f", letterSpacing: "-0.5px", lineHeight: 1.2 }}>
+              <h1 style={{ fontSize: "clamp(18px, 3vw, 26px)", fontWeight: 800, margin: "0 0 12px", color: "#111827", letterSpacing: "-0.5px", lineHeight: 1.25 }}>
                 {capitalized} zľavové kódy &amp; kupóny {month} {year}{isCz ? " (CZ)" : ""}
               </h1>
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, background: "#dcfce7", color: "#16a34a", fontWeight: 700, padding: "4px 12px", borderRadius: 20 }}>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
                   ✓ {coupons.length} overených kupónov
                 </span>
-                <span style={{ fontSize: 12, background: "#f1f5f9", color: "#475569", fontWeight: 600, padding: "4px 12px", borderRadius: 20 }}>
+                <span style={{ fontSize: 12, background: "#F1F5F9", color: "#475569", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>
                   Aktualizované: {month} {year}
                 </span>
                 {affialShop && (
-                  <span style={{ fontSize: 12, background: "#fef9c3", color: "#854d0e", fontWeight: 700, padding: "4px 12px", borderRadius: 20 }}>
+                  <span style={{ fontSize: 12, background: "#FEF9C3", color: "#854D0E", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
                     💰 Cashback {affialShop.commission}
                   </span>
                 )}
                 {isCz && (
-                  <span style={{ fontSize: 12, background: "#dbeafe", color: "#1d4ed8", fontWeight: 600, padding: "4px 12px", borderRadius: 20 }}>CZ</span>
+                  <span style={{ fontSize: 12, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>CZ</span>
                 )}
               </div>
               {shopDesc && (
-                <p style={{ fontSize: 14, color: "#666", margin: "12px 0 0", lineHeight: 1.6, maxWidth: 640 }}>
-                  {shopDesc.length > 220 ? shopDesc.slice(0, 220) + "..." : shopDesc}
+                <p style={{ fontSize: 13, color: "#6B7280", margin: "12px 0 0", lineHeight: 1.65, maxWidth: 640 }}>
+                  {shopDesc.length > 220 ? shopDesc.slice(0, 220) + "…" : shopDesc}
                 </p>
               )}
             </div>
@@ -225,76 +233,79 @@ export default async function ShopPage({ params }: Props) {
           .shop-sidebar-mobile { display: block !important; }
           .related-grid { grid-template-columns: repeat(2,1fr) !important; }
         }
+        .card-section { background: #fff; border-radius: 16px; border: 1px solid #E5E7EB; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+        .section-title { font-size: 16px; font-weight: 700; color: #111827; margin: 0 0 18px; display: flex; align-items: center; gap: 8px; }
       `}</style>
 
       {/* Main layout */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "28px 24px" }}>
-        <div className="shop-layout" style={{ display: "flex", gap: 28, alignItems: "flex-start" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px 48px" }}>
+        <div className="shop-layout" style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
 
           {/* Left column */}
           <div style={{ flex: 1, minWidth: 0 }}>
-
-            {/* Ad banner */}
-            <div style={{ marginBottom: 24, display: "flex", justifyContent: "center" }}>
+            <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
               <AdBanner slot="header" shopName={capitalized} />
             </div>
 
-            {/* Tabs with coupon rows */}
-            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "24px", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-              <ShopTabs
-                capitalized={capitalized}
-                codeCoupons={codeCoupons}
-                dealCoupons={dealCoupons}
-              />
+            {/* Coupon tabs */}
+            <div className="card-section">
+              <ShopTabs capitalized={capitalized} codeCoupons={codeCoupons} dealCoupons={dealCoupons} />
             </div>
 
             {/* AI Coupons */}
-            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "24px", marginBottom: 24, boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div className="card-section">
+              <div className="section-title">🤖 AI vyhľadávanie kupónov</div>
               <Suspense fallback={
-                <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                  <div style={{ width: 36, height: 36, borderRadius: "50%", margin: "0 auto 14px", border: "3px solid #f0f0f0", borderTopColor: "#22C55E", animation: "spin 0.8s linear infinite" }} />
+                <div style={{ textAlign: "center", padding: "36px 20px" }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", margin: "0 auto 12px", border: "3px solid #E5E7EB", borderTopColor: "#22C55E", animation: "spin 0.8s linear infinite" }} />
                   <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>AI hľadá kódy pre {capitalized}...</div>
-                  <div style={{ fontSize: 12, marginTop: 4, color: "#aaa" }}>Môže to trvať 10–20 sekúnd</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>AI hľadá kódy pre {capitalized}…</div>
+                  <div style={{ fontSize: 12, marginTop: 4, color: "#9CA3AF" }}>Môže to trvať 10–20 sekúnd</div>
                 </div>
               }>
                 <AiCoupons shopName={`${capitalized}${isCz ? " CZ" : ""}`} />
               </Suspense>
             </div>
 
-            {/* Heureka */}
             <HeurekaSearch shopName={capitalized} />
 
             {/* Mobile sidebar */}
-            <div className="shop-sidebar-mobile" style={{ display: "none", marginTop: 24 }}>
-              <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "20px" }}>
+            <div className="shop-sidebar-mobile" style={{ display: "none", marginTop: 16 }}>
+              <div className="card-section">
                 <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
               </div>
             </div>
           </div>
 
           {/* Sidebar – desktop */}
-          <div className="shop-sidebar" style={{ width: 272, flexShrink: 0, position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="shop-sidebar" style={{ width: 268, flexShrink: 0, position: "sticky", top: 72, display: "flex", flexDirection: "column", gap: 14 }}>
             {affialShop && (
-              <div style={{ background: "#fff", borderRadius: 14, border: "1.5px solid #22C55E", padding: "20px", boxShadow: "0 2px 12px rgba(34,197,94,0.10)" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
+              <div style={{
+                background: "#fff", borderRadius: 16, padding: "20px",
+                border: "1.5px solid #22C55E",
+                boxShadow: "0 4px 16px rgba(34,197,94,0.12)",
+              }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
                   Partnerský obchod
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f", marginBottom: 4 }}>{affialShop.name}</div>
-                <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>{affialShop.name}</div>
+                <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, marginBottom: 16 }}>
                   💰 Cashback {affialShop.commission}
                 </div>
-                <a
-                  href={affialShop.affiliateUrl}
-                  target="_blank"
-                  rel="nofollow noopener noreferrer"
-                  style={{ display: "block", padding: "11px 14px", borderRadius: 10, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none", textAlign: "center" }}
+                <a href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
+                  style={{
+                    display: "block", padding: "12px", borderRadius: 12,
+                    background: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
+                    color: "#fff", fontWeight: 700, fontSize: 14,
+                    textDecoration: "none", textAlign: "center",
+                    boxShadow: "0 4px 14px rgba(34,197,94,0.30)",
+                  }}
                 >
                   Prejsť do obchodu ↗
                 </a>
               </div>
             )}
-            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
               <TopCodes shopFilter={capitalized} limit={5} title="🔥 Najpoužívanejšie kódy" />
             </div>
             <AdBanner slot="sidebar" shopName={capitalized} />
@@ -302,15 +313,15 @@ export default async function ShopPage({ params }: Props) {
         </div>
 
         {/* FAQ */}
-        <div style={{ marginTop: 40, background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "32px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px", color: "#1d1d1f" }}>
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "32px", marginTop: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px", color: "#111827" }}>
             Časté otázky – {capitalized} kupóny
           </h2>
-          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          <div>
             {faq.map((item, i) => (
-              <div key={i} style={{ padding: "18px 0", borderBottom: i < faq.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f", marginBottom: 6 }}>{item.q}</div>
-                <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>{item.a}</div>
+              <div key={i} style={{ padding: "18px 0", borderBottom: i < faq.length - 1 ? "1px solid #F3F4F6" : "none" }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 7 }}>{item.q}</div>
+                <div style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.65 }}>{item.a}</div>
               </div>
             ))}
           </div>

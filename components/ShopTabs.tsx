@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { T } from "@/lib/design-tokens";
 
 type Tab = "kupony" | "akcie";
 
@@ -9,35 +10,28 @@ const TYPE_LABELS: Record<number, string> = {
 };
 
 function decodeCode(token: string): string {
-  try {
-    const d = atob(token);
-    return d.slice(d.indexOf(":") + 1);
-  } catch {
-    return "";
-  }
+  try { const d = atob(token); return d.slice(d.indexOf(":") + 1); } catch { return ""; }
 }
 
 function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }) {
   const [revealed, setRevealed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied]     = useState(false);
 
-  const link = coupon.affiliate_link || coupon.url;
+  const link    = coupon.affiliate_link || coupon.url;
   const hasCode = !!coupon._token;
-  const code = hasCode ? decodeCode(coupon._token) : null;
-  const expires = coupon.valid_to
-    ? new Date(coupon.valid_to).toLocaleDateString("sk-SK")
-    : null;
+  const code    = hasCode ? decodeCode(coupon._token) : null;
+  const expires = coupon.valid_to ? new Date(coupon.valid_to).toLocaleDateString("sk-SK") : null;
+  const discountMatch = (coupon.title || coupon.name || "").match(/(\d+)\s*%/);
+  const discountPct   = discountMatch ? `-${discountMatch[1]}%` : null;
+  const typeLabel     = TYPE_LABELS[coupon.type] || "Akcia";
 
   function handleGetDeal() {
     if (link) window.open(link, "_blank", "noopener,noreferrer");
-    setRevealed(true);
     if (code) {
-      fetch("/api/track", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, shop: capitalized }),
-      }).catch(() => {});
+      navigator.clipboard.writeText(code).catch(() => {});
+      fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, shop: capitalized }) }).catch(() => {});
     }
+    setRevealed(true);
   }
 
   function copyCode() {
@@ -49,40 +43,63 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
 
   return (
     <div style={{
-      background: "#fff", border: "1px solid #eaecf0", borderRadius: 12,
-      padding: "20px 24px", marginBottom: 10,
-      display: "flex", alignItems: "flex-start", gap: 20,
-      boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-    }}>
-      {/* Left */}
+      background: T.white,
+      border: `1px solid ${T.border}`,
+      borderRadius: T.rLg,
+      padding: "20px 22px",
+      marginBottom: 10,
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 18,
+      boxShadow: T.shadowXs,
+      transition: "box-shadow 0.15s ease",
+      fontFamily: T.fontSans,
+    }}
+      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.boxShadow = T.shadowSm}
+      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.boxShadow = T.shadowXs}
+    >
+      {/* Left content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: "#dcfce7", color: "#16a34a" }}>
-            ✓ Overený
-          </span>
-          {coupon.type && (
-            <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 8px", borderRadius: 6, background: "#f1f5f9", color: "#475569" }}>
-              {TYPE_LABELS[coupon.type] || "Akcia"}
-            </span>
+        {/* Badges */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: T.rFull,
+            background: "#DCFCE7", color: "#15803D",
+          }}>✓ Overený</span>
+          <span style={{
+            fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: T.rFull,
+            background: T.bgAlt, color: T.textMuted,
+          }}>{typeLabel}</span>
+          {discountPct && (
+            <span style={{
+              fontSize: 10, fontWeight: 800, padding: "3px 9px", borderRadius: T.rFull,
+              background: T.green, color: T.white,
+            }}>{discountPct}</span>
           )}
         </div>
-        <div style={{ fontWeight: 700, fontSize: 16, color: "#1d1d1f", marginBottom: 6, lineHeight: 1.4 }}>
+
+        {/* Title */}
+        <div style={{ fontWeight: 700, fontSize: 15, color: T.textPrimary, lineHeight: 1.4, marginBottom: 6 }}>
           {coupon.title || coupon.name}
         </div>
+
+        {/* Description */}
         {coupon.description && (
-          <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>
-            {coupon.description.length > 150 ? coupon.description.slice(0, 150) + "..." : coupon.description}
+          <div style={{ fontSize: 13, color: T.textMuted, lineHeight: 1.6 }}>
+            {coupon.description.length > 160 ? coupon.description.slice(0, 160) + "…" : coupon.description}
           </div>
         )}
+
+        {/* Expiry */}
         {expires && (
-          <div style={{ fontSize: 12, color: "#aaa", marginTop: 8 }}>
-            Platí do: {expires}
+          <div style={{ fontSize: 11, color: T.textFaint, marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
+            <span>⏱</span> Platí do {expires}
           </div>
         )}
       </div>
 
-      {/* Right */}
-      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+      {/* Right CTA */}
+      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 160 }}>
         {hasCode ? (
           revealed ? (
             <>
@@ -90,9 +107,14 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
                 onClick={copyCode}
                 title="Kliknúť pre kopírovanie"
                 style={{
-                  fontFamily: "monospace", fontWeight: 800, fontSize: 16, color: "#7C3AED",
-                  background: "#f5f3ff", border: "2px dashed #7C3AED", borderRadius: 8,
-                  padding: "10px 18px", letterSpacing: 2, cursor: "pointer", whiteSpace: "nowrap",
+                  fontFamily: T.fontMono,
+                  fontWeight: 700, fontSize: 15, color: T.greenDark,
+                  background: T.greenLight, border: `1.5px dashed ${T.green}`,
+                  borderRadius: T.rMd, padding: "10px 16px",
+                  letterSpacing: "0.10em", cursor: "pointer",
+                  textAlign: "center", width: "100%",
+                  boxSizing: "border-box" as const,
+                  userSelect: "all" as const,
                 }}
               >
                 {code}
@@ -100,10 +122,12 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
               <button
                 onClick={copyCode}
                 style={{
-                  padding: "8px 18px", borderRadius: 8, border: "1px solid #e0e0e0",
-                  background: copied ? "#16a34a" : "#fff",
-                  color: copied ? "#fff" : "#444",
-                  fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit",
+                  padding: "9px 20px", borderRadius: T.rMd, width: "100%",
+                  border: `1px solid ${copied ? T.green : T.border}`,
+                  background: copied ? T.greenLight : T.white,
+                  color: copied ? T.greenDark : T.textSecond,
+                  fontWeight: 600, fontSize: 13, cursor: "pointer",
+                  fontFamily: T.fontSans, transition: T.transBase,
                 }}
               >
                 {copied ? "✓ Skopírované" : "Kopírovať"}
@@ -113,27 +137,31 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
             <button
               onClick={handleGetDeal}
               style={{
-                padding: "13px 28px", borderRadius: 10, border: "none",
-                background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-                color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer",
-                whiteSpace: "nowrap", fontFamily: "inherit",
-                boxShadow: "0 4px 14px rgba(124,58,237,0.25)",
+                padding: "13px 24px", borderRadius: T.rMd, border: "none",
+                background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+                color: T.white, fontWeight: 700, fontSize: 14, cursor: "pointer",
+                whiteSpace: "nowrap", fontFamily: T.fontSans,
+                boxShadow: T.shadowGreen, transition: T.transBase,
               }}
+              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = T.shadowGreenLg; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "none"; (e.currentTarget as HTMLButtonElement).style.boxShadow = T.shadowGreen; }}
             >
-              Získať zľavu →
+              Získať kód →
             </button>
           )
         ) : (
           <a
-            href={link || "#"}
-            target="_blank"
-            rel="noopener noreferrer"
+            href={link || "#"} target="_blank" rel="noopener noreferrer nofollow"
+            onClick={() => link && fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: capitalized }) }).catch(() => {})}
             style={{
-              display: "inline-block", padding: "13px 28px", borderRadius: 10,
-              background: "linear-gradient(135deg, #7C3AED, #2563EB)",
-              color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none",
-              whiteSpace: "nowrap", boxShadow: "0 4px 14px rgba(124,58,237,0.25)",
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              padding: "13px 24px", borderRadius: T.rMd,
+              background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+              color: T.white, fontWeight: 700, fontSize: 14, textDecoration: "none",
+              whiteSpace: "nowrap", boxShadow: T.shadowGreen, transition: T.transBase,
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = T.shadowGreenLg; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "none"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = T.shadowGreen; }}
           >
             Prejsť na akciu →
           </a>
@@ -154,39 +182,49 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons }: Shop
   const displayed = tab === "kupony" ? codeCoupons : dealCoupons;
 
   return (
-    <>
+    <div style={{ fontFamily: T.fontSans }}>
       <style>{`
         @media(max-width:640px){
-          .coupon-row { flex-direction: column !important; }
-          .coupon-row-right { align-items: stretch !important; width: 100%; }
-          .coupon-row-right button, .coupon-row-right a { width: 100%; text-align: center; }
+          .coupon-row-inner { flex-direction: column !important; }
+          .coupon-row-cta { min-width: unset !important; width: 100% !important; }
         }
       `}</style>
 
       {/* Tab bar */}
-      <div style={{ display: "flex", borderBottom: "2px solid #f0f0f0", marginBottom: 20, overflowX: "auto" }}>
+      <div style={{
+        display: "flex", gap: 4, marginBottom: 20,
+        background: T.bgAlt, borderRadius: T.rLg, padding: 4,
+        width: "fit-content",
+      }}>
         {([
-          { key: "kupony" as Tab, label: "🏷️ Kupóny", count: codeCoupons.length },
-          { key: "akcie" as Tab, label: "🔥 Akcie", count: dealCoupons.length },
+          { key: "kupony" as Tab, label: "🏷️ Kupóny s kódom", count: codeCoupons.length },
+          { key: "akcie"  as Tab, label: "🔥 Akcie",          count: dealCoupons.length },
         ]).map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             style={{
-              padding: "12px 24px", border: "none", background: "none", cursor: "pointer",
-              fontSize: 14, fontFamily: "inherit",
+              padding: "9px 20px", border: "none", cursor: "pointer",
+              fontSize: 13, fontFamily: T.fontSans, borderRadius: T.rMd,
               fontWeight: tab === t.key ? 700 : 500,
-              color: tab === t.key ? "#7C3AED" : "#666",
-              borderBottom: tab === t.key ? "2px solid #7C3AED" : "2px solid transparent",
-              marginBottom: -2, whiteSpace: "nowrap",
+              background: tab === t.key ? T.white : "transparent",
+              color: tab === t.key ? T.textPrimary : T.textMuted,
+              boxShadow: tab === t.key ? T.shadowXs : "none",
+              transition: T.transBase, whiteSpace: "nowrap",
             }}
           >
-            {t.label} <span style={{ fontSize: 12, opacity: 0.7 }}>({t.count})</span>
+            {t.label}&nbsp;
+            <span style={{
+              fontSize: 11, fontWeight: 700,
+              padding: "1px 7px", borderRadius: T.rFull,
+              background: tab === t.key ? T.greenMid : T.border,
+              color: tab === t.key ? T.greenDark : T.textMuted,
+            }}>{t.count}</span>
           </button>
         ))}
       </div>
 
-      {/* List */}
+      {/* Coupon list */}
       {displayed.length > 0 ? (
         <div>
           {displayed.map((coupon: any, i: number) => (
@@ -194,13 +232,20 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons }: Shop
           ))}
         </div>
       ) : (
-        <div style={{ textAlign: "center", padding: "56px 24px", color: "#aaa", background: "#fafafa", borderRadius: 12, border: "1px dashed #e0e0e0" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-          <p style={{ fontSize: 15, margin: 0, color: "#888" }}>
-            Momentálne nie sú dostupné {tab === "kupony" ? "kupóny" : "akcie"} pre tento obchod.
-          </p>
+        <div style={{
+          textAlign: "center", padding: "56px 24px",
+          background: T.bgAlt, borderRadius: T.rLg,
+          border: `1px dashed ${T.border}`,
+        }}>
+          <div style={{ fontSize: 44, marginBottom: 14 }}>🔍</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.textSecond, marginBottom: 6 }}>
+            Momentálne žiadne {tab === "kupony" ? "kupóny" : "akcie"}
+          </div>
+          <div style={{ fontSize: 13, color: T.textMuted }}>
+            Pozri AI sekciu nižšie — hľadáme kódy za teba
+          </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
