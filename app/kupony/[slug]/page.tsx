@@ -10,6 +10,7 @@ import HeurekaSearch from "@/components/HeurekaSearch";
 import ShopTabs from "@/components/ShopTabs";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+// ShopLogo removed — using ShopFavicon throughout
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 
