@@ -9,7 +9,8 @@ import TopCodes from "@/components/TopCodes";
 import HeurekaSearch from "@/components/HeurekaSearch";
 import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopTabs from "@/components/ShopTabs";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 
@@ -156,7 +157,7 @@ export default async function ShopPage({ params }: Props) {
       <div style={{ background: "#fff", borderBottom: "1px solid #eaecf0", padding: "28px 24px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 20 }}>
-            <ShopLogo name={capitalized} size={72} radius={18} />
+            <ShopFavicon domain={getShopDomain(capitalized) || `${baseSlug}.sk`} name={capitalized} size={72} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: "clamp(20px, 3vw, 28px)", fontWeight: 800, margin: "0 0 10px", color: "#1d1d1f", letterSpacing: "-0.5px", lineHeight: 1.2 }}>
                 {capitalized} zľavové kódy &amp; kupóny {month} {year}{isCz ? " (CZ)" : ""}

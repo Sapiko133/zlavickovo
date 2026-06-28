@@ -1,6 +1,6 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
 import { STATIC_AKCIE, dognetCouponToAkcia, type Akcia, type AkciaType } from "@/lib/akcie";
 import { getSalesCoupons } from "@/lib/dognet";
 import type { Metadata } from "next";
@@ -62,7 +62,7 @@ function AkciaCard({ akcia }: { akcia: Akcia }) {
     >
       {/* Top row: logo + shop name + badge */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <ShopLogo name={akcia.shopName} domain={akcia.domain || undefined} size={44} />
+        <ShopFavicon domain={akcia.domain || ""} name={akcia.shopName} size={44} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.2 }}>
             {akcia.shopName}

@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
 
 const CAT_LABELS: Record<string, string> = {
   zdravie: "Zdravie", krasa: "Krása", byvanie: "Bývanie",
@@ -271,7 +271,7 @@ export default function SearchBar() {
                   transition: "background 0.1s",
                 }}
               >
-                <ShopLogo name={shop.name} domain={shop.domain} size={32} radius={8} />
+                <ShopFavicon domain={shop.domain || ""} name={shop.name} size={32} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {shop.name}

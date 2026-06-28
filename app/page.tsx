@@ -1,4 +1,5 @@
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -223,7 +224,7 @@ export default async function Home() {
                     borderBottom: i < heroItems.length - 1 ? "1px solid #f0f0f0" : "none",
                   }}
                 >
-                  <ShopLogo name={item.shopName} size={28} />
+                  <ShopFavicon domain={getShopDomain(item.shopName) || ""} name={item.shopName} size={28} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: "#1d1d1f", marginBottom: 2 }}>{item.shopName}</div>
                     <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
@@ -266,7 +267,7 @@ export default async function Home() {
                         textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                       }}
                     >
-                      <ShopLogo name={shop.name} logoUrl={shop.logoUrl} size={44} />
+                      <ShopFavicon domain={getShopDomain(shop.name) || ""} name={shop.name} size={44} />
                       <div style={{ textAlign: "center" }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f" }}>{shop.name.length > 12 ? shop.name.slice(0, 12) + "…" : shop.name}</div>
                         <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
@@ -360,7 +361,7 @@ export default async function Home() {
                   boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
                 }}
               >
-                <ShopLogo name={akcia.shopName} domain={akcia.domain || undefined} size={40} />
+                <ShopFavicon domain={akcia.domain || getShopDomain(akcia.shopName) || ""} name={akcia.shopName} size={40} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.25, marginBottom: 3 }}>
                     {akcia.shopName}

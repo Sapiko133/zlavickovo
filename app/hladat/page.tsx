@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
 import { classifyQuery, findShop, getCategoryLabel } from "@/lib/search/queryClassifier";
 
 function CopyCode({ code }: { code: string }) {
@@ -185,7 +185,7 @@ function SearchResults() {
                 transition: "border-color 0.15s, box-shadow 0.15s",
               }}
             >
-              <ShopLogo name={p.domain || ""} domain={p.domain} size={48} />
+              <ShopFavicon domain={p.domain || ""} name={p.domain || ""} size={48} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <a
                   href={p.url}

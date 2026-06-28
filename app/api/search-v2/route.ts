@@ -12,6 +12,8 @@ const CATEGORY_MAP: Record<string, string[]> = {
   tv: ["alza", "mall", "datart", "okay", "planeo", "samsung"],
   parfum: ["notino", "dm", "bipa", "fann"],
   kozmetika: ["notino", "dm", "bipa", "fann", "vivantis"],
+  krém: ["notino", "dm", "bipa", "fann", "vivantis"],
+  krem: ["notino", "dm", "bipa", "fann", "vivantis"],
   oblecenie: ["zalando", "about you", "answear", "zara", "hm", "asos", "bonprix"],
   moda: ["zalando", "about you", "answear", "zara", "hm", "asos"],
   nike: ["zalando", "about you", "answear", "sportisimo", "decathlon"],
@@ -19,7 +21,33 @@ const CATEGORY_MAP: Record<string, string[]> = {
   sport: ["sportisimo", "decathlon", "intersport", "nike", "adidas"],
   knihy: ["martinus", "panta rhei", "alza"],
   nabytek: ["ikea", "mall", "4home", "obi"],
+  nábytok: ["ikea", "mall", "4home", "obi"],
   dom: ["ikea", "mall", "4home", "obi", "hornbach"],
+  // Spotrebiče
+  "chladnička": ["alza", "mall", "datart", "nay", "okay"],
+  "chladnicka": ["alza", "mall", "datart", "nay", "okay"],
+  "mraznička": ["alza", "mall", "datart", "okay"],
+  "mraznicka": ["alza", "mall", "datart", "okay"],
+  "práčka": ["alza", "mall", "datart", "okay"],
+  "pracka": ["alza", "mall", "datart", "okay"],
+  "rúra": ["alza", "mall", "datart", "okay"],
+  "rura": ["alza", "mall", "datart", "okay"],
+  "mikrovlnka": ["alza", "mall", "datart"],
+  "umývačka": ["alza", "mall", "datart", "okay"],
+  "umyvacka": ["alza", "mall", "datart", "okay"],
+  // Klimatizácia
+  "klimatizácia": ["alza", "mall", "datart"],
+  "klimatizacia": ["alza", "mall", "datart"],
+  "ventilátor": ["alza", "mall", "datart"],
+  "ventilator": ["alza", "mall", "datart"],
+  // Zdravie & výživa
+  "proteín": ["gymbeam"],
+  "protein": ["gymbeam"],
+  "vitamín": ["gymbeam"],
+  "vitamin": ["gymbeam"],
+  "doplnok": ["gymbeam"],
+  "kreatín": ["gymbeam"],
+  "kreatin": ["gymbeam"],
 };
 
 function getRelevantShops(query: string): string[] {

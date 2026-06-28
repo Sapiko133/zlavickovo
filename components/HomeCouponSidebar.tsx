@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ShopLogo from "@/components/ShopLogo";
+import ShopFavicon from "@/components/ShopFavicon";
 
 export interface SidebarCoupon {
   shopName: string;
@@ -33,7 +33,7 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
   return (
     <div style={{ padding: "10px 0", borderBottom: isLast ? "none" : "1px solid #f0f0f0" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <ShopLogo name={coupon.shopName} domain={coupon.domain} size={28} />
+        <ShopFavicon domain={coupon.domain || ""} name={coupon.shopName} size={28} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {coupon.shopName}

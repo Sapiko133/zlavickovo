@@ -1,6 +1,8 @@
 import { getCashbackShops } from "@/lib/dognet";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -89,7 +91,6 @@ export default async function CashbackPage() {
         </h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
           {shops.map((shop: any) => {
-            const color = shopColor(shop.name);
             return (
               <div key={shop.id} style={{
                 background: "#fff", borderRadius: 16, border: "1px solid #e5e7eb",
@@ -97,9 +98,7 @@ export default async function CashbackPage() {
                 display: "flex", flexDirection: "column",
               }}>
                 <div style={{ padding: "20px 20px 16px", display: "flex", alignItems: "center", gap: 14, borderBottom: "1px solid #e5e7eb" }}>
-                  <div style={{ width: 48, height: 48, borderRadius: 12, background: color, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 800, fontSize: 20 }}>
-                    {shop.name.charAt(0)}
-                  </div>
+                  <ShopFavicon domain={getShopDomain(shop.name) || `${shop.slug}.sk`} name={shop.name} size={48} />
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 16, color: "#1d1d1f" }}>{shop.name}</div>
                     {shop.cashback && (

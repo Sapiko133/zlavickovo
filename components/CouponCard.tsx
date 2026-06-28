@@ -2,9 +2,8 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import ShopLogo from "@/components/ShopLogo";
-
-const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#003580","#D32F2F","#FF4081","#006A35","#8B1A1A"];
+import ShopFavicon from "@/components/ShopFavicon";
+import { getShopDomain } from "@/lib/shop-domains";
 const TYPE_LABELS: Record<number, string> = {
   1: "Zľava", 2: "Darček", 3: "Výpredaj", 4: "Iné", 5: "Doprava zadarmo",
 };
@@ -19,7 +18,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
   const [copied, setCopied] = useState(false);
 
   const storeName = coupon.campaign?.name || coupon.campaign_name || "Obchod";
-  const logoColor = COLORS[storeName.charCodeAt(0) % COLORS.length];
+  const domain = getShopDomain(storeName) || "";
   const link = coupon.affiliate_link || coupon.url;
   const code = token ? decodeCode(token) : coupon.code || null;
   const expires = coupon.valid_to ? new Date(coupon.valid_to).toLocaleDateString("sk-SK") : null;
@@ -63,7 +62,7 @@ export default function CouponCard({ coupon, token, sponsored }: { coupon: any; 
 
       {/* Header */}
       <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f5f5f5" }}>
-        <ShopLogo name={storeName} size={40} radius={10} color={logoColor} />
+        <ShopFavicon domain={domain} name={storeName} size={40} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{storeName}</div>
           {expires && <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>{t("expires")} {expires}</div>}
