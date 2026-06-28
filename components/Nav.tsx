@@ -2,16 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ShopFavicon from "@/components/ShopFavicon";
 import { useAutocomplete } from "@/hooks/useAutocomplete";
-
-const NAV_LINKS = [
-  { label: "Obchody", href: "/obchody" },
-  { label: "Kupóny",  href: "/kupony" },
-  { label: "Akcie",   href: "/akcie" },
-  { label: "Letáky",  href: "/letaky" },
-];
 
 const CAT_LIST = [
   { slug: "elektronika", label: "Elektronika", emoji: "💻" },
@@ -58,6 +52,15 @@ function CatDropdown({ onClose }: { onClose: () => void }) {
 
 export default function Nav() {
   const router = useRouter();
+  const t = useTranslations("nav");
+
+  const NAV_LINKS = [
+    { label: t("shops"),   href: "/obchody" },
+    { label: t("coupons"), href: "/kupony" },
+    { label: t("leaflets"),href: "/akcie" },
+    { label: "Letáky",     href: "/letaky" },
+  ];
+
   const [menuOpen, setMenuOpen]   = useState(false);
   const [catOpen, setCatOpen]     = useState(false);
   const [query, setQuery]         = useState("");
@@ -170,7 +173,7 @@ export default function Nav() {
                 onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
                 onFocus={() => { setFocused(true); if (suggestions.length > 0) setDropOpen(true); }}
                 onKeyDown={handleKeyDown}
-                placeholder="Hľadaj obchod alebo produkt..."
+                placeholder={t("search_placeholder")}
                 autoComplete="off"
                 style={{ flex: 1, padding: "9px 14px", border: "none", background: "transparent", fontSize: 14, color: "#1d1d1f", outline: "none", fontFamily: "inherit" }}
               />
