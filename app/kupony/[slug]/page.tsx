@@ -6,7 +6,7 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
-import HeurekaSearch from "@/components/HeurekaSearch";
+import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopTabs from "@/components/ShopTabs";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
@@ -292,7 +292,7 @@ export default async function ShopPage({ params }: Props) {
               </Suspense>
             </div>
 
-            <HeurekaSearch shopName={capitalized} />
+            <HeurekaWidget />
 
             {/* Mobile sidebar */}
             <div className="shop-sidebar-mobile" style={{ display: "none", marginTop: 16 }}>

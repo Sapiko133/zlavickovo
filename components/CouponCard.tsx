@@ -30,13 +30,11 @@ export default function CouponCard({ coupon, token, sponsored }: {
   const discountPct   = discountMatch ? `${discountMatch[1]}%` : null;
   const typeLabel     = TYPE_LABELS[coupon.type] || "Akcia";
 
-  function handleReveal() {
-    if (link) window.open(link, "_blank", "noopener,noreferrer");
-    if (code) {
-      navigator.clipboard.writeText(code).catch(() => {});
-      fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, shop: storeName }) }).catch(() => {});
+  const handleReveal = () => {
+    if (link) {
+      window.open(link, "_blank", "noopener,noreferrer")
     }
-    setRevealed(true);
+    setRevealed(true)
   }
 
   function copyCode() {

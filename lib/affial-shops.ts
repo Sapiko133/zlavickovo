@@ -44,7 +44,9 @@ export const AFFIAL_SHOPS: AffialShop[] = [
   { name: "Kloubus.cz", domain: "kloubus.cz", affiliateUrl: "https://www.kloubus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=e66f632e", commission: "20%", category: "zdravie" },
 ];
 
-/** Nájde Affial obchod podľa URL slug (kosmetikomat.sk → kosmetikomat-sk) */
+/** Nájde Affial obchod podľa URL slug (kosmetikomat.sk → kosmetikomat) */
 export function findAffialShop(slug: string): AffialShop | undefined {
-  return AFFIAL_SHOPS.find((s) => s.domain.replace(".", "-") === slug);
+  return AFFIAL_SHOPS.find((s) =>
+    s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-") === slug
+  );
 }
