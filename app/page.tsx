@@ -7,7 +7,8 @@ import DealsCarousel from "@/components/DealsCarousel";
 import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
-import { getCouponsFeed, getSalesCoupons, getLatestSales, getShops, getCarouselDeals } from "@/lib/dognet";
+import { getCouponsFeed, getSalesCoupons, getShops } from "@/lib/dognet";
+import type { CarouselDeal } from "@/lib/dognet";
 import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
 import { getEhubShops } from "@/lib/ehub";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
@@ -65,41 +66,49 @@ export default async function Home() {
   let sales: any[] = [];
   let feed: any[] = [];
   let latestPosts: any[] = [];
-  let carouselDeals: Awaited<ReturnType<typeof getCarouselDeals>> = [];
+  let carouselDeals: CarouselDeal[] = [];
 
   try {
-    [heroItems, dognetShops, ehubShops, sales, feed, carouselDeals] = await Promise.all([
-      getLatestSales(8).then((items: any[]) => {
-        const dognetItems = items.map(c => ({
-          id: c.id,
-          shopName: c.campaign?.name || "Obchod",
-          title: c.title || c.name || "Akcia",
-          discount: (() => { const m = (c.title || c.name || "").match(/(\d+)\s*%/); return m ? `${m[1]}%` : null; })(),
-          link: c.affiliate_link || c.url || "#",
-        }));
-        // Merge Affial coupons with % discount as "akcie"
-        const affialItems = AFFIAL_COUPONS
-          .filter(c => /\d+/.test(c.discount))
-          .slice(0, Math.max(0, 8 - dognetItems.length))
-          .map((c, i) => ({
-            id: `affial-hero-${i}`,
-            shopName: c.shop,
-            title: `${c.discount} zľava`,
-            discount: /\d+%/.test(c.discount) ? c.discount : null,
-            link: `https://${c.domain}`,
-          }));
-        return [...dognetItems, ...affialItems].slice(0, 8);
-      }).catch(() => []),
+    [dognetShops, ehubShops, sales, feed] = await Promise.all([
       getShops().catch(() => []),
       getEhubShops().catch(() => []),
-      getSalesCoupons(6).catch(() => []),
+      getSalesCoupons(20).catch(() => []),
       getCouponsFeed(9).catch(() => []),
-      getCarouselDeals(7).catch(() => []),
     ]);
     latestPosts = getLatestPosts(3);
   } catch {
     latestPosts = getLatestPosts(3);
   }
+
+  // Akcie list — rovnaký zdroj ako /akcie stránka
+  const seenAkcie = new Set<string>();
+  const akcieList = [
+    ...sales.filter((c: any) => c.campaign?.name).map(dognetCouponToAkcia),
+    ...STATIC_AKCIE,
+  ].filter(a => {
+    if (seenAkcie.has(a.id)) return false;
+    seenAkcie.add(a.id);
+    return true;
+  });
+
+  // Carousel — jedna karta = jedna akcia
+  carouselDeals = akcieList.slice(0, 7).map(a => ({
+    shop: a.shopName,
+    domain: a.domain,
+    title: a.title,
+    discount: a.badge ?? "",
+    color: "#22C55E",
+    affiliateUrl: a.affiliateUrl,
+  }));
+
+  // Ľavý panel "Najnovšie akcie"
+  heroItems = akcieList.slice(0, 8).map(a => ({
+    id: a.id,
+    shopName: a.shopName,
+    title: a.title,
+    discount: a.badge ?? null,
+    link: a.affiliateUrl,
+  }));
 
   // Merge shops: Dognet > eHub > AFFIAL
   const seenShops = new Set<string>();
@@ -131,11 +140,7 @@ export default async function Home() {
     }
   }
 
-  // Homepage akcie
-  const homepageAkcie = [
-    ...sales.filter((c: any) => c.campaign?.name).slice(0, 4).map(dognetCouponToAkcia),
-    ...STATIC_AKCIE.slice(0, 8),
-  ].slice(0, 8);
+  const homepageAkcie = akcieList.slice(0, 8);
 
   // Sidebar coupons (right panel)
   const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s]));
