@@ -274,7 +274,7 @@ export default async function ShopPage({ params }: Props) {
 
             {/* Coupon tabs */}
             <div className="card-section">
-              <ShopTabs capitalized={capitalized} codeCoupons={codeCoupons} dealCoupons={dealCoupons} />
+              <ShopTabs capitalized={capitalized} codeCoupons={codeCoupons} dealCoupons={dealCoupons} shopUrl={shopVisitUrl} />
             </div>
 
             {/* AI Coupons */}

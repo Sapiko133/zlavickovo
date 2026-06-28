@@ -175,9 +175,10 @@ interface ShopTabsProps {
   capitalized: string;
   codeCoupons: any[];
   dealCoupons: any[];
+  shopUrl?: string;
 }
 
-export default function ShopTabs({ capitalized, codeCoupons, dealCoupons }: ShopTabsProps) {
+export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUrl }: ShopTabsProps) {
   const [tab, setTab] = useState<Tab>(codeCoupons.length > 0 ? "kupony" : "akcie");
   const displayed = tab === "kupony" ? codeCoupons : dealCoupons;
 
@@ -230,6 +231,34 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons }: Shop
           {displayed.map((coupon: any, i: number) => (
             <CouponRow key={coupon.id || i} coupon={coupon} capitalized={capitalized} />
           ))}
+        </div>
+      ) : codeCoupons.length === 0 && dealCoupons.length === 0 && shopUrl ? (
+        <div style={{
+          textAlign: "center", padding: "48px 24px",
+          background: T.bgAlt, borderRadius: T.rLg,
+          border: `1px dashed ${T.border}`,
+        }}>
+          <div style={{ fontSize: 40, marginBottom: 14 }}>🛒</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: T.textSecond, marginBottom: 8 }}>
+            Momentálne nemáme kupóny pre tento obchod.
+          </div>
+          <div style={{ fontSize: 13, color: T.textMuted, marginBottom: 24 }}>
+            Klikni a nakúp cez náš odkaz — podporíš nás bez extra nákladov.
+          </div>
+          <a
+            href={shopUrl}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "14px 28px", borderRadius: T.rMd,
+              background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+              color: T.white, fontWeight: 700, fontSize: 15,
+              textDecoration: "none", boxShadow: T.shadowGreen,
+            }}
+          >
+            Prejsť do {capitalized} →
+          </a>
         </div>
       ) : (
         <div style={{

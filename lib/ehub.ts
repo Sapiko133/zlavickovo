@@ -32,9 +32,44 @@ export interface EhubShop {
   category: string;
 }
 
-// eHub voucher API returns 0 results for this account — skip the call entirely
-export async function getEhubCoupons(): Promise<EhubCoupon[]> { return []; }
-export async function getEhubCouponsByShop(_shopName: string): Promise<EhubCoupon[]> { return []; }
+async function fetchEhubCoupons(): Promise<EhubCoupon[]> {
+  const { partnerId, apiKey } = getCredentials();
+  if (!partnerId || !apiKey) return [];
+  try {
+    const res = await fetch(
+      `${BASE}/publishers/${partnerId}/vouchers?apiKey=${apiKey}`,
+      { headers: { Accept: "application/json" }, next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const vouchers: any[] = Array.isArray(data?.vouchers) ? data.vouchers : [];
+    return vouchers.map((v: any) => ({
+      id: String(v.id ?? ""),
+      title: String(v.name ?? v.title ?? ""),
+      code: String(v.code ?? ""),
+      description: String(v.description ?? ""),
+      discount: String(v.value ?? ""),
+      campaign_name: String(v.campaignName ?? ""),
+      affiliate_link: String(v.url ?? v.link ?? "#"),
+      valid_to: v.validTill ?? null,
+      source: "ehub" as const,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export const getEhubCoupons = unstable_cache(
+  fetchEhubCoupons,
+  ["ehub-coupons"],
+  { revalidate: 3600 }
+);
+
+export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon[]> {
+  const all = await getEhubCoupons();
+  const lower = shopName.toLowerCase();
+  return all.filter(c => c.campaign_name.toLowerCase().includes(lower));
+}
 
 async function fetchEhubShops(): Promise<EhubShop[]> {
   const { partnerId, apiKey } = getCredentials();
@@ -43,7 +78,7 @@ async function fetchEhubShops(): Promise<EhubShop[]> {
   try {
     const res = await fetch(
       `${BASE}/publishers/${partnerId}/campaigns?apiKey=${apiKey}`,
-      { next: { revalidate: 7200 } }
+      { headers: { Accept: "application/json" }, next: { revalidate: 7200 } }
     );
     if (!res.ok) return [];
     const data = await res.json();

@@ -42,6 +42,7 @@ export const AFFIAL_SHOPS: AffialShop[] = [
   { name: "Feminus.cz", domain: "feminus.cz", affiliateUrl: "https://www.feminus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=a812cc02", commission: "20%", category: "zdravie" },
   { name: "Primulus.cz", domain: "primulus.cz", affiliateUrl: "https://www.primulus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=07eafc2d", commission: "25%", category: "zdravie" },
   { name: "Kloubus.cz", domain: "kloubus.cz", affiliateUrl: "https://www.kloubus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=e66f632e", commission: "20%", category: "zdravie" },
+  { name: "Apollo Store", domain: "apollostore.com", affiliateUrl: "https://ehub.cz/system/scripts/click.php?a_aid=85c7b80f&a_bid=a883bbdd", commission: "12%", category: "byvanie" },
 ];
 
 /** Nájde Affial obchod podľa URL slug (kosmetikomat.sk → kosmetikomat) */
