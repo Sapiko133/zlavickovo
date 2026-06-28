@@ -1,6 +1,7 @@
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import ShopFavicon from "@/components/ShopFavicon";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -32,14 +33,7 @@ function LetatCard({ letak }: { letak: typeof LETAKY[0] }) {
     }}>
       <div style={{ padding: "20px 20px 16px", borderBottom: "1px solid #e5e7eb" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 12, background: letak.color, flexShrink: 0,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: letak.color === "#FFCC00" ? "#333" : "#fff", fontWeight: 900, fontSize: 20,
-            boxShadow: `0 4px 12px ${letak.color}44`,
-          }}>
-            {letak.letter}
-          </div>
+          <ShopFavicon domain={letak.domain} name={letak.name} size={48} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 15, color: "#1d1d1f" }}>{letak.name}</div>
             <div style={{ fontSize: 12, color: "#666", marginTop: 2 }}>Platný do {formatDate(expiry)}</div>
@@ -95,13 +89,13 @@ export default function LetakyPage() {
       {/* Header */}
       <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "60px 24px 48px", textAlign: "center" }}>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, background: "rgba(34,197,94,0.12)", border: "1px solid #BBF7D0", fontSize: 12, color: "#16A34A", marginBottom: 20, fontWeight: 600 }}>
-          🛒 Potraviny & Reťazce
+          Aktuálne letáky
         </div>
         <h1 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, letterSpacing: "-1px", margin: "0 0 12px", color: "#1d1d1f" }}>
-          Aktuálne akcie
+          🛒 Letáky supermarketov
         </h1>
         <p style={{ color: "#555", fontSize: 16, margin: 0 }}>
-          Týždenné akcie supermarketov – aktualizované automaticky
+          Týždenné letáky supermarketov – každý týždeň nové
         </p>
       </div>
 

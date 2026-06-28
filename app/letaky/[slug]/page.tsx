@@ -2,6 +2,7 @@ import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky"
 import { notFound } from "next/navigation";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import ShopFavicon from "@/components/ShopFavicon";
 
 export const revalidate = 3600;
 
@@ -95,13 +96,8 @@ export default async function LetatPage({ params }: Props) {
 
       {/* Header */}
       <div style={{ background: "#F0FDF4", borderBottom: "1px solid #BBF7D0", padding: "48px 24px 40px", textAlign: "center", marginTop: 12 }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: 18, margin: "0 auto 20px",
-          background: letak.color, display: "flex", alignItems: "center", justifyContent: "center",
-          color: letak.color === "#FFCC00" ? "#333" : "#fff", fontWeight: 900, fontSize: 30,
-          boxShadow: `0 8px 24px ${letak.color}55`,
-        }}>
-          {letak.letter}
+        <div style={{ margin: "0 auto 20px", width: 72, height: 72 }}>
+          <ShopFavicon domain={letak.domain} name={letak.name} size={72} />
         </div>
         <h1 style={{ fontSize: 36, fontWeight: 800, letterSpacing: "-1px", margin: "0 0 8px" }}>
           {letak.name} leták {month} {year}
