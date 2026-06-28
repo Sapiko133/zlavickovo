@@ -1,6 +1,10 @@
 import { MetadataRoute } from "next";
 import { getShops } from "@/lib/dognet";
 import { CATEGORIES } from "@/lib/categories";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { getAllPosts } from "@/lib/blog";
+import { LETAKY } from "@/lib/letaky";
 
 export const revalidate = 3600;
 
@@ -14,10 +18,34 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let shops: { id: number; name: string; count: number }[] = [];
   try { shops = await getShops(); } catch {}
 
+  // Dognet shop slugs (deduplicated set for later use)
+  const dognetSlugs = new Set(shops.map(s => slug(s.name)));
+
   const shopUrls = shops.flatMap(shop => [
-    { url: `${BASE}/kupony/${slug(shop.name)}`, lastModified: new Date(), changeFrequency: "hourly" as const, priority: 0.8 },
-    { url: `${BASE}/kupony/${slug(shop.name)}-cz`, lastModified: new Date(), changeFrequency: "hourly" as const, priority: 0.7 },
+    { url: `${BASE}/kupony/${slug(shop.name)}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
+    { url: `${BASE}/kupony/${slug(shop.name)}-cz`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.7 },
   ]);
+
+  // Affial shop slugs not already in Dognet
+  const affialShopSlugs = new Set<string>();
+  const affialShopUrls: MetadataRoute.Sitemap = [];
+  for (const s of AFFIAL_SHOPS) {
+    const sl = s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
+    if (!dognetSlugs.has(sl) && !affialShopSlugs.has(sl)) {
+      affialShopSlugs.add(sl);
+      affialShopUrls.push({ url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 });
+    }
+  }
+
+  // Affial coupon shop slugs not already covered
+  const affialCouponUrls: MetadataRoute.Sitemap = [];
+  for (const c of AFFIAL_COUPONS) {
+    const sl = c.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
+    if (!dognetSlugs.has(sl) && !affialShopSlugs.has(sl)) {
+      affialShopSlugs.add(sl);
+      affialCouponUrls.push({ url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily", priority: 0.6 });
+    }
+  }
 
   const categoryUrls: MetadataRoute.Sitemap = Object.keys(CATEGORIES).map(catSlug => ({
     url: `${BASE}/kategoria/${catSlug}`,
@@ -25,6 +53,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly",
     priority: 0.8,
   }));
+
+  const letakyUrls: MetadataRoute.Sitemap = LETAKY.map(l => ({
+    url: `${BASE}/letaky/${l.slug}`,
+    lastModified: new Date(),
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  let blogUrls: MetadataRoute.Sitemap = [];
+  try {
+    const posts = getAllPosts();
+    blogUrls = posts.map(p => ({
+      url: `${BASE}/blog/${p.slug}`,
+      lastModified: new Date(p.date),
+      changeFrequency: "monthly" as const,
+      priority: 0.5,
+    }));
+  } catch {}
 
   return [
     { url: BASE,                    lastModified: new Date(), changeFrequency: "daily",  priority: 1.0 },
@@ -36,6 +82,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/cashback`,      lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE}/blog`,          lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     ...categoryUrls,
+    ...letakyUrls,
+    ...blogUrls,
     ...shopUrls,
+    ...affialShopUrls,
+    ...affialCouponUrls,
   ];
 }

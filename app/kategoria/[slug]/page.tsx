@@ -22,12 +22,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const cat = CATEGORIES[slug];
   if (!cat) return {};
   return {
-    title: `${cat.label} - kupóny, akcie a cashback | Zlavickovo.sk`,
-    description: `Nájdi najlepšie ${cat.label.toLowerCase()} kupóny a zľavy. Porovnaj ceny v ${cat.shops.length} obchodoch. Overené kódy ${getYear()}.`,
+    title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
+    description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
     alternates: { canonical: `https://zlavickovo.sk/kategoria/${slug}` },
     openGraph: {
-      title: `${cat.label} kupóny a zľavy ${getYear()} | Zlavickovo.sk`,
-      description: `Aktuálne ${cat.label.toLowerCase()} kupóny. Ušetri v ${cat.shops.length} partnerských obchodoch.`,
+      title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
+      description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
       url: `https://zlavickovo.sk/kategoria/${slug}`, type: "website",
     },
   };

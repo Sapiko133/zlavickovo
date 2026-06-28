@@ -75,15 +75,15 @@ export async function generateMetadata({ params }: Props) {
   const pageUrl = `${BASE}/kupony/${slug}`;
 
   return {
-    title: `${shopName} kupóny a zľavy ${month} ${year} | Zlavickovo.sk`,
-    description: `Aktuálne overené kupóny pre ${shopName}. Ušetri až 20% na nákupe. Overené ${month} ${year}. Bez registrácie.`,
+    title: `${shopName} kupóny a zľavy ${year} | Zlavickovo.sk`,
+    description: `Aktuálne overené kupóny pre ${shopName}. Ušetri na nákupe.`,
     alternates: {
       canonical: pageUrl,
       languages: isCz ? undefined : { sk: pageUrl, cs: `${BASE}/kupony/${slug}-cz` },
     },
     openGraph: {
-      title: `${shopName} zľavové kódy ${month} ${year}`,
-      description: `Nájdi najlepšie kupóny pre ${shopName}. Overené kódy aktualizované denne.`,
+      title: `${shopName} zľavové kódy ${year} | Zlavickovo.sk`,
+      description: `Aktuálne overené kupóny pre ${shopName}. Ušetri na nákupe.`,
       url: pageUrl, type: "website", locale: "sk_SK",
     },
   };
