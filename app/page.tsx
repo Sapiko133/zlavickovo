@@ -1,13 +1,16 @@
-import CouponCard from "@/components/CouponCard";
 import ShopLogo from "@/components/ShopLogo";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import HeroSearch from "@/components/HeroSearch";
-import HeroCarousel, { type HeroItem } from "@/components/HeroCarousel";
+import CouponCard from "@/components/CouponCard";
+import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
 import { getCouponsFeed, getSalesCoupons, getLatestSales, getCashbackShops, getShops } from "@/lib/dognet";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import type { HeroItem } from "@/components/HeroCarousel";
 
 export const revalidate = 3600;
 
@@ -27,45 +30,33 @@ export const metadata = {
   },
 };
 
-const SHOP_COLORS: Record<string, string> = {
-  alza: "#0065BD", zalando: "#FF6900", shein: "#E8001D", mall: "#E31837",
-  notino: "#8B1A1A", sportisimo: "#00A551", ikea: "#0058A3", dedoles: "#FF4081",
-  martinus: "#D32F2F", "about you": "#222", answear: "#FF6B6B", "dr. max": "#006A35",
-};
-const FALLBACK_COLORS = ["#7C3AED","#0065BD","#E8001D","#00A551","#FF6900","#003580","#D32F2F"];
-
-function shopColor(name: string) {
-  const k = name.toLowerCase();
-  return SHOP_COLORS[k] ?? FALLBACK_COLORS[name.charCodeAt(0) % FALLBACK_COLORS.length];
-}
 function shopSlug(name: string) {
   return name.toLowerCase().replace(/\s+/g, "-");
 }
 
 const CATEGORIES = [
-  { emoji: "💻", label: "Elektronika", href: "/kategoria/elektronika", color: "#0065BD", from: "#dbeafe", to: "#eff6ff" },
-  { emoji: "👗", label: "Móda",        href: "/kategoria/moda",        color: "#E8001D", from: "#fce7f3", to: "#fff1f2" },
-  { emoji: "💊", label: "Zdravie",     href: "/kategoria/zdravie",     color: "#00A551", from: "#dcfce7", to: "#f0fdf4" },
-  { emoji: "💄", label: "Krása",       href: "/kategoria/krasa",       color: "#db2777", from: "#fce7f3", to: "#fdf2f8" },
-  { emoji: "⚽", label: "Šport",       href: "/kategoria/sport",       color: "#FF6900", from: "#fed7aa", to: "#fff7ed" },
-  { emoji: "🏠", label: "Bývanie",     href: "/kategoria/byvanie",     color: "#7C3AED", from: "#ede9fe", to: "#f5f3ff" },
-  { emoji: "🛒", label: "Potraviny",   href: "/kategoria/potraviny",   color: "#16a34a", from: "#dcfce7", to: "#f0fdf4" },
-  { emoji: "👶", label: "Deti",        href: "/kategoria/deti",        color: "#f59e0b", from: "#fef3c7", to: "#fffbeb" },
-  { emoji: "✈️", label: "Cestovanie",  href: "/kategoria/cestovanie",  color: "#0ea5e9", from: "#e0f2fe", to: "#f0f9ff" },
-  { emoji: "📚", label: "Knihy",       href: "/kategoria/knihy",       color: "#D32F2F", from: "#fee2e2", to: "#fff5f5" },
+  { emoji: "💻", label: "Elektronika", href: "/kategoria/elektronika", color: "#0065BD", bg: "#dbeafe" },
+  { emoji: "👗", label: "Móda",        href: "/kategoria/moda",        color: "#E8001D", bg: "#fce7f3" },
+  { emoji: "💊", label: "Zdravie",     href: "/kategoria/zdravie",     color: "#00A551", bg: "#dcfce7" },
+  { emoji: "💄", label: "Krása",       href: "/kategoria/krasa",       color: "#db2777", bg: "#fdf2f8" },
+  { emoji: "⚽", label: "Šport",       href: "/kategoria/sport",       color: "#FF6900", bg: "#fed7aa" },
+  { emoji: "🏠", label: "Bývanie",     href: "/kategoria/byvanie",     color: "#7C3AED", bg: "#ede9fe" },
+  { emoji: "🛒", label: "Potraviny",   href: "/kategoria/potraviny",   color: "#16a34a", bg: "#dcfce7" },
+  { emoji: "👶", label: "Deti",        href: "/kategoria/deti",        color: "#f59e0b", bg: "#fef3c7" },
+  { emoji: "✈️", label: "Cestovanie",  href: "/kategoria/cestovanie",  color: "#0ea5e9", bg: "#e0f2fe" },
+  { emoji: "📚", label: "Knihy",       href: "/kategoria/knihy",       color: "#D32F2F", bg: "#fee2e2" },
 ];
 
 export default async function Home() {
   let heroItems: HeroItem[] = [];
-  let cashbackShops: any[] = [];
   let popularShops: any[] = [];
-  let feed: any[] = [];
   let sales: any[] = [];
+  let feed: any[] = [];
   let latestPosts: any[] = [];
 
   try {
-    [heroItems, cashbackShops, popularShops, feed, sales] = await Promise.all([
-      getLatestSales(10).then(items =>
+    [heroItems, popularShops, sales, feed] = await Promise.all([
+      getLatestSales(8).then(items =>
         items.map((c: any): HeroItem => ({
           id: c.id,
           shopName: c.campaign?.name || "Obchod",
@@ -75,18 +66,46 @@ export default async function Home() {
           expires: c.valid_to ? new Date(c.valid_to).toLocaleDateString("sk-SK") : null,
         }))
       ),
-      getCashbackShops(),
       getShops(),
-      getCouponsFeed(12),
       getSalesCoupons(8),
+      getCouponsFeed(8),
     ]);
     latestPosts = getLatestPosts(3);
   } catch {
     latestPosts = getLatestPosts(3);
   }
 
+  // Build sidebar coupons (right panel): feed coupons with code + Affial static
+  const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s]));
+  const feedWithCode = feed.filter((c: any) => c.code?.trim());
+  const dognetCount = Math.min(feedWithCode.length, 5);
+
+  const sidebarCoupons: SidebarCoupon[] = [
+    ...feedWithCode.slice(0, dognetCount).map((c: any) => {
+      const m = (c.title || c.name || "").match(/(\d+)\s*%/);
+      return {
+        shopName: c.campaign?.name || c.name || "Obchod",
+        title: c.title || c.name || "",
+        discount: m ? `${m[1]}%` : null,
+        code: c.code,
+        affiliateLink: c.affiliate_link || c.url || "#",
+      };
+    }),
+    ...AFFIAL_COUPONS.slice(0, 8 - dognetCount).map((c) => {
+      const shop = affialShopMap.get(c.domain);
+      return {
+        shopName: c.shop,
+        domain: c.domain,
+        title: `${c.discount} zľava`,
+        discount: c.discount,
+        code: c.code,
+        affiliateLink: shop?.affiliateUrl ?? `https://${c.domain}`,
+      };
+    }),
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
+    <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org", "@type": "WebSite",
         "name": "Zlavickovo", "url": "https://zlavickovo.sk",
@@ -94,239 +113,162 @@ export default async function Home() {
       }) }} />
 
       <style>{`
-        /* ── scrollbar ── */
-        .hide-scroll::-webkit-scrollbar { display:none; }
-
-        /* ── titles / links ── */
-        .sec-title { font-size:18px; font-weight:700; color:#1d1d1f; margin:0; }
-        .see-all { font-size:13px; color:#7C3AED; text-decoration:none; font-weight:500; }
-        .see-all:hover { text-decoration:underline; }
-
-        /* ── category cards ── */
-        .cat-card {
-          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
-          cursor: pointer;
+        .home-left-panel, .home-right-panel { display: flex; flex-direction: column; }
+        .deal-row { transition: background 0.1s; border-radius: 10px; }
+        .deal-row:hover { background: #f5f5f7 !important; }
+        .shop-card-hp { transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.15s; }
+        .shop-card-hp:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important; border-color: #22C55E !important; }
+        .cat-card-hp { transition: transform 0.18s ease, box-shadow 0.18s ease; cursor: pointer; }
+        .cat-card-hp:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 28px rgba(0,0,0,0.10) !important; }
+        .coupon-grid-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .coupon-grid-card:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.1) !important; }
+        .letak-card { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .letak-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important; }
+        .blog-card-link { transition: transform 0.18s ease, box-shadow 0.18s ease; }
+        .blog-card-link:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important; }
+        .see-all { font-size: 13px; color: #22C55E; text-decoration: none; font-weight: 600; }
+        .see-all:hover { text-decoration: underline; }
+        .sec-title { font-size: 16px; font-weight: 700; color: #1d1d1f; margin: 0; }
+        @media(max-width: 900px) {
+          .home-3col { flex-direction: column !important; }
+          .home-left-panel, .home-right-panel { display: none !important; }
+          .home-center { width: 100% !important; }
+          .shops-grid-hp { grid-template-columns: repeat(3,1fr) !important; }
         }
-        .cat-card:hover {
-          transform: translateY(-6px) scale(1.04);
-          box-shadow: 0 16px 40px rgba(0,0,0,0.12) !important;
-        }
-        .cat-card:hover .cat-emoji { transform: scale(1.15); }
-        .cat-emoji { display:inline-block; transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1); }
-
-        /* ── cashback cards ── */
-        .cb-card {
-          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
-        }
-        .cb-card:hover {
-          transform: translateY(-4px) scale(1.03);
-          box-shadow: 0 12px 28px rgba(0,0,0,0.12) !important;
-        }
-
-        /* ── shop pills ── */
-        .shop-pill {
-          transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, border-color 0.15s;
-        }
-        .shop-pill:hover {
-          transform: translateY(-4px) scale(1.02);
-          box-shadow: 0 10px 28px rgba(124,58,237,0.14) !important;
-          border-color: #7C3AED !important;
-        }
-        .shop-pill:hover .sp-name { color:#7C3AED !important; }
-
-        /* ── coupon cards ── */
-        .coupon-grid-card {
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
-        }
-        .coupon-grid-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 12px 32px rgba(0,0,0,0.1) !important;
-        }
-
-        /* ── blog cards ── */
-        .blog-card-link {
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
-        }
-        .blog-card-link:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important;
-        }
-
-        /* ── letak cards ── */
-        .letak-card {
-          transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.15s;
-        }
-        .letak-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 8px 24px rgba(0,0,0,0.1) !important;
-        }
-
-        /* ── responsive ── */
-        @media(max-width:900px){
-          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
-        }
-        @media(max-width:768px){
-          .shops-grid { grid-template-columns:repeat(2,1fr) !important; }
-          .coupons-grid { grid-template-columns:1fr !important; }
-          .letaky-grid { grid-template-columns:repeat(2,1fr) !important; }
-          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
-          .section-row { padding-left:16px !important; padding-right:16px !important; }
-        }
-        @media(max-width:480px){
-          .cat-grid { grid-template-columns:repeat(5,1fr) !important; gap:6px !important; }
-          .blog-grid { grid-template-columns:1fr !important; }
-          .shops-grid { grid-template-columns:repeat(2,1fr) !important; }
-        }
-        @media(max-width:400px){
-          .cat-grid { grid-template-columns:repeat(5,1fr) !important; }
+        @media(max-width: 600px) {
+          .shops-grid-hp { grid-template-columns: repeat(2,1fr) !important; }
+          .cat-grid-hp { grid-template-columns: repeat(5,1fr) !important; }
+          .letaky-grid { grid-template-columns: repeat(2,1fr) !important; }
+          .blog-grid { grid-template-columns: 1fr !important; }
+          .coupons-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
       <Nav />
-
-      {/* ── HERO ── */}
       <HeroSearch />
 
-      {/* ── HERO CAROUSEL ── */}
-      <HeroCarousel items={heroItems} />
+      {/* ── 3-COLUMN LAYOUT ── */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 20px 0" }}>
+        <div className="home-3col" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
-      {/* ── AD BANNER ── */}
-      <div style={{ padding:"20px 24px 0", display:"flex", justifyContent:"center" }}>
-        <AdBanner slot="header" />
-      </div>
-
-      {/* ── KATEGÓRIE ── */}
-      <section style={{ background:"linear-gradient(135deg,#F0FDF4 0%,#ECFDF5 100%)", padding:"48px 0" }}>
-        <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 24px" }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-            <h2 className="sec-title">Nakupuj podľa kategórie</h2>
-            <a href="/obchody" className="see-all">Všetky obchody →</a>
-          </div>
-          <div className="cat-grid" style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:10 }}>
-            {CATEGORIES.map(cat => (
-              <a
-                key={cat.label}
-                href={cat.href}
-                className="cat-card"
-                style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:10,
-                  padding:"20px 10px 16px", borderRadius:16, textDecoration:"none",
-                  background: `linear-gradient(135deg, ${cat.from} 0%, ${cat.to} 100%)`,
-                  border: `1px solid ${cat.color}20`,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                  backdropFilter: "blur(8px)",
-                }}
-              >
-                <span className="cat-emoji" style={{ fontSize:36, lineHeight:1 }}>{cat.emoji}</span>
-                <span style={{ fontSize:11, fontWeight:700, color:cat.color, textAlign:"center", lineHeight:1.3 }}>{cat.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CASHBACK OBCHODY ── */}
-      {cashbackShops.length > 0 && (
-        <section style={{ padding:"48px 0 0" }}>
-          <div className="section-row" style={{ maxWidth:1100, margin:"0 auto", padding:"0 24px 16px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-            <h2 className="sec-title">💰 Cashback obchody</h2>
-            <a href="/cashback" className="see-all">Zobraziť všetky →</a>
-          </div>
-          <div className="hide-scroll" style={{ display:"flex", gap:10, overflowX:"auto", padding:"4px 24px 16px", scrollbarWidth:"none" }}>
-            {cashbackShops.slice(0, 16).map((shop: any) => (
-              <a
-                key={shop.id}
-                href={`/kupony/${shop.slug}`}
-                className="cb-card"
-                style={{
-                  flexShrink:0, textDecoration:"none",
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  padding:"16px 18px", minWidth:110, borderRadius:14,
-                  background:"#f9fafb", border:"1.5px solid #e8e8e8",
-                  boxShadow:"0 2px 8px rgba(0,0,0,0.04)",
-                }}
-              >
-                <ShopLogo name={shop.name} size={48} />
-                <div style={{ textAlign:"center" }}>
-                  <div style={{ fontSize:12, fontWeight:600, color:"#1d1d1f", marginBottom:3 }}>{shop.name.length > 9 ? shop.name.slice(0,9)+"…" : shop.name}</div>
-                  {shop.cashback && (
-                    <div style={{ fontSize:12, fontWeight:800, color:"#00AA44" }}>
-                      {typeof shop.cashback === "number" ? `${shop.cashback}%` : shop.cashback}
+          {/* LEFT PANEL 20% — Najnovšie akcie (hidden on mobile) */}
+          <div className="home-left-panel" style={{ width: 200, flexShrink: 0 }}>
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", marginBottom: 12 }}>🔥 Najnovšie akcie</div>
+              {heroItems.length === 0 ? (
+                <div style={{ fontSize: 12, color: "#aaa", textAlign: "center", padding: "16px 0" }}>Žiadne akcie</div>
+              ) : heroItems.map((item, i) => (
+                <a
+                  key={i}
+                  href={item.link}
+                  target="_blank"
+                  rel="nofollow noopener noreferrer"
+                  className="deal-row"
+                  style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "8px 6px", margin: "0 -6px",
+                    textDecoration: "none",
+                    borderBottom: i < heroItems.length - 1 ? "1px solid #f0f0f0" : "none",
+                  }}
+                >
+                  <ShopLogo name={item.shopName} size={28} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#1d1d1f", marginBottom: 2 }}>{item.shopName}</div>
+                    <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
+                      {item.title}
                     </div>
-                  )}
-                </div>
-              </a>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* ── POPULÁRNE OBCHODY ── */}
-      {popularShops.length > 0 && (
-        <section style={{ maxWidth:1100, margin:"0 auto", padding:"48px 24px 0" }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-            <h2 className="sec-title">🏪 Populárne obchody</h2>
-            <a href="/obchody" className="see-all">Zobraziť všetky →</a>
-          </div>
-          <div className="shops-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10 }}>
-            {popularShops.slice(0, 12).map((shop: any) => (
-              <a
-                key={shop.name}
-                href={`/kupony/${shopSlug(shop.name)}`}
-                className="shop-pill"
-                style={{
-                  display:"flex", alignItems:"center", gap:12, padding:"14px",
-                  borderRadius:12, background:"#fff", border:"1.5px solid #e8e8e8",
-                  textDecoration:"none",
-                  boxShadow:"0 2px 6px rgba(0,0,0,0.04)",
-                }}
-              >
-                <ShopLogo name={shop.name} size={42} />
-                <div>
-                  <div className="sp-name" style={{ fontSize:13, fontWeight:700, color:"#1d1d1f", transition:"color 0.15s" }}>{shop.name}</div>
-                  <div style={{ fontSize:11, color:"#aaa", marginTop:2 }}>
-                    {shop.count} {shop.count === 1 ? "kupón" : shop.count < 5 ? "kupóny" : "kupónov"}
+                    {item.discount && (
+                      <span style={{ display: "inline-block", marginTop: 3, fontSize: 10, fontWeight: 800, color: "#fff", background: "#F97316", borderRadius: 4, padding: "1px 5px" }}>
+                        {item.discount}
+                      </span>
+                    )}
                   </div>
-                </div>
+                </a>
+              ))}
+              <a href="/letaky" style={{ display: "block", marginTop: 12, textAlign: "center", padding: "7px 10px", borderRadius: 8, background: "#f5f5f7", color: "#22C55E", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
+                Všetky akcie →
               </a>
-            ))}
+            </div>
           </div>
-        </section>
-      )}
 
-      {/* ── NAJNOVŠIE KUPÓNY ── */}
-      <section id="zlavy" style={{ maxWidth:1100, margin:"0 auto", padding:"48px 24px 0" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-          <h2 className="sec-title">🎟️ Najnovšie kupóny</h2>
-        </div>
-        {feed.length > 0 ? (
-          <div className="coupons-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(264px,1fr))", gap:12 }}>
-            {feed.map((coupon: any) => {
-              const token = coupon.code ? Buffer.from(`feed:${coupon.code}`).toString("base64") : null;
-              const { code: _c, ...couponData } = coupon;
-              return (
-                <div key={coupon.id} className="coupon-grid-card">
-                  <CouponCard coupon={couponData} token={token} />
+          {/* CENTER 60% */}
+          <div className="home-center" style={{ flex: 1, minWidth: 0 }}>
+
+            {/* Populárne obchody */}
+            {popularShops.length > 0 && (
+              <div style={{ marginBottom: 28 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <h2 className="sec-title">🏪 Populárne obchody</h2>
+                  <a href="/obchody" className="see-all">Všetky →</a>
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p style={{ color:"#aaa", fontSize:15 }}>Momentálne žiadne aktívne kupóny.</p>
-        )}
-      </section>
+                <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
+                  {popularShops.slice(0, 12).map((shop: any) => (
+                    <a
+                      key={shop.name}
+                      href={`/kupony/${shopSlug(shop.name)}`}
+                      className="shop-card-hp"
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center",
+                        gap: 8, padding: "14px 10px", borderRadius: 12,
+                        background: "#fff", border: "1.5px solid #e8e8e8",
+                        textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      <ShopLogo name={shop.name} size={44} />
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f" }}>{shop.name.length > 10 ? shop.name.slice(0, 10) + "…" : shop.name}</div>
+                        <div style={{ fontSize: 10, color: "#aaa", marginTop: 2 }}>
+                          {shop.count} kupón{shop.count === 1 ? "" : shop.count < 5 ? "y" : "ov"}
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
-      {/* ── AD BANNER ── */}
-      <div style={{ padding:"40px 24px 0", display:"flex", justifyContent:"center" }}>
-        <AdBanner slot="between-coupons" />
+            {/* Kategórie */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                <h2 className="sec-title">🗂️ Kategórie</h2>
+                <a href="/kategoria" className="see-all">Všetky →</a>
+              </div>
+              <div className="cat-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
+                {CATEGORIES.map(cat => (
+                  <a
+                    key={cat.label}
+                    href={cat.href}
+                    className="cat-card-hp"
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      gap: 8, padding: "16px 8px", borderRadius: 12, textDecoration: "none",
+                      background: cat.bg, border: `1px solid ${cat.color}20`,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <span style={{ fontSize: 28, lineHeight: 1 }}>{cat.emoji}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, textAlign: "center", lineHeight: 1.3 }}>{cat.label}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT PANEL 20% — Najnovšie kupóny (hidden on mobile) */}
+          <div className="home-right-panel" style={{ width: 200, flexShrink: 0 }}>
+            <HomeCouponSidebar coupons={sidebarCoupons} />
+          </div>
+        </div>
       </div>
 
       {/* ── VÝPREDAJE ── */}
       {sales.length > 0 && (
-        <section style={{ marginTop:48, padding:"48px 0", background:"linear-gradient(135deg,#fafafa 0%,#f5f5f5 100%)" }}>
-          <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 24px" }}>
-            <h2 className="sec-title" style={{ marginBottom:16 }}>🔥 Výpredaje</h2>
-            <div className="coupons-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(264px,1fr))", gap:12 }}>
+        <section style={{ marginTop: 40, padding: "40px 0", background: "#fff", borderTop: "1px solid #f0f0f0" }}>
+          <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <h2 className="sec-title">🔥 Výpredaje</h2>
+            </div>
+            <div className="coupons-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(264px,1fr))", gap: 12 }}>
               {sales.map((coupon: any) => {
                 const token = coupon.code ? Buffer.from(`sales:${coupon.code}`).toString("base64") : null;
                 const { code: _c, ...couponData } = coupon;
@@ -341,24 +283,29 @@ export default async function Home() {
         </section>
       )}
 
+      {/* ── AD BANNER ── */}
+      <div style={{ padding: "32px 20px 0", display: "flex", justifyContent: "center" }}>
+        <AdBanner slot="between-coupons" />
+      </div>
+
       {/* ── LETÁKY ── */}
-      <section style={{ maxWidth:1100, margin:"0 auto", padding:"48px 24px 0" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+      <section style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 20px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
           <h2 className="sec-title">🗞️ Aktuálne letáky</h2>
           <a href="/letaky" className="see-all">Zobraziť všetky →</a>
         </div>
-        <div className="letaky-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))", gap:10 }}>
+        <div className="letaky-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 10 }}>
           {LETAKY.filter(l => ["lidl","kaufland","tesco","billa"].includes(l.slug)).map(letak => {
             const expiry = getExpiryDate(letak.newDayOfWeek);
             const soon = isExpiringSoon(expiry);
             return (
-              <a key={letak.slug} href={`/letaky/${letak.slug}`} className="letak-card" style={{ display:"flex", alignItems:"center", gap:12, textDecoration:"none", background:"#fff", border:"1.5px solid #e8e8e8", borderRadius:12, padding:"14px", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
-                <div style={{ width:40, height:40, borderRadius:10, background:letak.color, display:"flex", alignItems:"center", justifyContent:"center", color:letak.color==="FFCC00"?"#333":"#fff", fontWeight:900, fontSize:16, flexShrink:0, boxShadow:`0 3px 10px ${letak.color}55` }}>
+              <a key={letak.slug} href={`/letaky/${letak.slug}`} className="letak-card" style={{ display: "flex", alignItems: "center", gap: 12, textDecoration: "none", background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 12, padding: "14px", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
+                <div style={{ width: 40, height: 40, borderRadius: 10, background: letak.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 900, fontSize: 16, flexShrink: 0 }}>
                   {letak.letter}
                 </div>
                 <div>
-                  <div style={{ fontWeight:700, fontSize:13, color:"#1d1d1f" }}>{letak.name}</div>
-                  <div style={{ fontSize:11, color:soon?"#dc2626":"#aaa", marginTop:2 }}>{soon?"⚠ ":""}do {formatDate(expiry)}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f" }}>{letak.name}</div>
+                  <div style={{ fontSize: 11, color: soon ? "#dc2626" : "#aaa", marginTop: 2 }}>{soon ? "⚠ " : ""}do {formatDate(expiry)}</div>
                 </div>
               </a>
             );
@@ -368,21 +315,21 @@ export default async function Home() {
 
       {/* ── BLOG ── */}
       {latestPosts.length > 0 && (
-        <section style={{ maxWidth:1100, margin:"0 auto", padding:"48px 24px 0" }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+        <section style={{ maxWidth: 1100, margin: "0 auto", padding: "40px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             <h2 className="sec-title">📝 Z blogu</h2>
             <a href="/blog" className="see-all">Všetky články →</a>
           </div>
-          <div className="blog-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:12 }}>
+          <div className="blog-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
             {latestPosts.map((post: any) => (
-              <a key={post.slug} href={`/blog/${post.slug}`} className="blog-card-link" style={{ display:"flex", flexDirection:"column", textDecoration:"none", background:"#fff", borderRadius:12, border:"1.5px solid #e8e8e8", overflow:"hidden", boxShadow:"0 2px 6px rgba(0,0,0,0.04)" }}>
-                <div style={{ padding:"18px 18px 12px", flex:1 }}>
-                  <span style={{ fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:100, background:"#f0eeff", color:"#7C3AED", display:"inline-block", marginBottom:10 }}>{categoryLabel(post.category)}</span>
-                  <div style={{ fontWeight:600, fontSize:14, color:"#1d1d1f", lineHeight:1.45 }}>{post.title}</div>
+              <a key={post.slug} href={`/blog/${post.slug}`} className="blog-card-link" style={{ display: "flex", flexDirection: "column", textDecoration: "none", background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
+                <div style={{ padding: "18px 18px 12px", flex: 1 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 100, background: "#f0eeff", color: "#7C3AED", display: "inline-block", marginBottom: 10 }}>{categoryLabel(post.category)}</span>
+                  <div style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f", lineHeight: 1.45 }}>{post.title}</div>
                 </div>
-                <div style={{ padding:"8px 18px 14px", display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:"1px solid #f5f5f5" }}>
-                  <span style={{ fontSize:12, color:"#bbb" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
-                  <span style={{ fontSize:13, color:"#7C3AED", fontWeight:700 }}>Čítať →</span>
+                <div style={{ padding: "8px 18px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #f5f5f5" }}>
+                  <span style={{ fontSize: 12, color: "#bbb" }}>{new Date(post.date).toLocaleDateString("sk-SK")}</span>
+                  <span style={{ fontSize: 13, color: "#7C3AED", fontWeight: 700 }}>Čítať →</span>
                 </div>
               </a>
             ))}
@@ -390,6 +337,7 @@ export default async function Home() {
         </section>
       )}
 
+      <div style={{ height: 64 }} />
       <Footer />
     </div>
   );

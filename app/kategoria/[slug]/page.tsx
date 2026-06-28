@@ -14,21 +14,48 @@ export function generateStaticParams() {
   return Object.keys(CATEGORIES).map(slug => ({ slug }));
 }
 
+function getYear() { return new Date().getFullYear(); }
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const cat = CATEGORIES[slug];
   if (!cat) return {};
   return {
-    title: `${cat.emoji} ${cat.label} – kupóny a zľavy | Zlavickovo.sk`,
-    description: cat.desc,
+    title: `${cat.label} - kupóny, akcie a cashback | Zlavickovo.sk`,
+    description: `Nájdi najlepšie ${cat.label.toLowerCase()} kupóny a zľavy. Porovnaj ceny v ${cat.shops.length} obchodoch. Overené kódy ${getYear()}.`,
     alternates: { canonical: `https://zlavickovo.sk/kategoria/${slug}` },
+    openGraph: {
+      title: `${cat.label} kupóny a zľavy ${getYear()} | Zlavickovo.sk`,
+      description: `Aktuálne ${cat.label.toLowerCase()} kupóny. Ušetri v ${cat.shops.length} partnerských obchodoch.`,
+      url: `https://zlavickovo.sk/kategoria/${slug}`, type: "website",
+    },
   };
+}
+
+function getCategoryFAQ(cat: { label: string; shops: { name: string }[] }) {
+  const shopNames = cat.shops.slice(0, 3).map(s => s.name).join(", ");
+  return [
+    {
+      q: `Kde kúpiť ${cat.label.toLowerCase()} najlacnejšie?`,
+      a: `Najlepšie ceny ${cat.label.toLowerCase()} nájdete v obchodoch ako ${shopNames}. Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`,
+    },
+    {
+      q: `Ako ušetriť na ${cat.label.toLowerCase()}?`,
+      a: `Použite zľavový kód pri objednávke, sledujte sezónne výpredaje a akcie obchodov. Na Zlavickovo.sk pravidelne aktualizujeme overené kupóny pre všetky kategórie vrátane ${cat.label.toLowerCase()}.`,
+    },
+    {
+      q: `Má ${cat.shops[0]?.name ?? "váš obchod"} aktuálny kupón?`,
+      a: `Aktuálne kupóny pre všetky obchody v kategórii ${cat.label} nájdete priamo na tejto stránke. Kódy sú overené a pravidelne aktualizované.`,
+    },
+  ];
 }
 
 export default async function KategoriaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const cat = CATEGORIES[slug];
   if (!cat) notFound();
+  const year = getYear();
+  const faq = getCategoryFAQ(cat);
 
   // Fetch coupons
   let coupons: any[] = [];
@@ -51,8 +78,30 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   // Get Affial shops for this category
   const affialForCat = AFFIAL_SHOPS.filter(s => s.category === slug || s.category === cat.slug);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://zlavickovo.sk" },
+          { "@type": "ListItem", "position": 2, "name": "Kategórie", "item": "https://zlavickovo.sk/kategoria" },
+          { "@type": "ListItem", "position": 3, "name": cat.label, "item": `https://zlavickovo.sk/kategoria/${slug}` },
+        ],
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": faq.map(f => ({
+          "@type": "Question", "name": f.q,
+          "acceptedAnswer": { "@type": "Answer", "text": f.a },
+        })),
+      },
+    ],
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <style>{`
         .shop-card-k { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
         .shop-card-k:hover { border-color: ${cat.color} !important; box-shadow: 0 6px 20px ${cat.color}22 !important; transform: translateY(-2px); }
@@ -67,7 +116,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
           <div style={{ fontSize: 12, color: "#999", marginBottom: 10 }}>
             <a href="/" style={{ color: "#999", textDecoration: "none" }}>Zlavickovo</a>
             {" › "}
-            <a href="/obchody" style={{ color: "#999", textDecoration: "none" }}>Kategórie</a>
+            <a href="/kategoria" style={{ color: "#999", textDecoration: "none" }}>Kategórie</a>
             {" › "}
             <span style={{ color: cat.color, fontWeight: 600 }}>{cat.label}</span>
           </div>
@@ -75,7 +124,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             <span style={{ fontSize: 52, lineHeight: 1 }}>{cat.emoji}</span>
             <div>
               <h1 style={{ fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 800, margin: "0 0 6px", letterSpacing: "-0.5px" }}>
-                {cat.label}
+                Najlepšie {cat.label.toLowerCase()} zľavy a kupóny {year}
               </h1>
               <p style={{ fontSize: 15, color: "#666", margin: 0 }}>{cat.desc}</p>
             </div>
@@ -190,12 +239,27 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
         {/* Link to all coupons */}
         <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <a href="/obchody" style={{ padding: "11px 22px", borderRadius: 10, background: cat.color, color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-            ← Všetky obchody
+          <a href="/kategoria" style={{ padding: "11px 22px", borderRadius: 10, background: cat.color, color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+            ← Všetky kategórie
           </a>
-          <a href={`/obchody?cat=${slug}`} style={{ padding: "11px 22px", borderRadius: 10, background: "#f5f5f5", color: "#555", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-            Filter: {cat.label}
+          <a href="/obchody" style={{ padding: "11px 22px", borderRadius: 10, background: "#f5f5f5", color: "#555", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+            Všetky obchody
           </a>
+        </div>
+
+        {/* FAQ */}
+        <div style={{ marginTop: 48, background: "#fff", borderRadius: 14, border: "1px solid #eaecf0", padding: "32px", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px", color: "#1d1d1f" }}>
+            Časté otázky – {cat.label} kupóny
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            {faq.map((item, i) => (
+              <div key={i} style={{ padding: "18px 0", borderBottom: i < faq.length - 1 ? "1px solid #f0f0f0" : "none" }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: "#1d1d1f", marginBottom: 6 }}>{item.q}</div>
+                <div style={{ fontSize: 13, color: "#666", lineHeight: 1.6 }}>{item.a}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
-import { findAffialShop } from "@/lib/affial-shops";
+import { findAffialShop, AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
@@ -23,7 +24,14 @@ const TOP_SLUGS = [
 ];
 
 export function generateStaticParams() {
-  return TOP_SLUGS.map(slug => ({ slug }));
+  const affialSlugs = AFFIAL_SHOPS.map(s =>
+    s.domain.replace(/\.(sk|cz|eu|com)$/, "").replace(/\./g, "-")
+  );
+  const affialCouponSlugs = AFFIAL_COUPONS.map(c =>
+    c.domain.replace(/\.(sk|cz|eu|com)$/, "").replace(/\./g, "-")
+  );
+  const all = [...new Set([...TOP_SLUGS, ...affialSlugs, ...affialCouponSlugs])];
+  return all.map(slug => ({ slug }));
 }
 
 function currentMonthYear() {
@@ -66,8 +74,8 @@ export async function generateMetadata({ params }: Props) {
   const pageUrl = `${BASE}/kupony/${slug}`;
 
   return {
-    title: `${shopName} zľavový kód ${month} ${year} ✂️ Overené kupóny`,
-    description: `✅ Aktuálne overené zľavové kódy pre ${shopName}. Ušetri na nákupe. Overené ${month} ${year}. Bez registrácie.`,
+    title: `${shopName} kupóny a zľavy ${month} ${year} | Zlavickovo.sk`,
+    description: `Aktuálne overené kupóny pre ${shopName}. Ušetri až 20% na nákupe. Overené ${month} ${year}. Bez registrácie.`,
     alternates: {
       canonical: pageUrl,
       languages: isCz ? undefined : { sk: pageUrl, cs: `${BASE}/kupony/${slug}-cz` },
