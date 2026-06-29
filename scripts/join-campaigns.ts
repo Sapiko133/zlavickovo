@@ -1,14 +1,19 @@
+// Spusti: npx tsx --env-file=.env.local scripts/join-campaigns.ts
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
 
+const EMAIL    = process.env.DOGNET_EMAIL;
+const PASSWORD = process.env.DOGNET_PASSWORD;
+
 async function getToken() {
+  if (!EMAIL || !PASSWORD) {
+    console.error("❌ Chýba DOGNET_EMAIL alebo DOGNET_PASSWORD v .env.local");
+    process.exit(1);
+  }
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      email: "mirosamud@gmail.com",
-      password: "Sshady1339267.",
-    }),
+    body: JSON.stringify({ email: EMAIL, password: PASSWORD }),
   });
   const data = await res.json();
   return data.token || data.data?.token;
