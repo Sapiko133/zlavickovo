@@ -31,7 +31,9 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
     if (link) window.open(link, "_blank", "noopener,noreferrer");
     if (code) {
       navigator.clipboard.writeText(code).catch(() => {});
-      fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, shop: capitalized }) }).catch(() => {});
+      fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code, shop: capitalized, affiliate_link: link || "" }) }).catch(() => {});
+    } else if (link) {
+      fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shop: capitalized, affiliate_link: link }) }).catch(() => {});
     }
     setRevealed(true);
   }

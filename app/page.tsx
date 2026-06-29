@@ -1,4 +1,5 @@
 import ShopFavicon from "@/components/ShopFavicon";
+import { normalizeShopSlug } from "@/lib/slug";
 import { getShopDomain } from "@/lib/shop-domains";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
@@ -35,7 +36,7 @@ export const metadata = {
 };
 
 function shopSlug(name: string) {
-  return name.toLowerCase().replace(/\s+/g, "-");
+  return normalizeShopSlug(name);
 }
 
 interface HomepageShop {

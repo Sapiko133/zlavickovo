@@ -1,4 +1,5 @@
 import { getAiCoupons } from "@/lib/ai-search";
+import { normalizeShopSlug } from "@/lib/slug";
 import AiCouponCard from "@/components/AiCouponCard";
 
 export default async function AiCoupons({ shopName }: { shopName: string }) {
@@ -11,7 +12,7 @@ export default async function AiCoupons({ shopName }: { shopName: string }) {
     apiError = true;
   }
 
-  const shopSlug = shopName.toLowerCase().replace(/\s+/g, "-");
+  const shopSlug = normalizeShopSlug(shopName);
 
   if (apiError || codes.length === 0) {
     return (

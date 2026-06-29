@@ -1,5 +1,6 @@
 import { getCoupons } from "@/lib/dognet";
 import { getEhubCoupons, getEhubShops } from "@/lib/ehub";
+import { redis } from "@/lib/redis";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,16 @@ export async function GET(req: Request) {
       getEhubCoupons().catch(() => []),
     ]);
     return Response.json({ shops: shops.length, coupons_count: coupons.length });
+  }
+
+  if (source === "recent") {
+    try {
+      const raw = await redis.lrange("recent_reveals", 0, 9);
+      const reveals = raw.map((r: string) => { try { return JSON.parse(r); } catch { return null; } }).filter(Boolean);
+      return Response.json({ reveals });
+    } catch {
+      return Response.json({ reveals: [] });
+    }
   }
 
   // Default: Dognet

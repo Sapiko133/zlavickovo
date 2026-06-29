@@ -1,3 +1,5 @@
+import { normalizeShopSlug } from "@/lib/slug";
+
 export interface AffialShop {
   name: string;
   domain: string;
@@ -47,7 +49,5 @@ export const AFFIAL_SHOPS: AffialShop[] = [
 
 /** Nájde Affial obchod podľa URL slug (kosmetikomat.sk → kosmetikomat) */
 export function findAffialShop(slug: string): AffialShop | undefined {
-  return AFFIAL_SHOPS.find((s) =>
-    s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-") === slug
-  );
+  return AFFIAL_SHOPS.find((s) => normalizeShopSlug(s.domain) === slug || normalizeShopSlug(s.name) === slug);
 }

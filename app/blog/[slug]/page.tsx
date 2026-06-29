@@ -1,4 +1,5 @@
 import { getAllPosts, getPostBySlug, categoryLabel } from "@/lib/blog";
+import { normalizeShopSlug } from "@/lib/slug";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import { notFound } from "next/navigation";
@@ -41,7 +42,7 @@ export default async function BlogPostPage({ params }: Props) {
   const post = getPostBySlug(slug);
   if (!post) notFound();
 
-  const shopSlug = post.shop ? post.shop.toLowerCase().replace(/\s+/g, "-") : null;
+  const shopSlug = post.shop ? normalizeShopSlug(post.shop) : null;
   const imgUrl = blogImageUrl(post.category, post.shop);
 
   return (

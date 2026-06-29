@@ -37,6 +37,9 @@ export default function AdminTestPage() {
 
   const [clickLog, setClickLog]           = useState<string | null>(null);
 
+  const [reveals, setReveals]             = useState<any[] | null>(null);
+  const [revealsLoading, setRevealsLoading] = useState(false);
+
   async function testDognet() {
     setDognetLoading(true);
     setDognetError(null);
@@ -48,6 +51,17 @@ export default function AdminTestPage() {
       setDognetError(e.message);
     } finally {
       setDognetLoading(false);
+    }
+  }
+
+  async function loadReveals() {
+    setRevealsLoading(true);
+    try {
+      const res = await fetch("/api/admin/diagnostic?source=recent");
+      const data = await res.json();
+      setReveals(data.reveals || []);
+    } finally {
+      setRevealsLoading(false);
     }
   }
 
@@ -248,6 +262,65 @@ export default function AdminTestPage() {
               </div>
             )}
           </div>
+        </Section>
+
+        {/* ── 5. RECENT REVEALS ── */}
+        <Section title="5. Posledných 10 kupónov zobrazených používateľom">
+          <button
+            onClick={loadReveals}
+            disabled={revealsLoading}
+            style={{
+              padding: "10px 20px", borderRadius: 8, border: "none",
+              background: "#7c3aed", color: "#fff", fontWeight: 700,
+              fontSize: 13, cursor: revealsLoading ? "not-allowed" : "pointer",
+              marginBottom: 16, opacity: revealsLoading ? 0.7 : 1,
+            }}
+          >
+            {revealsLoading ? "Načítavam…" : "🔄 Načítať posledné kupóny"}
+          </button>
+          {reveals !== null && (
+            reveals.length === 0 ? (
+              <div style={{ padding: "10px 14px", background: "#fef9c3", borderRadius: 8, color: "#92400e", fontSize: 13 }}>
+                ⚠️ Žiadne záznamy — kupóny sa ešte nezobrazia (Redis prázdny)
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: "#f3f4f6" }}>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Čas</th>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Obchod</th>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>Kód</th>
+                    <th style={{ padding: "8px 12px", textAlign: "left" }}>affiliate_link</th>
+                    <th style={{ padding: "8px 12px", textAlign: "center" }}>Tracking</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {reveals.map((r: any, i: number) => {
+                    const link = r.affiliate_link || "";
+                    const hasTracking = link.includes("go.dognet.com") || link.includes("a_aid=6202d95ce406b") || link.includes("ehub.cz");
+                    const time = r.ts ? new Date(r.ts).toLocaleTimeString("sk-SK") : "—";
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid #f0f0f0", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
+                        <td style={{ padding: "7px 12px", color: "#6b7280", whiteSpace: "nowrap" }}>{time}</td>
+                        <td style={{ padding: "7px 12px", fontWeight: 600 }}>{r.shop || "—"}</td>
+                        <td style={{ padding: "7px 12px", fontFamily: "monospace" }}>{r.code || "—"}</td>
+                        <td style={{ padding: "7px 12px", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {link ? (
+                            <a href={link} target="_blank" rel="noopener noreferrer" style={{ color: "#2563eb", textDecoration: "none", fontSize: 11 }}>
+                              {link.length > 55 ? link.slice(0, 55) + "…" : link}
+                            </a>
+                          ) : <span style={{ color: "#9ca3af" }}>—</span>}
+                        </td>
+                        <td style={{ padding: "7px 12px", textAlign: "center" }}>
+                          <Badge ok={hasTracking} label={hasTracking ? "tracking OK" : "chýba tracking"} />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )
+          )}
         </Section>
 
       </div>

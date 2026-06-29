@@ -1,6 +1,7 @@
 import { redis } from "@/lib/redis";
 import { getShops as getDognetShops } from "@/lib/dognet";
 import { getEhubShops } from "@/lib/ehub";
+import { normalizeShopSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,6 @@ interface ShopEntry {
   domain: string;
 }
 
-function toSlug(name: string): string {
-  return name.toLowerCase()
-    .replace(/[áä]/g, "a").replace(/[čć]/g, "c").replace(/[ďđ]/g, "d")
-    .replace(/[éě]/g, "e").replace(/[íî]/g, "i").replace(/[ľĺ]/g, "l")
-    .replace(/[ňń]/g, "n").replace(/[óô]/g, "o").replace(/[řŕ]/g, "r")
-    .replace(/[šś]/g, "s").replace(/[ťţ]/g, "t").replace(/[úůü]/g, "u")
-    .replace(/[ýÿ]/g, "y").replace(/[žź]/g, "z")
-    .replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-}
 
 function toDomain(web: string): string {
   try {
@@ -54,7 +46,7 @@ export async function GET() {
   if (dognetResult.status === "fulfilled") {
     for (const shop of dognetResult.value) {
       if (!shop.name) continue;
-      const slug = toSlug(shop.name);
+      const slug = normalizeShopSlug(shop.name);
       if (seen.has(slug)) continue;
       seen.add(slug);
       result.push({ name: shop.name, slug, category: "Obchod", domain: "" });
@@ -64,7 +56,7 @@ export async function GET() {
   if (ehubResult.status === "fulfilled") {
     for (const shop of ehubResult.value) {
       if (!shop.name || !shop.web) continue;
-      const slug = toSlug(shop.name);
+      const slug = normalizeShopSlug(shop.name);
       if (seen.has(slug)) continue;
       seen.add(slug);
       result.push({

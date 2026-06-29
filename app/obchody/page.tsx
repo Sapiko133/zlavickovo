@@ -1,4 +1,5 @@
 import { getShops } from "@/lib/dognet";
+import { normalizeShopSlug } from "@/lib/slug";
 import { getEhubShops } from "@/lib/ehub";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { getShopDomain } from "@/lib/shop-domains";
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 function shopSlug(name: string) {
-  return name.toLowerCase().replace(/\s+/g, "-").replace(/\./g, "");
+  return normalizeShopSlug(name);
 }
 
 export default async function ObchodyPage() {

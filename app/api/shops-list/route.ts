@@ -1,4 +1,5 @@
 import { getEhubShops } from "@/lib/ehub";
+import { normalizeShopSlug } from "@/lib/slug";
 
 export const revalidate = 86400;
 
@@ -11,15 +12,6 @@ function toDomain(web: string): string {
   }
 }
 
-function toSlug(name: string): string {
-  return name.toLowerCase()
-    .replace(/[áä]/g, "a").replace(/[čć]/g, "c").replace(/[ďđ]/g, "d")
-    .replace(/[éě]/g, "e").replace(/[íî]/g, "i").replace(/[ľĺ]/g, "l")
-    .replace(/[ňń]/g, "n").replace(/[óô]/g, "o").replace(/[řŕ]/g, "r")
-    .replace(/[šś]/g, "s").replace(/[ťţ]/g, "t").replace(/[úůü]/g, "u")
-    .replace(/[ýÿ]/g, "y").replace(/[žź]/g, "z")
-    .replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-}
 
 export async function GET() {
   try {
@@ -28,7 +20,7 @@ export async function GET() {
       .filter(s => s.name && s.web)
       .map(s => ({
         name: s.name,
-        slug: toSlug(s.name),
+        slug: normalizeShopSlug(s.name),
         category: s.category || "Iné",
         domain: toDomain(s.web),
       }));
