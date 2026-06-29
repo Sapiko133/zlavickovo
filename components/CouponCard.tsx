@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
@@ -30,7 +30,9 @@ export default function CouponCard({ coupon, token, sponsored }: {
   const discountPct   = discountMatch ? `${discountMatch[1]}%` : null;
   const typeLabel     = TYPE_LABELS[coupon.type] || "Akcia";
 
-  const handleReveal = () => {
+  const handleReveal = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (link) {
       window.open(link, "_blank", "noopener,noreferrer")
     }
