@@ -94,12 +94,12 @@ export default async function ShopPage({ params }: Props) {
   const isCz = slug.endsWith("-cz");
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const shopName = baseSlug.replace(/-/g, " ");
-  const capitalized = shopName.charAt(0).toUpperCase() + shopName.slice(1);
+  const affialShop = findAffialShop(slug);
+  const capitalized = affialShop?.name ?? (shopName.charAt(0).toUpperCase() + shopName.slice(1));
   const { month, year } = currentMonthYear();
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
   const relatedSlugs = getRelatedShops(baseSlug);
-  const affialShop = findAffialShop(slug);
 
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
