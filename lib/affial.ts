@@ -1,5 +1,8 @@
 import { XMLParser } from "fast-xml-parser";
 import { unstable_cache } from "next/cache";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+
+const affialShopByDomain = new Map(AFFIAL_SHOPS.map(s => [s.domain.toLowerCase(), s.affiliateUrl]));
 
 async function fetchAffialCoupons() {
   try {
@@ -21,18 +24,27 @@ async function fetchAffialCoupons() {
 
     return arr
       .filter((item: any) => item && typeof item === "object")
-      .map((item: any, i: number) => ({
-        id: `affial-${item.id ?? item.coupon_id ?? i}`,
-        title: item.title ?? item.name ?? "",
-        code: item.code ?? item.coupon_code ?? "",
-        discount: item.discount ?? item.value ?? "",
-        description: item.description ?? "",
-        campaign_name: item.offerName ?? item.shop_name ?? item.merchant_name ?? item.campaign_name ?? "",
-        affiliate_link: item.url ?? item.affiliate_url ?? item.link ?? "#",
-        valid_to: item.validTill ?? item.validTo ?? item.valid_to ?? item.expiry_date ?? null,
-        type: 1,
-        source: "affial" as const,
-      }));
+      .map((item: any, i: number) => {
+        const offerDomain = (item.offerName ?? "").toLowerCase();
+        const trackingUrl =
+          affialShopByDomain.get(offerDomain) ??
+          item.affiliate_url ??
+          item.link ??
+          item.url ??
+          "#";
+        return {
+          id: `affial-${item.id ?? item.coupon_id ?? i}`,
+          title: item.title ?? item.name ?? "",
+          code: item.code ?? item.coupon_code ?? "",
+          discount: item.discount ?? item.value ?? "",
+          description: item.description ?? "",
+          campaign_name: item.offerName ?? item.shop_name ?? item.merchant_name ?? item.campaign_name ?? "",
+          affiliate_link: trackingUrl,
+          valid_to: item.validTill ?? item.validTo ?? item.valid_to ?? item.expiry_date ?? null,
+          type: 1,
+          source: "affial" as const,
+        };
+      });
   } catch {
     return [];
   }

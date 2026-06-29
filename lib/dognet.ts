@@ -3,6 +3,7 @@ import { getCjCouponsByShop } from "@/lib/cj";
 import { redis } from "@/lib/redis";
 import { getShopDomain } from "@/lib/shop-domains";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -46,7 +47,12 @@ export async function getCoupons() {
   });
   
   const data = await res.json();
-  return data.data || [];
+  return (data.data || []).map((c: any) => ({
+    ...c,
+    affiliate_link: c.url || c.affiliate_link || "#",
+    title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (c.campaign?.name || "Kupón")),
+    name: c.name || c.title || c.description || "",
+  }));
 }
 
 export async function getCouponsByShop(shopName: string) {
@@ -79,6 +85,8 @@ export async function getCouponsByShop(shopName: string) {
     source: "cj",
   }));
 
+  const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
+
   // Static AFFIAL_COUPONS — match by shop name or domain base
   const affialStatic = AFFIAL_COUPONS
     .filter(c => {
@@ -89,20 +97,23 @@ export async function getCouponsByShop(shopName: string) {
         domainBase.toLowerCase() === lower
       );
     })
-    .map((c, i) => ({
-      id: `affial-static-${c.domain}-${i}`,
-      title: `${c.discount} zľava`,
-      name: `${c.discount} zľava`,
-      code: c.code,
-      type: 1 as const,
-      affiliate_link: `https://${c.domain}`,
-      url: `https://${c.domain}`,
-      valid_to: c.expires !== "neomedzená" ? c.expires : null,
-      campaign: { name: c.shop },
-      campaign_name: c.shop,
-      description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
-      source: "affial-static" as const,
-    }));
+    .map((c, i) => {
+      const trackingUrl = affialShopMap.get(c.domain) ?? `https://${c.domain}`;
+      return {
+        id: `affial-static-${c.domain}-${i}`,
+        title: `${c.discount} zľava`,
+        name: `${c.discount} zľava`,
+        code: c.code,
+        type: 1 as const,
+        affiliate_link: trackingUrl,
+        url: trackingUrl,
+        valid_to: c.expires !== "neomedzená" ? c.expires : null,
+        campaign: { name: c.shop },
+        campaign_name: c.shop,
+        description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
+        source: "affial-static" as const,
+      };
+    });
 
   const seenCodes = new Set(
     [...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
@@ -271,6 +282,7 @@ export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
   } catch {}
 
   // Fallback: AFFIAL_COUPONS that have a % discount
+  const fallbackShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
   const affialDeals: CarouselDeal[] = AFFIAL_COUPONS
     .filter(c => /\d+\s*%/.test(c.discount))
     .slice(0, limit)
@@ -280,7 +292,7 @@ export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
       title: `${c.discount} zľava v ${c.shop}`,
       discount: c.discount,
       color: CAROUSEL_COLORS[i % CAROUSEL_COLORS.length],
-      affiliateUrl: `https://${c.domain}`,
+      affiliateUrl: fallbackShopMap.get(c.domain) ?? `https://${c.domain}`,
     }));
 
   if (affialDeals.length >= 3) {
