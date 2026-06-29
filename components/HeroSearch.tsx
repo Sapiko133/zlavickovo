@@ -149,12 +149,17 @@ export default function HeroSearch() {
                 >
                   {isShop ? (
                     <ShopFavicon domain={s.domain || ""} name={s.name} size={32} />
+                  ) : s.domain ? (
+                    <ShopFavicon domain={s.domain} name={s.name} size={32} />
                   ) : (
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>🔍</div>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: "#f0fdf4", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>📦</div>
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", lineHeight: 1.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                    <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>{s.category}</div>
+                    <div style={{ fontSize: 11, color: "#999", marginTop: 1 }}>
+                      {s.price ? <span style={{ color: "#16A34A", fontWeight: 700 }}>{s.price} · </span> : null}
+                      {s.category}
+                    </div>
                   </div>
                   <span style={{ fontSize: 11, color: "#bbb", flexShrink: 0 }}>{isShop ? "kupóny →" : "hľadať →"}</span>
                 </div>

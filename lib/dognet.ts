@@ -4,7 +4,7 @@ import { redis } from "@/lib/redis";
 import { getShopDomain } from "@/lib/shop-domains";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import { normalizeShopSlug } from "@/lib/slug";
+import { normalizeShopSlug, normalizeShopName } from "@/lib/slug";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -96,14 +96,17 @@ export async function getCouponsByShop(shopName: string) {
 
   const lower = shopName.toLowerCase();
   const shopSlug = normalizeShopSlug(shopName);
+  const shopNorm = normalizeShopName(shopName);
 
   const dognet = dognetAll
     .filter((c: any) => {
       const camName = c.campaign?.name ?? "";
-      // Match by substring (handles "Ejoytablety.cz" when searching "ejoytablety")
+      // "Ejoytablety.cz" contains "ejoytablety"
       if (camName.toLowerCase().includes(lower)) return true;
-      // Match by normalized slug (handles diacritics: "Pôžičky.sk" → "pozicky")
+      // Diacritics: normalizeShopSlug("Pôžičky.sk") === "pozicky"
       if (normalizeShopSlug(camName) === shopSlug) return true;
+      // Strip all non-alphanumeric: "Ejoytablety.cz" → "ejoytablety" === "ejoytablety"
+      if (normalizeShopName(camName) === shopNorm) return true;
       return false;
     })
     .map((c: any) => ({ ...c, source: "dognet" }));

@@ -1,3 +1,12 @@
+/** For exact matching — strips ALL non-alphanumeric chars. "Ejoytablety.cz" → "ejoytablety" */
+export function normalizeShopName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\.(sk|cz|eu|com|net|org|hu|pl|ro|hr|si|bg|fi|se|de)$/i, "")
+    .replace(/\s+(sk|cz|eu|com|net|org|hu|pl|ro|hr|si|bg|fi|se|de)$/i, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
 export function normalizeShopSlug(name: string): string {
   return name
     .toLowerCase()
