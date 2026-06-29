@@ -1,4 +1,4 @@
-import { getCoupons } from "@/lib/dognet";
+import { getCoupons, getCouponsByShop } from "@/lib/dognet";
 import { getEhubCoupons, getEhubShops } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
 
@@ -26,7 +26,23 @@ export async function GET(req: Request) {
     }
   }
 
+  // ?source=shop&slug=ejoytablety — debug getCouponsByShop
+  if (source === "shop") {
+    const slug = searchParams.get("slug") || "ejoytablety";
+    const shopCoupons = await getCouponsByShop(slug).catch(() => []);
+    const allCoupons = await getCoupons().catch(() => []);
+    const dognetMatches = allCoupons.filter((c: any) => c.campaign?.name?.toLowerCase().includes(slug.toLowerCase()));
+    return Response.json({
+      slug,
+      total: shopCoupons.length,
+      dognet_total: allCoupons.length,
+      dognet_matches: dognetMatches.length,
+      sample_campaign_names: allCoupons.slice(0, 10).map((c: any) => c.campaign?.name),
+      coupons: shopCoupons.slice(0, 5),
+    });
+  }
+
   // Default: Dognet
   const coupons = await getCoupons().catch(() => []);
-  return Response.json({ coupons: coupons.slice(0, 5) });
+  return Response.json({ total: coupons.length, coupons: coupons.slice(0, 5) });
 }

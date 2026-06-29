@@ -4,6 +4,7 @@ import { redis } from "@/lib/redis";
 import { getShopDomain } from "@/lib/shop-domains";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { normalizeShopSlug } from "@/lib/slug";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -29,9 +30,18 @@ export async function getToken(): Promise<string> {
   return token;
 }
 
+const COUPONS_CACHE_KEY = "dognet:coupons:v2";
+const COUPONS_CACHE_TTL = 300; // 5 minutes
+
 export async function getCoupons() {
+  // Return cached data if available — shared between homepage and shop pages
+  try {
+    const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
+    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+  } catch {}
+
   const t = await getToken();
-  
+
   const res = await fetch(`${API_BASE}/coupons/filter`, {
     method: "POST",
     headers: {
@@ -45,16 +55,22 @@ export async function getCoupons() {
       expand: "campaign",
       "per-page": 500,
     }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(20000),
   });
-  
+
   const data = await res.json();
-  return (data.data || []).map((c: any) => ({
+  const coupons = (data.data || []).map((c: any) => ({
     ...c,
     affiliate_link: c.url || c.affiliate_link || "#",
     title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (c.campaign?.name || "Kupón")),
     name: c.name || c.title || c.description || "",
   }));
+
+  if (coupons.length > 0) {
+    try { await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons); } catch {}
+  }
+
+  return coupons;
 }
 
 export async function getCouponsByShop(shopName: string) {
@@ -64,9 +80,17 @@ export async function getCouponsByShop(shopName: string) {
     getCjCouponsByShop(shopName).catch(() => []),
   ]);
   const lower = shopName.toLowerCase();
+  const shopSlug = normalizeShopSlug(shopName);
 
   const dognet = dognetAll
-    .filter((c: any) => c.campaign?.name?.toLowerCase().includes(lower))
+    .filter((c: any) => {
+      const camName = c.campaign?.name ?? "";
+      // Match by substring (handles "Ejoytablety.cz" when searching "ejoytablety")
+      if (camName.toLowerCase().includes(lower)) return true;
+      // Match by normalized slug (handles diacritics: "Pôžičky.sk" → "pozicky")
+      if (normalizeShopSlug(camName) === shopSlug) return true;
+      return false;
+    })
     .map((c: any) => ({ ...c, source: "dognet" }));
 
   const affialXml = affialAll.filter((c: any) =>
@@ -162,44 +186,24 @@ export async function getLatestSales(limit = 8) {
 }
 
 
-async function getCouponsForChannel(channelId: number) {
-  try {
-    const t = await getToken();
-    const res = await fetch(`${API_BASE}/coupons/filter`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
-      body: JSON.stringify({
-        ad_channel_id: channelId,
-        from_joined_campaigns: true,
-        filter: [{ validity: { eq: "present" } }],
-        expand: "campaign",
-        "per-page": 500,
-      }),
-    });
-    const data = await res.json();
-    return data.data || [];
-  } catch {
-    return [];
-  }
-}
-
 export async function getShops() {
   try {
     const t = await getToken();
 
-    // Run coupon channel + campaigns endpoint in parallel
-    const [ch1, cmpRes] = await Promise.allSettled([
-      getCouponsForChannel(33415),
+    // Use getCoupons() (cached) + campaigns endpoint in parallel — single source of truth
+    const [couponsRes, cmpRes] = await Promise.allSettled([
+      getCoupons(),
       fetch(`${API_BASE}/campaigns/filter`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
         body: JSON.stringify({ "per-page": 200 }),
+        signal: AbortSignal.timeout(20000),
       }).then(r => r.json()).catch(() => null),
     ]);
 
     // Build map from shops with active coupons (higher priority, have coupon count)
     const map = new Map<string, { id: number; name: string; count: number; logoUrl?: string }>();
-    const coupons = ch1.status === "fulfilled" ? ch1.value : [];
+    const coupons = couponsRes.status === "fulfilled" ? couponsRes.value : [];
     for (const c of coupons) {
       const cam = c.campaign;
       if (!cam?.name) continue;

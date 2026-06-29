@@ -5,26 +5,26 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { getAllPosts } from "@/lib/blog";
 import { LETAKY } from "@/lib/letaky";
+import { normalizeShopSlug } from "@/lib/slug";
 
 export const revalidate = 3600;
 
 const BASE = "https://zlavickovo.sk";
-
-function slug(name: string) {
-  return name.toLowerCase().replace(/\s+/g, "-");
-}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let shops: { id: number; name: string; count: number }[] = [];
   try { shops = await getShops(); } catch {}
 
   // Dognet shop slugs (deduplicated set for later use)
-  const dognetSlugs = new Set(shops.map(s => slug(s.name)));
+  const dognetSlugs = new Set(shops.map(s => normalizeShopSlug(s.name)));
 
-  const shopUrls = shops.flatMap(shop => [
-    { url: `${BASE}/kupony/${slug(shop.name)}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
-    { url: `${BASE}/kupony/${slug(shop.name)}-cz`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.7 },
-  ]);
+  const shopUrls = shops.flatMap(shop => {
+    const sl = normalizeShopSlug(shop.name);
+    return [
+      { url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
+      { url: `${BASE}/kupony/${sl}-cz`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.7 },
+    ];
+  });
 
   // Affial shop slugs not already in Dognet
   const affialShopSlugs = new Set<string>();

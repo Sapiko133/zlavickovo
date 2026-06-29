@@ -47,6 +47,11 @@ export default function AdminTestPage() {
       const res = await fetch("/api/admin/diagnostic");
       const data = await res.json();
       setDognetResult((data.coupons || []).slice(0, 5));
+      if (data.total !== undefined) {
+        setDognetError(null);
+        // Store total count for display
+        (window as any).__dognetTotal = data.total;
+      }
     } catch (e: any) {
       setDognetError(e.message);
     } finally {
