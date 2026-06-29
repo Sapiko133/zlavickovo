@@ -3,7 +3,7 @@
     "coupons": "Coupons",
     "shops": "Shops",
     "leaflets": "Deals",
-    "cashback": "Cashback",
+
     "categories": "Categories ▾",
     "favorites": "Favourites",
     "search_placeholder": "Search shop or coupon...",
@@ -13,7 +13,7 @@
   "hero": {
     "badge": "Search and save",
     "title": "Find out before you buy where to get the best deal.",
-    "subtitle": "Find products, coupons, cashback and deals all in one place.",
+    "subtitle": "Find products, coupons and deals all in one place.",
     "placeholder": "Enter a product or shop, e.g. iPhone 16, Nike, Lidl",
     "search_btn": "Search",
     "popular_label": "Popular:"

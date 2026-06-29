@@ -231,7 +231,7 @@ export default async function Home() {
             Nájdi zľavu ešte pred nákupom
           </h1>
           <p style={{ fontSize: "clamp(14px,1.8vw,17px)", color: "#666", margin: "0 0 28px" }}>
-            Kupóny, cashback a akcie na jednom mieste
+            Kupóny a akcie na jednom mieste
           </p>
           <HeroSearch />
         </div>

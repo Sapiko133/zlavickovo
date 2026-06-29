@@ -2,7 +2,6 @@ import { T } from "@/lib/design-tokens";
 
 const FEATURES = [
   { icon: "🏷️", title: "Kupóny a zľavy",  desc: "Overené kódy pre 100+ obchodov" },
-  { icon: "💰", title: "Cashback",         desc: "Získaj časť peňazí späť" },
   { icon: "📋", title: "Letáky",           desc: "Týždenné letáky supermarketov" },
   { icon: "🛡️", title: "Bezpečné nákupy", desc: "Overené obchody a spoľahlivé odkazy" },
 ];
@@ -70,7 +69,7 @@ export default function Footer() {
                 </span>
               </a>
               <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0, maxWidth: 220 }}>
-                Kupóny, cashback a akcie pre slovenské obchody. Overené kódy denne.
+                Kupóny a akcie pre slovenské obchody. Overené kódy denne.
               </p>
             </div>
 

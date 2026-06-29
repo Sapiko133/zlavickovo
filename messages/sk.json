@@ -3,7 +3,7 @@
     "coupons": "Kupóny",
     "shops": "Obchody",
     "leaflets": "Akcie",
-    "cashback": "Cashback",
+
     "categories": "Kategórie ▾",
     "favorites": "Obľúbené",
     "search_placeholder": "Vyhľadaj obchod alebo kupón...",
@@ -13,7 +13,7 @@
   "hero": {
     "badge": "Vyhľadaj a ušetri",
     "title": "Zisti ešte pred nákupom, kde nakúpiš najvýhodnejšie.",
-    "subtitle": "Nájdi produkty, kupóny, cashback a akcie na jednom mieste.",
+    "subtitle": "Nájdi produkty, kupóny a akcie na jednom mieste.",
     "placeholder": "Zadaj produkt alebo obchod, napr. iPhone 16, Nike, Lidl",
     "search_btn": "Hľadať",
     "popular_label": "Populárne:"

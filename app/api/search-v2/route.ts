@@ -1,4 +1,4 @@
-import { getCoupons, getCashbackShops } from "@/lib/dognet";
+import { getCoupons } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
 import { getEhubCoupons } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
@@ -80,7 +80,6 @@ export async function POST(req: Request) {
   const result: any = {
     query,
     coupons: [],
-    cashback: [],
     letaky: [],
   };
 
@@ -106,15 +105,6 @@ export async function POST(req: Request) {
       link: c.affiliate_link || c.url || "#",
       type: c.type,
     }));
-  } catch {}
-
-  // Cashback
-  try {
-    const shops = await getCashbackShops();
-    const qLow = query.toLowerCase();
-    result.cashback = shops.filter((s: any) =>
-      s.name.toLowerCase().includes(qLow) || getRelevantShops(query).some(r => s.name.toLowerCase().includes(r))
-    ).slice(0, 4);
   } catch {}
 
   // Letáky

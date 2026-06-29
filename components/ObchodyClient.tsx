@@ -89,7 +89,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
             🏪 Všetky obchody
           </h1>
           <p style={{ color: "#666", fontSize: 14, margin: "0 0 20px" }}>
-            {total}+ obchodov so zľavovými kódmi a cashbackom
+            {total}+ obchodov so zľavovými kódmi
           </p>
 
           {/* Search */}
