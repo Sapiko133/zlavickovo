@@ -219,7 +219,7 @@ export default async function ShopPage({ params }: Props) {
                 </span>
                 {affialShop && (
                   <span style={{ fontSize: 12, background: "#FEF9C3", color: "#854D0E", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
-                    💰 Cashback {affialShop.commission}
+                    Provízia {affialShop.commission}
                   </span>
                 )}
                 {isCz && (
@@ -315,7 +315,7 @@ export default async function ShopPage({ params }: Props) {
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>{affialShop.name}</div>
                 <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, marginBottom: 16 }}>
-                  💰 Cashback {affialShop.commission}
+                  Provízia {affialShop.commission}
                 </div>
                 <a href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
                   style={{

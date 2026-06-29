@@ -22,7 +22,6 @@ const TYPE_CONFIG: Record<AkciaType, { label: string; color: string; bg: string;
   doprava:  { label: "Doprava zadarmo", color: "#0065BD", bg: "#dbeafe", emoji: "🚚" },
   vypredaj: { label: "Výpredaj",        color: "#E8001D", bg: "#fee2e2", emoji: "🏷️" },
   welcome:  { label: "Pre nových",      color: "#7C3AED", bg: "#ede9fe", emoji: "🎁" },
-  cashback: { label: "Cashback",        color: "#16a34a", bg: "#dcfce7", emoji: "💰" },
   gift:     { label: "Darček",          color: "#db2777", bg: "#fdf2f8", emoji: "🎀" },
   event:    { label: "Týždenná akcia",  color: "#FF6900", bg: "#fed7aa", emoji: "📅" },
 };
@@ -170,7 +169,7 @@ export default async function AkciePage() {
           </section>
         )}
 
-        {/* Ostatné (welcome, gift, event, cashback) */}
+        {/* Ostatné (welcome, gift, event) */}
         {ostatne.length > 0 && (
           <section style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 19, fontWeight: 800, margin: "0 0 18px", display: "flex", alignItems: "center", gap: 8 }}>

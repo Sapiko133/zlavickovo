@@ -1,4 +1,4 @@
-export type AkciaType = "doprava" | "vypredaj" | "welcome" | "cashback" | "cashback" | "gift" | "event";
+export type AkciaType = "doprava" | "vypredaj" | "welcome" | "gift" | "event";
 
 export interface Akcia {
   id: string;
@@ -7,7 +7,7 @@ export interface Akcia {
   title: string;
   description: string;
   type: AkciaType;
-  badge?: string;          // e.g. "ZADARMO", "-30%", "5% cashback"
+  badge?: string;          // e.g. "ZADARMO", "-30%", "5% zľava"
   affiliateUrl: string;
   validTo?: string;        // ISO date or null = ongoing
   source: "static" | "dognet" | "ehub";

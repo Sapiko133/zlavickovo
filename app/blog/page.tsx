@@ -7,7 +7,7 @@ export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Blog - tipy a návody na šetrenie | Zlavickovo.sk",
-  description: "Články o zľavových kódoch, cashbacku a tipy ako nakupovať lacnejšie. Aktuálne návody pre slovenských zákazníkov.",
+  description: "Články o zľavových kódoch a tipy ako nakupovať lacnejšie. Aktuálne návody pre slovenských zákazníkov.",
   alternates: { canonical: "https://zlavickovo.sk/blog" },
 };
 

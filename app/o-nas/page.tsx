@@ -51,7 +51,7 @@ export default function ONasPage() {
             aj verejne dostupných stránok. Výsledky sú pravidelne aktualizované, aby ste mali vždy k dispozícii platné kupóny.
           </p>
           <p style={{ fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 16px" }}>
-            Okrem promo kódov poskytujeme aj cashback program, letákové akcie supermarketov a prehľad najpopulárnejších
+            Okrem promo kódov poskytujeme letákové akcie supermarketov a prehľad najpopulárnejších
             obchodov na slovenskom a českom trhu.
           </p>
           <p style={{ fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 40px" }}>
