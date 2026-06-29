@@ -12,7 +12,7 @@ let token: string | null = null;
 
 export async function getToken(): Promise<string> {
   if (token) return token;
-  
+
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -20,6 +20,7 @@ export async function getToken(): Promise<string> {
       email: process.env.DOGNET_EMAIL,
       password: process.env.DOGNET_PASSWORD,
     }),
+    signal: AbortSignal.timeout(8000),
   });
   
   const data = await res.json();
@@ -44,6 +45,7 @@ export async function getCoupons() {
       expand: "campaign",
       "per-page": 500,
     }),
+    signal: AbortSignal.timeout(8000),
   });
   
   const data = await res.json();

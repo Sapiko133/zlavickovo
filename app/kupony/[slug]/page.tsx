@@ -18,22 +18,13 @@ type Props = { params: Promise<{ slug: string }> };
 
 const BASE = "https://zlavickovo.sk";
 
+export const dynamic = "force-dynamic";
+
 const TOP_SLUGS = [
   "alza","shein","zalando","mall","notino","sportisimo",
   "ikea","dedoles","martinus","about-you","answear","dr-max",
   "zara","h-m","asos","lidl","kaufland","decathlon","nike","adidas",
 ];
-
-export function generateStaticParams() {
-  const affialSlugs = AFFIAL_SHOPS.map(s =>
-    s.domain.replace(/\.(sk|cz|eu|com)$/, "").replace(/\./g, "-")
-  );
-  const affialCouponSlugs = AFFIAL_COUPONS.map(c =>
-    c.domain.replace(/\.(sk|cz|eu|com)$/, "").replace(/\./g, "-")
-  );
-  const all = [...new Set([...TOP_SLUGS, ...affialSlugs, ...affialCouponSlugs])];
-  return all.map(slug => ({ slug }));
-}
 
 function currentMonthYear() {
   const now = new Date();

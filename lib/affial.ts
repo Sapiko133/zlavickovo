@@ -8,6 +8,7 @@ async function fetchAffialCoupons() {
   try {
     const res = await fetch("https://www.affial.com/kupony_feed.xml", {
       next: { revalidate: 3600 },
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return [];
     const xml = await res.text();
