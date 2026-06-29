@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
 import { T } from "@/lib/design-tokens";
 
@@ -17,7 +17,9 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
   const [revealed, setRevealed] = useState(false);
   const [copied, setCopied]     = useState(false);
 
-  function handleReveal() {
+  function handleReveal(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (coupon.affiliateLink && coupon.affiliateLink !== "#") {
       window.open(coupon.affiliateLink, "_blank", "noopener,noreferrer");
     }

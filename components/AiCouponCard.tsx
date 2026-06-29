@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
 interface Props {
   code: any;
@@ -15,7 +15,9 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
   const link = code.url;
   const codeStr = code.code && code.code !== "AKCIA" ? code.code : null;
 
-  function handleShowCode() {
+  function handleShowCode(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
     if (link) window.open(link, "_blank", "noopener,noreferrer");
     setRevealed(true);
     if (codeStr) {
