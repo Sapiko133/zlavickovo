@@ -37,9 +37,15 @@ export async function getCoupons() {
   // Return cached data if available — shared between homepage and shop pages
   try {
     const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
-  } catch {}
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      console.log("[getCoupons] Cache HIT — kupónov:", cached.length);
+      return cached;
+    }
+  } catch (e: any) {
+    console.warn("[getCoupons] Redis chyba:", e?.message);
+  }
 
+  console.log("[getCoupons] Cache MISS — volám Dognet API...");
   const t = await getToken();
 
   const res = await fetch(`${API_BASE}/coupons/filter`, {
@@ -74,11 +80,20 @@ export async function getCoupons() {
 }
 
 export async function getCouponsByShop(shopName: string) {
+  console.log("[getCouponsByShop] Hľadám kupóny pre:", shopName);
+
   const [dognetAll, affialAll, cjAll] = await Promise.all([
-    getCoupons().catch(() => []),
+    getCoupons().catch((e) => { console.error("[getCouponsByShop] getCoupons() zlyhalo:", e?.message); return []; }),
     getAffialCoupons().catch(() => []),
     getCjCouponsByShop(shopName).catch(() => []),
   ]);
+
+  console.log("[getCouponsByShop] Dognet celkovo kupónov:", dognetAll.length);
+  if (dognetAll.length > 0) {
+    const sampleNames = dognetAll.slice(0, 5).map((c: any) => c.campaign?.name ?? "(no campaign)");
+    console.log("[getCouponsByShop] Prvých 5 campaign.name:", JSON.stringify(sampleNames));
+  }
+
   const lower = shopName.toLowerCase();
   const shopSlug = normalizeShopSlug(shopName);
 
@@ -92,6 +107,8 @@ export async function getCouponsByShop(shopName: string) {
       return false;
     })
     .map((c: any) => ({ ...c, source: "dognet" }));
+
+  console.log("[getCouponsByShop] Dognet matched pre '" + shopName + "':", dognet.length);
 
   const affialXml = affialAll.filter((c: any) =>
     c.campaign_name?.toLowerCase().includes(lower)

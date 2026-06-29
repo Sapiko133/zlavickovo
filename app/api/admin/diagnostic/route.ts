@@ -26,19 +26,36 @@ export async function GET(req: Request) {
     }
   }
 
-  // ?source=shop&slug=ejoytablety — debug getCouponsByShop
+  // ?source=shop&slug=ejoytablety — debug getCouponsByShop (browser-visible)
   if (source === "shop") {
     const slug = searchParams.get("slug") || "ejoytablety";
-    const shopCoupons = await getCouponsByShop(slug).catch(() => []);
     const allCoupons = await getCoupons().catch(() => []);
-    const dognetMatches = allCoupons.filter((c: any) => c.campaign?.name?.toLowerCase().includes(slug.toLowerCase()));
+    const lower = slug.toLowerCase();
+
+    // All unique campaign names from Dognet
+    const campaignNames = [...new Set(allCoupons.map((c: any) => c.campaign?.name).filter(Boolean))] as string[];
+
+    // Which ones match
+    const matched = campaignNames.filter(n =>
+      n.toLowerCase().includes(lower) || n.toLowerCase().replace(/\.(sk|cz|eu|com|net)$/i, "").replace(/\s+(sk|cz)/i, "").replace(/\s+/g, "-") === lower
+    );
+
+    const shopCoupons = await getCouponsByShop(slug).catch(() => []);
+
     return Response.json({
       slug,
-      total: shopCoupons.length,
-      dognet_total: allCoupons.length,
-      dognet_matches: dognetMatches.length,
-      sample_campaign_names: allCoupons.slice(0, 10).map((c: any) => c.campaign?.name),
-      coupons: shopCoupons.slice(0, 5),
+      dognet_total_coupons: allCoupons.length,
+      dognet_unique_campaigns: campaignNames.length,
+      matched_campaigns: matched,
+      result_coupons: shopCoupons.length,
+      result_by_source: {
+        dognet: shopCoupons.filter((c: any) => c.source === "dognet").length,
+        cj: shopCoupons.filter((c: any) => c.source === "cj").length,
+        affial_xml: shopCoupons.filter((c: any) => c.source === "affial").length,
+        affial_static: shopCoupons.filter((c: any) => c.source === "affial-static").length,
+      },
+      // First 20 campaign names for manual inspection
+      sample_campaigns: campaignNames.slice(0, 20),
     });
   }
 
