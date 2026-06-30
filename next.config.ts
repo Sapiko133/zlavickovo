@@ -10,6 +10,10 @@ const withPWA = withPWAInit({
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
-const nextConfig: NextConfig = {};
+const nextConfig: NextConfig = {
+  outputFileTracingIncludes: {
+    "/": ["./public/data/**/*"],
+  },
+};
 
 export default withNextIntl(withPWA(nextConfig));

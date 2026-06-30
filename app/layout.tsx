@@ -1,17 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { NextIntlClientProvider } from "next-intl";
-import { cookies } from "next/headers";
 import Script from "next/script";
 import OneSignalInit from "@/components/OneSignalInit";
 import InstallBanner from "@/components/InstallBanner";
+import IntlProvider from "@/components/IntlProvider";
 import "./globals.css";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-
-const SUPPORTED = ["sk", "cs", "en"] as const;
-type Locale = typeof SUPPORTED[number];
 
 export const viewport: Viewport = { themeColor: "#7C3AED" };
 
@@ -38,28 +34,21 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://zlavickovo.sk"),
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const cookieStore = await cookies();
-  const raw = cookieStore.get("NEXT_LOCALE")?.value ?? "sk";
-  const locale: Locale = (SUPPORTED as readonly string[]).includes(raw)
-    ? (raw as Locale)
-    : "sk";
-  const messages = (await import(`@/messages/${locale}.json`)).default;
-
   return (
     <html
-      lang={locale}
+      lang="sk"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <NextIntlClientProvider messages={messages} locale={locale}>
+        <IntlProvider>
           <OneSignalInit />
           <InstallBanner />
           {children}
-        </NextIntlClientProvider>
+        </IntlProvider>
 
         <Script
           async

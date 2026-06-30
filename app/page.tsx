@@ -8,10 +8,9 @@ import DealsCarousel from "@/components/DealsCarousel";
 import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
-import { getCouponsFeed, getSalesCoupons, getShops } from "@/lib/dognet";
 import type { CarouselDeal } from "@/lib/dognet";
 import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
-import { getEhubShops } from "@/lib/ehub";
+import { getStaticShops, getStaticEhubShops, getStaticSales, getStaticFeed } from "@/lib/static-data";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
@@ -60,26 +59,14 @@ const CATEGORIES = [
   { emoji: "📚", label: "Knihy",       href: "/kategoria/knihy",       color: "#D32F2F", bg: "#fee2e2" },
 ];
 
-export default async function Home() {
+export default function Home() {
+  const dognetShops = getStaticShops();
+  const ehubShops = getStaticEhubShops();
+  const sales = getStaticSales();
+  const feed = getStaticFeed();
+  const latestPosts = getLatestPosts(3);
   let heroItems: { id: string | number; shopName: string; title: string; discount: string | null; link: string }[] = [];
-  let dognetShops: { id: number; name: string; count: number }[] = [];
-  let ehubShops: Awaited<ReturnType<typeof getEhubShops>> = [];
-  let sales: any[] = [];
-  let feed: any[] = [];
-  let latestPosts: any[] = [];
   let carouselDeals: CarouselDeal[] = [];
-
-  try {
-    [dognetShops, ehubShops, sales, feed] = await Promise.all([
-      getShops().catch(() => []),
-      getEhubShops().catch(() => []),
-      getSalesCoupons(20).catch(() => []),
-      getCouponsFeed(9).catch(() => []),
-    ]);
-    latestPosts = getLatestPosts(3);
-  } catch {
-    latestPosts = getLatestPosts(3);
-  }
 
   // Akcie list — rovnaký zdroj ako /akcie stránka
   const seenAkcie = new Set<string>();
