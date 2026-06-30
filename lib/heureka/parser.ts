@@ -29,7 +29,15 @@ export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduc
   }
 
   // Heureka štandard: <SHOP><SHOPITEM>...</SHOPITEM></SHOP>
-  const shopRoot = parsed?.SHOP ?? parsed?.shop ?? parsed;
+  // Niektoré feedy majú RSS wrapper: <rss><SHOP><SHOPITEM>...
+  const shopRoot =
+    parsed?.SHOP ??
+    parsed?.shop ??
+    parsed?.rss?.SHOP ??
+    parsed?.rss?.shop ??
+    parsed?.RSS?.SHOP ??
+    parsed?.RSS?.shop ??
+    parsed;
   const rawItems = shopRoot?.SHOPITEM ?? shopRoot?.shopitem;
   if (!rawItems) return [];
 

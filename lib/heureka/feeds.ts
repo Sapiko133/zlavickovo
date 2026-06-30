@@ -2,15 +2,8 @@ import type { HkFeedDef } from "./types";
 
 const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "";
 
-// Pilotné 3 Heureka XML feedy — affiliate URL z existujúceho Affial nastavenia
+// Pilotné 2 Heureka XML feedy (kosmetikomat vyradený — google.xml nie je Heureka formát)
 const _FEEDS: HkFeedDef[] = [
-  {
-    id: "kosmetikomat-sk",
-    url: "https://www.kosmetikomat.sk/google.xml?hash=M2iNmNTwx981bVRSOfCjF5uo",
-    domain: "kosmetikomat.sk",
-    category: "krasa",
-    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=7f1e0945",
-  },
   {
     id: "e-matrac-sk",
     url: "https://www.e-matrac.sk/heureka/export/products.xml",
