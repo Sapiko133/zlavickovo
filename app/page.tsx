@@ -63,8 +63,6 @@ export default function Home() {
   const sales = getStaticSales();
   const feed = getStaticFeed();
   const latestPosts = getLatestPosts(3);
-  let heroItems: { id: string | number; shopName: string; title: string; discount: string | null; link: string }[] = [];
-
   // Akcie list — rovnaký zdroj ako /akcie stránka
   const seenAkcie = new Set<string>();
   const akcieList = [
@@ -75,15 +73,6 @@ export default function Home() {
     seenAkcie.add(a.id);
     return true;
   });
-
-  // Ľavý panel "Najnovšie akcie"
-  heroItems = akcieList.slice(0, 8).map(a => ({
-    id: a.id,
-    shopName: a.shopName,
-    title: a.title,
-    discount: a.badge ?? null,
-    link: a.affiliateUrl,
-  }));
 
   // Merge shops: Dognet > eHub > AFFIAL
   const seenShops = new Set<string>();
@@ -162,10 +151,6 @@ export default function Home() {
       <style>{`
         .shop-card-hp { transition: transform .18s ease, box-shadow .18s ease, border-color .15s; }
         .shop-card-hp:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important; border-color: #22C55E !important; }
-        .cat-chip-hp { transition: transform .15s, box-shadow .15s; }
-        .cat-chip-hp:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.10) !important; }
-        .deal-row { transition: background .1s; border-radius: 10px; }
-        .deal-row:hover { background: #f5f5f7 !important; }
         .coupon-grid-card { transition: transform .18s ease; }
         .coupon-grid-card:hover { transform: translateY(-2px); }
         .akcia-card { transition: transform .18s ease, border-color .15s; }
@@ -177,10 +162,10 @@ export default function Home() {
         .see-all { font-size: 13px; color: #22C55E; text-decoration: none; font-weight: 600; }
         .see-all:hover { text-decoration: underline; }
         .sec-title { font-size: 18px; font-weight: 800; color: #1d1d1f; margin: 0; letter-spacing: -0.3px; }
+        .cat-pill:hover { background: #22C55E !important; color: #fff !important; border-color: #22C55E !important; }
         @media(max-width:900px) {
-          .home-3col { flex-direction: column !important; }
+          .home-2col { flex-direction: column !important; }
           .home-side { display: none !important; }
-          .home-center { width: 100% !important; }
           .shops-grid-hp { grid-template-columns: repeat(3,1fr) !important; }
           .coupons-grid { grid-template-columns: repeat(2,1fr) !important; }
           .akcie-grid { grid-template-columns: repeat(2,1fr) !important; }
@@ -223,8 +208,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── HERO — motto + search + Heureka ── */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "44px 24px 40px", textAlign: "center" }}>
+      {/* ── HERO — motto + search ── */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "44px 24px 36px", textAlign: "center" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <h1 style={{ fontSize: "clamp(22px,4vw,40px)", fontWeight: 800, color: "#1d1d1f", letterSpacing: "-1px", lineHeight: 1.15, margin: "0 0 10px" }}>
             Nájdi zľavu ešte pred nákupom
@@ -236,54 +221,38 @@ export default function Home() {
         </div>
       </div>
 
-      {/* ── 3-COLUMN LAYOUT ── */}
-      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 20px 0" }}>
-        <div className="home-3col" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-
-          {/* LEFT 20% — Najnovšie akcie */}
-          <div className="home-side" style={{ width: 210, flexShrink: 0 }}>
-            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", marginBottom: 12 }}>🔥 Najnovšie akcie</div>
-              {heroItems.length === 0 ? (
-                <div style={{ fontSize: 12, color: "#aaa", textAlign: "center", padding: "16px 0" }}>Žiadne akcie</div>
-              ) : heroItems.map((item, i) => (
-                <a key={i} href={item.link} target="_blank" rel="nofollow noopener noreferrer"
-                  className="deal-row"
-                  style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "8px 6px", margin: "0 -6px", textDecoration: "none", borderBottom: i < heroItems.length - 1 ? "1px solid #f0f0f0" : "none" }}>
-                  <ShopFavicon domain={getShopDomain(item.shopName) || ""} name={item.shopName} size={28} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: "#1d1d1f", marginBottom: 2 }}>{item.shopName}</div>
-                    <div style={{ fontSize: 10, color: "#666", lineHeight: 1.4, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any }}>
-                      {item.title}
-                    </div>
-                    {item.discount && (
-                      <span style={{ display: "inline-block", marginTop: 3, fontSize: 10, fontWeight: 800, color: "#fff", background: "#F97316", borderRadius: 4, padding: "1px 5px" }}>
-                        {item.discount}
-                      </span>
-                    )}
-                  </div>
-                </a>
-              ))}
-              <a href="/akcie" style={{ display: "block", marginTop: 12, textAlign: "center", padding: "7px 10px", borderRadius: 8, background: "#f5f5f7", color: "#22C55E", fontSize: 11, fontWeight: 700, textDecoration: "none" }}>
-                Všetky akcie →
+      {/* ── CATEGORY PILLS ── */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "12px 0" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px" }}>
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", scrollbarWidth: "none", paddingBottom: 2, msOverflowStyle: "none" as any }}>
+            <a href="/kupony" className="cat-pill" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 16px", borderRadius: 100, border: "1.5px solid #22C55E", background: "#22C55E", color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}>
+              Všetky kupóny
+            </a>
+            {CATEGORIES.map(cat => (
+              <a key={cat.label} href={cat.href} className="cat-pill" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 16px", borderRadius: 100, border: `1.5px solid ${cat.color}33`, background: cat.bg, color: cat.color, fontSize: 13, fontWeight: 600, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap", transition: "all .15s" }}>
+                <span style={{ fontSize: 14 }}>{cat.emoji}</span> {cat.label}
               </a>
-            </div>
+            ))}
           </div>
+        </div>
+      </div>
 
-          {/* CENTER 60% — Shops + Categories */}
-          <div className="home-center" style={{ flex: 1, minWidth: 0 }}>
+      {/* ── 2-COLUMN LAYOUT ── */}
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "28px 20px 0" }}>
+        <div className="home-2col" style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
-            {/* Popular shops */}
+          {/* MAIN — Popular shops */}
+          <div style={{ flex: 1, minWidth: 0 }}>
             {allShops.length > 0 && (
               <div style={{ marginBottom: 24 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
                   <h2 className="sec-title">🏪 Populárne obchody</h2>
                   <a href="/obchody" className="see-all">Všetky →</a>
                 </div>
-                <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-                  {allShops.slice(0, 12).map(shop => (
+                <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 10 }}>
+                  {allShops.slice(0, 15).map(shop => (
                     <a key={shop.slug} href={`/kupony/${shop.slug}`} className="shop-card-hp"
-                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "14px 8px 12px", borderRadius: 12, background: "#fff", border: "1.5px solid #e8e8e8", textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
+                      style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 8px 14px", borderRadius: 14, background: "#fff", border: "1.5px solid #e8e8e8", textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
                       <ShopFavicon domain={shop.domain || getShopDomain(shop.name) || ""} name={shop.name} size={40} />
                       <div style={{ textAlign: "center" }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.25 }}>
@@ -298,27 +267,10 @@ export default function Home() {
                 </div>
               </div>
             )}
-
-            {/* Categories grid */}
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <h2 className="sec-title">🗂️ Kategórie</h2>
-                <a href="/kategoria" className="see-all">Všetky →</a>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 8 }}>
-                {CATEGORIES.map(cat => (
-                  <a key={cat.label} href={cat.href} className="cat-chip-hp"
-                    style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 6px", borderRadius: 12, textDecoration: "none", background: cat.bg, border: `1px solid ${cat.color}22`, boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
-                    <span style={{ fontSize: 26, lineHeight: 1 }}>{cat.emoji}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: cat.color, textAlign: "center", lineHeight: 1.2 }}>{cat.label}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
           </div>
 
-          {/* RIGHT 20% — Najnovšie kupóny */}
-          <div className="home-side" style={{ width: 210, flexShrink: 0 }}>
+          {/* RIGHT SIDEBAR — Najnovšie kupóny */}
+          <div className="home-side" style={{ width: 220, flexShrink: 0 }}>
             <HomeCouponSidebar coupons={sidebarCoupons} />
           </div>
         </div>
