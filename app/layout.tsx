@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import OneSignalInit from "@/components/OneSignalInit";
-import InstallBanner from "@/components/InstallBanner";
 import IntlProvider from "@/components/IntlProvider";
 import "./globals.css";
 
@@ -19,9 +18,6 @@ export const metadata: Metadata = {
   description:
     "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
   keywords: ["zlavove kody", "kupony", "zlava", "zlavickovo", "zlavovy kod", "Slovakia"],
-  manifest: "/manifest.json",
-  appleWebApp: { capable: true, title: "Zlavickovo", statusBarStyle: "default" },
-  icons: { apple: [{ url: "/icon-192.png", sizes: "192x192" }] },
   openGraph: { siteName: "Zlavickovo", locale: "sk_SK", type: "website" },
   alternates: {
     canonical: "https://zlavickovo.sk",
@@ -46,7 +42,6 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <IntlProvider>
           <OneSignalInit />
-          <InstallBanner />
           {children}
         </IntlProvider>
 
