@@ -4,11 +4,9 @@ import { getShopDomain } from "@/lib/shop-domains";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
-import DealsCarousel from "@/components/DealsCarousel";
 import HeroSearch from "@/components/HeroSearch";
 import CouponCard from "@/components/CouponCard";
 import HomeCouponSidebar, { type SidebarCoupon } from "@/components/HomeCouponSidebar";
-import type { CarouselDeal } from "@/lib/dognet";
 import { STATIC_AKCIE, dognetCouponToAkcia } from "@/lib/akcie";
 import { getStaticShops, getStaticEhubShops, getStaticSales, getStaticFeed } from "@/lib/static-data";
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
@@ -66,7 +64,6 @@ export default function Home() {
   const feed = getStaticFeed();
   const latestPosts = getLatestPosts(3);
   let heroItems: { id: string | number; shopName: string; title: string; discount: string | null; link: string }[] = [];
-  let carouselDeals: CarouselDeal[] = [];
 
   // Akcie list — rovnaký zdroj ako /akcie stránka
   const seenAkcie = new Set<string>();
@@ -78,16 +75,6 @@ export default function Home() {
     seenAkcie.add(a.id);
     return true;
   });
-
-  // Carousel — jedna karta = jedna akcia
-  carouselDeals = akcieList.slice(0, 7).map(a => ({
-    shop: a.shopName,
-    domain: a.domain,
-    title: a.title,
-    discount: a.badge ?? "",
-    color: "#22C55E",
-    affiliateUrl: a.affiliateUrl,
-  }));
 
   // Ľavý panel "Najnovšie akcie"
   heroItems = akcieList.slice(0, 8).map(a => ({
@@ -209,8 +196,32 @@ export default function Home() {
 
       <Nav />
 
-      {/* ── CAROUSEL — full-width ── */}
-      <DealsCarousel initialDeals={carouselDeals} />
+      {/* ── NAJNOVŠIE AKCIE — horizontálny scroll ── */}
+      {akcieList.length > 0 && (
+        <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "14px 0" }}>
+          <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 20px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "#1d1d1f", whiteSpace: "nowrap" }}>🔥 Najnovšie akcie</span>
+              <a href="/akcie" style={{ fontSize: 12, color: "#22C55E", fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap" }}>Všetky →</a>
+            </div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+              {akcieList.slice(0, 10).map((a, i) => (
+                <a key={i} href={a.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
+                  style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, padding: "8px 12px", borderRadius: 10, border: "1.5px solid #e8e8e8", textDecoration: "none", background: "#fafafa", minWidth: 160, maxWidth: 200 }}>
+                  <ShopFavicon domain={a.domain || getShopDomain(a.shopName) || ""} name={a.shopName} size={28} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: "#1d1d1f", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.shopName}</div>
+                    <div style={{ fontSize: 10, color: "#555", overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, lineHeight: 1.35 }}>{a.title}</div>
+                  </div>
+                  {a.badge && (
+                    <span style={{ fontSize: 10, fontWeight: 800, color: "#fff", background: "#22C55E", borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap", flexShrink: 0 }}>{a.badge}</span>
+                  )}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO — motto + search + Heureka ── */}
       <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "44px 24px 40px", textAlign: "center" }}>
