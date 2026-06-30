@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Image from "next/image";
 
 const COLORS = ["#E8001D","#0065BD","#00A551","#FF6900","#7B2FBE","#22C55E","#D32F2F","#FF4081","#006A35","#003580"];
 
@@ -26,11 +27,12 @@ export default function ShopFavicon({ domain, name, size = 40 }: Props) {
   }
 
   return (
-    <img
+    <Image
       src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
       alt={name}
       width={size}
       height={size}
+      unoptimized
       style={{ borderRadius: 8, objectFit: "contain", flexShrink: 0 }}
       onError={() => setError(true)}
     />

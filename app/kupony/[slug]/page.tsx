@@ -2,6 +2,8 @@ import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop, AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { getStaticShops } from "@/lib/static-data";
+import { normalizeShopSlug } from "@/lib/slug";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
@@ -18,13 +20,30 @@ type Props = { params: Promise<{ slug: string }> };
 
 const BASE = "https://zlavickovo.sk";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 const TOP_SLUGS = [
   "alza","shein","zalando","mall","notino","sportisimo",
   "ikea","dedoles","martinus","about-you","answear","dr-max",
   "zara","h-m","asos","lidl","kaufland","decathlon","nike","adidas",
 ];
+
+export async function generateStaticParams() {
+  const dognetShops = getStaticShops();
+  const seen = new Set<string>(TOP_SLUGS);
+  const params = TOP_SLUGS.map(s => ({ slug: s }));
+
+  for (const shop of dognetShops) {
+    if (params.length >= 50) break;
+    const slug = normalizeShopSlug(shop.name);
+    if (slug && !seen.has(slug)) {
+      seen.add(slug);
+      params.push({ slug });
+    }
+  }
+
+  return params;
+}
 
 function currentMonthYear() {
   const now = new Date();
