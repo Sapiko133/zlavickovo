@@ -1,5 +1,7 @@
 import { normalizeShopSlug } from "@/lib/slug";
 
+const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "";
+
 export interface AffialShop {
   name: string;
   domain: string;
@@ -8,7 +10,7 @@ export interface AffialShop {
   category: string;
 }
 
-export const AFFIAL_SHOPS: AffialShop[] = [
+const _SHOPS: AffialShop[] = [
   { name: "Raciolka.cz", domain: "raciolka.cz", affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=3843b610", commission: "2.8%", category: "zdravie" },
   { name: "Nechtovyraj.sk", domain: "nechtovyraj.sk", affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=93b39261", commission: "6%", category: "krasa" },
   { name: "Togga.cz", domain: "togga.cz", affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=6c0959fa", commission: "21%", category: "ine" },
@@ -46,6 +48,11 @@ export const AFFIAL_SHOPS: AffialShop[] = [
   { name: "Kloubus.cz", domain: "kloubus.cz", affiliateUrl: "https://www.kloubus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=e66f632e", commission: "20%", category: "zdravie" },
   { name: "Apollo Store", domain: "apollostore.com", affiliateUrl: "https://ehub.cz/system/scripts/click.php?a_aid=85c7b80f&a_bid=a883bbdd", commission: "12%", category: "byvanie" },
 ];
+
+export const AFFIAL_SHOPS: AffialShop[] = _SHOPS.map((s) => ({
+  ...s,
+  affiliateUrl: s.affiliateUrl.replace("6202d95ce406b", AFFIAL_AID),
+}));
 
 /** Nájde Affial obchod podľa URL slug (kosmetikomat.sk → kosmetikomat) */
 export function findAffialShop(slug: string): AffialShop | undefined {

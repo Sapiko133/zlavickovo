@@ -8,6 +8,8 @@ import { getEhubCoupons } from "@/lib/ehub";
 import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { notFound } from "next/navigation";
+import { getProductsByHkCategory, toProductSlug, formatPrice } from "@/lib/heureka/query";
+import type { HkProduct } from "@/lib/heureka/types";
 
 export const revalidate = 3600;
 
@@ -78,6 +80,12 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
   // Get Affial shops for this category
   const affialForCat = AFFIAL_SHOPS.filter(s => s.category === slug || s.category === cat.slug);
+
+  // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
+  const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
+  const hkProducts: HkProduct[] = PILOT_CATS.has(slug)
+    ? await getProductsByHkCategory(slug, 8).catch(() => [])
+    : [];
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -237,6 +245,62 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             </div>
           )}
         </section>
+
+        {/* Produkty z Heureka DB */}
+        {hkProducts.length > 0 && (
+          <section style={{ marginTop: 48 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#1d1d1f" }}>
+                🛍️ Produkty v kategórii {cat.label}
+              </h2>
+              <a
+                href={`/produkty?kategoria=${slug}`}
+                style={{ fontSize: 13, color: cat.color, fontWeight: 600, textDecoration: "none" }}
+              >
+                Všetky produkty →
+              </a>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
+              {hkProducts.map((p: HkProduct) => {
+                const pSlug = toProductSlug(p.name, p.id);
+                const pPrice = formatPrice(p.price);
+                return (
+                  <a
+                    key={p.id}
+                    href={`/produkt/${pSlug}`}
+                    style={{
+                      display: "flex", flexDirection: "column",
+                      background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8",
+                      textDecoration: "none", color: "#1d1d1f", overflow: "hidden",
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+                    }}
+                  >
+                    <div style={{ aspectRatio: "1", background: "#f8f9fa", display: "flex", alignItems: "center", justifyContent: "center", padding: 8 }}>
+                      {p.img_url ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.img_url} alt={p.name} loading="lazy" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
+                      ) : (
+                        <ShopFavicon domain={p.domain} name={p.domain} size={36} />
+                      )}
+                    </div>
+                    <div style={{ padding: "10px 12px 12px" }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: "#1d1d1f", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden", marginBottom: 6 }}>
+                        {p.name}
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        {pPrice ? (
+                          <span style={{ fontSize: 13, fontWeight: 800, color: "#22C55E" }}>{pPrice}</span>
+                        ) : (
+                          <span style={{ fontSize: 11, color: "#aaa" }}>Cena na webe</span>
+                        )}
+                      </div>
+                    </div>
+                  </a>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Link to all coupons */}
         <div style={{ marginTop: 32, display: "flex", gap: 12, flexWrap: "wrap" }}>

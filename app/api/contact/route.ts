@@ -5,7 +5,7 @@ export async function POST(req: Request) {
       return Response.json({ ok: false, error: "Chýbajúce polia" }, { status: 400 });
     }
 
-    const adminEmail = process.env.ADMIN_EMAIL || "mirosamud@gmail.com";
+    const adminEmail = process.env.ADMIN_EMAIL ?? "";
     const resendKey = process.env.RESEND_API_KEY;
     const body = `Nová správa z formulára Inzercia:\n\nFirma: ${company}\nEmail: ${email}\nWeb: ${website || "—"}\n\nSpráva:\n${message}`;
 
