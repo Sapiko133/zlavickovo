@@ -51,14 +51,7 @@ export default function RootLayout({
         </IntlProvider>
 
         <Script
-          async
           src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
-          strategy="lazyOnload"
-        />
-
-        <Script
-          async
-          src="https://cse.google.com/cse.js?cx=5195c8422613748fc"
           strategy="lazyOnload"
         />
 

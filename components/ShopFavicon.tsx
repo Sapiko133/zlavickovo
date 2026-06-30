@@ -33,6 +33,8 @@ export default function ShopFavicon({ domain, name, size = 40 }: Props) {
       width={size}
       height={size}
       unoptimized
+      loading="lazy"
+      decoding="async"
       style={{ borderRadius: 8, objectFit: "contain", flexShrink: 0 }}
       onError={() => setError(true)}
     />
