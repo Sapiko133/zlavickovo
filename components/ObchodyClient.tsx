@@ -9,6 +9,7 @@ export interface ShopItem {
   domain: string;
   count?: number;
   commission?: string;
+  logoUrl?: string;
   source: "dognet" | "ehub" | "affial";
 }
 
@@ -244,7 +245,7 @@ function ShopCard({ shop }: { shop: ShopItem }) {
         transition: "border-color 0.15s, box-shadow 0.15s, transform 0.15s",
       }}
     >
-      <ShopFavicon domain={shop.domain} name={shop.name} size={44} />
+      <ShopFavicon domain={shop.domain} name={shop.name} size={44} logoUrl={shop.logoUrl} />
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.3, wordBreak: "break-word" }}>
           {shop.name}

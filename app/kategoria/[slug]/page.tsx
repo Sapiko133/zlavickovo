@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import CouponCard from "@/components/CouponCard";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+import { normalizeShopSlug } from "@/lib/slug";
 import { getCoupons } from "@/lib/dognet";
 import { getEhubCoupons } from "@/lib/ehub";
 import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
@@ -199,7 +200,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
             {/* Affial shops for this category */}
             {affialForCat.map(shop => {
-              const href = `/kupony/${shop.domain.replace(".", "-")}`;
+              const href = `/kupony/${normalizeShopSlug(shop.domain)}`;
               return (
                 <a
                   key={shop.domain}

@@ -4,6 +4,6 @@
     { "path": "/api/cron/push-leaflet",            "schedule": "0 8 * * 1" },
     { "path": "/api/cron/import-feeds",            "schedule": "0 6 * * *" },
     { "path": "/api/cron/import-heureka",          "schedule": "0 7 * * *" },
-    { "path": "/api/cron/refresh-affiliate-cache", "schedule": "30 * * * *" }
+    { "path": "/api/cron/refresh-affiliate-cache", "schedule": "0 0 * * *" }
   ]
 }

@@ -21,7 +21,7 @@ function shopSlug(name: string) {
 }
 
 export default async function ObchodyPage() {
-  let dognetShops: { id: number; name: string; count: number }[] = [];
+  let dognetShops: { id: number; name: string; count: number; logoUrl?: string }[] = [];
   let ehubShops: Awaited<ReturnType<typeof getEhubShops>> = [];
 
   try {
@@ -43,7 +43,7 @@ export default async function ObchodyPage() {
     seenNames.add(key);
     seenSlugs.add(slug);
     const domain = getShopDomain(s.name) || `${slug}.sk`;
-    allShops.push({ name: s.name, slug, domain, count: s.count || undefined, source: "dognet" });
+    allShops.push({ name: s.name, slug, domain, count: s.count || undefined, logoUrl: s.logoUrl || undefined, source: "dognet" });
   }
 
   // 2. eHub
@@ -58,7 +58,7 @@ export default async function ObchodyPage() {
     seenNames.add(key);
     seenSlugs.add(slug);
     const domain = rawDomain || getShopDomain(s.name) || `${slug}.sk`;
-    allShops.push({ name: s.name, slug, domain, commission: s.commission, source: "ehub" });
+    allShops.push({ name: s.name, slug, domain, commission: s.commission, logoUrl: s.logoUrl || undefined, source: "ehub" });
   }
 
   // 3. Affial (static, has domain + commission)

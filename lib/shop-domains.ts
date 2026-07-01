@@ -80,7 +80,9 @@ export function getShopDomain(name: string): string | null {
   if (DOMAIN_MAP[deHyphen]) return DOMAIN_MAP[deHyphen];
 
   // Slug-based TLD detection: "kosmetikomat-sk" → "kosmetikomat.sk"
-  const slugTld = key.match(/^(.+?)-(sk|cz|eu|com|de|pl|hu|at|co|net|org)$/);
+  // Also handles space form: "shox sk" → treat as "shox-sk" → "shox.sk"
+  const slugTldKey = key.includes(" ") ? key.replace(/\s+/g, "-") : key;
+  const slugTld = slugTldKey.match(/^(.+?)-(sk|cz|eu|com|de|pl|hu|at|co|net|org)$/);
   if (slugTld) return `${slugTld[1]}.${slugTld[2]}`;
 
   return null;
