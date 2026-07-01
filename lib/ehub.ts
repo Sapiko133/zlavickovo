@@ -3,7 +3,6 @@ import { redis } from "@/lib/redis";
 const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v1";
 const COUPONS_CACHE_TTL = 3600;
-const RENDER_TIMEOUT_MS = 5000;
 const FETCH_TIMEOUT_MS = 10000;
 
 function getCredentials() {
@@ -61,29 +60,28 @@ async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
   }));
 }
 
+// Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 export async function getEhubCoupons(): Promise<EhubCoupon[]> {
   try {
     const cached = await redis.get<EhubCoupon[]>(COUPONS_CACHE_KEY);
     if (cached && Array.isArray(cached) && cached.length > 0) return cached;
   } catch {}
+  return [];
+}
 
-  const fetchAndCache = _fetchEhubCoupons()
-    .then(async (coupons) => {
-      if (coupons.length > 0) {
-        try { await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons); } catch {}
-      }
-      return coupons;
-    })
-    .catch((err: unknown) => {
-      console.error("[ehub] getEhubCoupons zlyhalo:", err instanceof Error ? err.message : err);
-      return [] as EhubCoupon[];
-    });
-
-  const renderDeadline = new Promise<EhubCoupon[]>((resolve) =>
-    setTimeout(() => resolve([]), RENDER_TIMEOUT_MS)
-  );
-
-  return Promise.race([fetchAndCache, renderDeadline]);
+// Called only from the cron endpoint — allowed to be slow.
+export async function refreshEhubCache(): Promise<{ count: number; error?: string }> {
+  try {
+    const coupons = await _fetchEhubCoupons();
+    if (coupons.length > 0) {
+      await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons);
+    }
+    return { count: coupons.length };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ehub] refreshEhubCache zlyhalo:", msg);
+    return { count: 0, error: msg };
+  }
 }
 
 export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon[]> {
@@ -125,27 +123,26 @@ async function _fetchEhubShops(): Promise<EhubShop[]> {
 const SHOPS_CACHE_KEY = "ehub:shops:v1";
 const SHOPS_CACHE_TTL = 7200;
 
+// Read-only: returns cached shops or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 export async function getEhubShops(): Promise<EhubShop[]> {
   try {
     const cached = await redis.get<EhubShop[]>(SHOPS_CACHE_KEY);
     if (cached && Array.isArray(cached) && cached.length > 0) return cached;
   } catch {}
+  return [];
+}
 
-  const fetchAndCache = _fetchEhubShops()
-    .then(async (shops) => {
-      if (shops.length > 0) {
-        try { await redis.setex(SHOPS_CACHE_KEY, SHOPS_CACHE_TTL, shops); } catch {}
-      }
-      return shops;
-    })
-    .catch((err: unknown) => {
-      console.error("[ehub] getEhubShops zlyhalo:", err instanceof Error ? err.message : err);
-      return [] as EhubShop[];
-    });
-
-  const renderDeadline = new Promise<EhubShop[]>((resolve) =>
-    setTimeout(() => resolve([]), RENDER_TIMEOUT_MS)
-  );
-
-  return Promise.race([fetchAndCache, renderDeadline]);
+// Called only from the cron endpoint — allowed to be slow.
+export async function refreshEhubShopsCache(): Promise<{ count: number; error?: string }> {
+  try {
+    const shops = await _fetchEhubShops();
+    if (shops.length > 0) {
+      await redis.setex(SHOPS_CACHE_KEY, SHOPS_CACHE_TTL, shops);
+    }
+    return { count: shops.length };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ehub] refreshEhubShopsCache zlyhalo:", msg);
+    return { count: 0, error: msg };
+  }
 }

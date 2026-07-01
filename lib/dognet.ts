@@ -31,8 +31,7 @@ export async function getToken(): Promise<string> {
 }
 
 const COUPONS_CACHE_KEY = "dognet:coupons:v2";
-const COUPONS_CACHE_TTL = 3600; // 1 hour — was 5 min, caused 21s block every 5 min
-const COUPONS_RENDER_TIMEOUT = 5000; // max ms render waits on Dognet cache miss
+const COUPONS_CACHE_TTL = 3600;
 
 async function _fetchDognetCoupons(): Promise<any[]> {
   const t = await getToken();
@@ -60,34 +59,28 @@ async function _fetchDognetCoupons(): Promise<any[]> {
   }));
 }
 
+// Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 export async function getCoupons(): Promise<any[]> {
-  // Fast path: Redis cache hit (shared between homepage and shop/category pages)
   try {
     const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return cached;
-    }
+    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
   } catch {}
+  return [];
+}
 
-  // Cache miss — fetch Dognet but never block render longer than COUPONS_RENDER_TIMEOUT.
-  // The fetch continues in background after the deadline and populates Redis for next request.
-  const fetchAndCache = _fetchDognetCoupons()
-    .then(async (coupons) => {
-      if (coupons.length > 0) {
-        try { await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons); } catch {}
-      }
-      return coupons;
-    })
-    .catch((err: unknown) => {
-      console.error("[dognet] getCoupons zlyhalo:", err instanceof Error ? err.message : err);
-      return [] as any[];
-    });
-
-  const renderDeadline = new Promise<any[]>((resolve) =>
-    setTimeout(() => resolve([]), COUPONS_RENDER_TIMEOUT)
-  );
-
-  return Promise.race([fetchAndCache, renderDeadline]);
+// Called only from the cron endpoint — allowed to be slow.
+export async function refreshDognetCache(): Promise<{ count: number; error?: string }> {
+  try {
+    const coupons = await _fetchDognetCoupons();
+    if (coupons.length > 0) {
+      await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons);
+    }
+    return { count: coupons.length };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[dognet] refreshDognetCache zlyhalo:", msg);
+    return { count: 0, error: msg };
+  }
 }
 
 export async function getCouponsByShop(shopName: string) {
