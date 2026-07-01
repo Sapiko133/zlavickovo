@@ -41,13 +41,13 @@ export async function getProducts(
     const sql = getDb();
     if (category) {
       const [rows, countRows] = await Promise.all([
-        sql`SELECT * FROM hk_products WHERE category = ${category} ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
+        sql`SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products WHERE category = ${category} ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
         sql`SELECT COUNT(*)::int AS total FROM hk_products WHERE category = ${category}`,
       ]);
       return { products: rows as HkProduct[], total: (countRows[0] as any).total ?? 0 };
     }
     const [rows, countRows] = await Promise.all([
-      sql`SELECT * FROM hk_products ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      sql`SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
       sql`SELECT COUNT(*)::int AS total FROM hk_products`,
     ]);
     return { products: rows as HkProduct[], total: (countRows[0] as any).total ?? 0 };
@@ -61,7 +61,8 @@ export async function getProductsByDomain(domain: string, limit = 12): Promise<H
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT * FROM hk_products WHERE domain = ${domain}
+      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      FROM hk_products WHERE domain = ${domain}
       ORDER BY updated_at DESC LIMIT ${limit}
     `;
     return rows as HkProduct[];
@@ -79,7 +80,8 @@ export async function getProductsByHkCategory(
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT * FROM hk_products WHERE category = ${hkCategorySlug}
+      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      FROM hk_products WHERE category = ${hkCategorySlug}
       ORDER BY updated_at DESC LIMIT ${limit}
     `;
     return rows as HkProduct[];
@@ -93,7 +95,8 @@ export async function getRelatedProducts(product: HkProduct, limit = 4): Promise
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT * FROM hk_products
+      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      FROM hk_products
       WHERE domain = ${product.domain} AND id != ${product.id}
       ORDER BY updated_at DESC LIMIT ${limit}
     `;

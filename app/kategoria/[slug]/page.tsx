@@ -60,10 +60,20 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   const year = getYear();
   const faq = getCategoryFAQ(cat);
 
-  // Fetch coupons
+  // Get Affial shops for this category
+  const affialForCat = AFFIAL_SHOPS.filter(s => s.category === slug || s.category === cat.slug);
+
+  // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
+  const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
+
+  // Parallelizovane: kupony (external APIs) + produkty (DB) naraz
+  const [[dognet, ehub], hkProducts] = await Promise.all([
+    Promise.allSettled([getCoupons(), getEhubCoupons()]),
+    PILOT_CATS.has(slug) ? getProductsByHkCategory(slug, 8).catch(() => []) : Promise.resolve<HkProduct[]>([]),
+  ]);
+
   let coupons: any[] = [];
   try {
-    const [dognet, ehub] = await Promise.allSettled([getCoupons(), getEhubCoupons()]);
     const all = [
       ...(dognet.status === "fulfilled" ? dognet.value : []),
       ...(ehub.status === "fulfilled" ? ehub.value : []),
@@ -77,15 +87,6 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       );
     }).slice(0, 12);
   } catch {}
-
-  // Get Affial shops for this category
-  const affialForCat = AFFIAL_SHOPS.filter(s => s.category === slug || s.category === cat.slug);
-
-  // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
-  const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
-  const hkProducts: HkProduct[] = PILOT_CATS.has(slug)
-    ? await getProductsByHkCategory(slug, 8).catch(() => [])
-    : [];
 
   const jsonLd = {
     "@context": "https://schema.org",
