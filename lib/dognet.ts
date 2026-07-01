@@ -31,7 +31,7 @@ export async function getToken(): Promise<string> {
 }
 
 const COUPONS_CACHE_KEY = "dognet:coupons:v2";
-const COUPONS_CACHE_TTL = 3600;
+const COUPONS_CACHE_TTL = 86400;
 
 async function _fetchDognetCoupons(): Promise<any[]> {
   const t = await getToken();

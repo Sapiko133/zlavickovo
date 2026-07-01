@@ -2,7 +2,7 @@ import { redis } from "@/lib/redis";
 
 const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v1";
-const COUPONS_CACHE_TTL = 3600;
+const COUPONS_CACHE_TTL = 86400;
 const FETCH_TIMEOUT_MS = 10000;
 
 function getCredentials() {
@@ -28,7 +28,7 @@ export interface EhubShop {
   id: string;
   name: string;
   web: string;
-  logoUrl: string;
+  logoUrl?: string;
   affiliateLink: string;
   commission: string;
   category: string;
@@ -112,7 +112,7 @@ async function _fetchEhubShops(): Promise<EhubShop[]> {
       id: String(c.id ?? ""),
       name: String(c.name ?? ""),
       web: String(c.web ?? ""),
-      logoUrl: String(c.logoUrl ?? ""),
+      logoUrl: c.logoUrl || undefined,
       affiliateLink: String(c.defaultLink ?? "#"),
       commission: commissionStr,
       category: String(c.categories?.[0]?.name ?? ""),
@@ -121,7 +121,7 @@ async function _fetchEhubShops(): Promise<EhubShop[]> {
 }
 
 const SHOPS_CACHE_KEY = "ehub:shops:v1";
-const SHOPS_CACHE_TTL = 7200;
+const SHOPS_CACHE_TTL = 86400;
 
 // Read-only: returns cached shops or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 export async function getEhubShops(): Promise<EhubShop[]> {

@@ -8,12 +8,14 @@ function colorFor(name: string) {
   return COLORS[name.charCodeAt(0) % COLORS.length];
 }
 
-interface Props { domain: string; name: string; size?: number }
+interface Props { domain: string; name: string; size?: number; logoUrl?: string }
 
-export default function ShopFavicon({ domain, name, size = 40 }: Props) {
-  const [error, setError] = useState(!domain);
+export default function ShopFavicon({ domain, name, size = 40, logoUrl }: Props) {
+  const googleUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=128` : null;
+  const initialStage = logoUrl ? 0 : googleUrl ? 1 : 2;
+  const [stage, setStage] = useState(initialStage);
 
-  if (error) {
+  if (stage === 2) {
     return (
       <div style={{
         width: size, height: size, borderRadius: 8, flexShrink: 0,
@@ -26,9 +28,11 @@ export default function ShopFavicon({ domain, name, size = 40 }: Props) {
     );
   }
 
+  const src = stage === 0 ? logoUrl! : googleUrl!;
+
   return (
     <Image
-      src={`https://www.google.com/s2/favicons?domain=${domain}&sz=128`}
+      src={src}
       alt={name}
       width={size}
       height={size}
@@ -36,7 +40,10 @@ export default function ShopFavicon({ domain, name, size = 40 }: Props) {
       loading="lazy"
       decoding="async"
       style={{ borderRadius: 8, objectFit: "contain", flexShrink: 0 }}
-      onError={() => setError(true)}
+      onError={() => {
+        if (stage === 0 && googleUrl) setStage(1);
+        else setStage(2);
+      }}
     />
   );
 }
