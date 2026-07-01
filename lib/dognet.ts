@@ -31,20 +31,11 @@ export async function getToken(): Promise<string> {
 }
 
 const COUPONS_CACHE_KEY = "dognet:coupons:v2";
-const COUPONS_CACHE_TTL = 300; // 5 minutes
+const COUPONS_CACHE_TTL = 3600; // 1 hour — was 5 min, caused 21s block every 5 min
+const COUPONS_RENDER_TIMEOUT = 5000; // max ms render waits on Dognet cache miss
 
-export async function getCoupons() {
-  // Return cached data if available — shared between homepage and shop pages
-  try {
-    const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return cached;
-    }
-  } catch {
-  }
-
+async function _fetchDognetCoupons(): Promise<any[]> {
   const t = await getToken();
-
   const res = await fetch(`${API_BASE}/coupons/filter`, {
     method: "POST",
     headers: {
@@ -58,22 +49,45 @@ export async function getCoupons() {
       expand: "campaign",
       "per-page": 500,
     }),
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(10000), // was 20000
   });
-
   const data = await res.json();
-  const coupons = (data.data || []).map((c: any) => ({
+  return (data.data || []).map((c: any) => ({
     ...c,
     affiliate_link: c.url || c.affiliate_link || "#",
     title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (c.campaign?.name || "Kupón")),
     name: c.name || c.title || c.description || "",
   }));
+}
 
-  if (coupons.length > 0) {
-    try { await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons); } catch {}
-  }
+export async function getCoupons(): Promise<any[]> {
+  // Fast path: Redis cache hit (shared between homepage and shop/category pages)
+  try {
+    const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached;
+    }
+  } catch {}
 
-  return coupons;
+  // Cache miss — fetch Dognet but never block render longer than COUPONS_RENDER_TIMEOUT.
+  // The fetch continues in background after the deadline and populates Redis for next request.
+  const fetchAndCache = _fetchDognetCoupons()
+    .then(async (coupons) => {
+      if (coupons.length > 0) {
+        try { await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons); } catch {}
+      }
+      return coupons;
+    })
+    .catch((err: unknown) => {
+      console.error("[dognet] getCoupons zlyhalo:", err instanceof Error ? err.message : err);
+      return [] as any[];
+    });
+
+  const renderDeadline = new Promise<any[]>((resolve) =>
+    setTimeout(() => resolve([]), COUPONS_RENDER_TIMEOUT)
+  );
+
+  return Promise.race([fetchAndCache, renderDeadline]);
 }
 
 export async function getCouponsByShop(shopName: string) {
