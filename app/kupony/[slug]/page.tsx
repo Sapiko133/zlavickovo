@@ -129,6 +129,7 @@ export default async function ShopPage({ params }: Props) {
     `${baseSlug}.sk`, `${baseSlug}.cz`, `${baseSlug}.com`,
     `${baseSlug}.eu`, `${baseSlug}.net`,
   ];
+  const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
   const seenCouponCodes = new Set(coupons.map((c: any) => c.code?.toUpperCase()).filter(Boolean));
   const extraAffial = AFFIAL_COUPONS
     .filter(c =>
@@ -137,20 +138,23 @@ export default async function ShopPage({ params }: Props) {
       shopName.toLowerCase().includes(c.shop.toLowerCase().replace(/\.(sk|cz|com|eu|net)$/, ""))
     )
     .filter(c => !seenCouponCodes.has(c.code?.toUpperCase()))
-    .map((c, i) => ({
-      id: `affial-direct-${c.domain}-${i}`,
-      title: `${c.discount} zľava`,
-      name: `${c.discount} zľava`,
-      code: c.code,
-      type: 1,
-      affiliate_link: `https://${c.domain}`,
-      url: `https://${c.domain}`,
-      valid_to: c.expires !== "neomedzená" ? c.expires : null,
-      campaign: { name: c.shop },
-      campaign_name: c.shop,
-      description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
-      source: "affial-static",
-    }));
+    .map((c, i) => {
+      const trackingUrl = affialShopMap.get(c.domain) ?? `https://${c.domain}`;
+      return {
+        id: `affial-direct-${c.domain}-${i}`,
+        title: `${c.discount} zľava`,
+        name: `${c.discount} zľava`,
+        code: c.code,
+        type: 1,
+        affiliate_link: trackingUrl,
+        url: trackingUrl,
+        valid_to: c.expires !== "neomedzená" ? c.expires : null,
+        campaign: { name: c.shop },
+        campaign_name: c.shop,
+        description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
+        source: "affial-static",
+      };
+    });
 
   coupons = [...coupons, ...extraAffial];
 

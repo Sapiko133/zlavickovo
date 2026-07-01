@@ -1,6 +1,6 @@
 import { normalizeShopSlug } from "@/lib/slug";
 
-const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "";
+const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
 export interface AffialShop {
   name: string;

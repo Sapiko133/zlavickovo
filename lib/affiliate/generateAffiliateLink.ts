@@ -1,4 +1,5 @@
-const DOGNET_CHANNEL = process.env.DOGNET_AD_CHANNEL_ID || "8875";
+// DEPRECATED: tento súbor sa aktívne nepoužíva — tracking cez dognet.ts (channel 33415)
+const DOGNET_CHANNEL = process.env.DOGNET_AD_CHANNEL_ID || "33415";
 
 function dognetLink(url: string): string {
   return `https://www.dognet.sk/out/${DOGNET_CHANNEL}?url=${encodeURIComponent(url)}`;

@@ -1,6 +1,6 @@
 import type { HkFeedDef } from "./types";
 
-const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "";
+const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
 // Pilotné 2 Heureka XML feedy (kosmetikomat vyradený — google.xml nie je Heureka formát)
 const _FEEDS: HkFeedDef[] = [
