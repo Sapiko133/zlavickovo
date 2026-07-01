@@ -9,10 +9,21 @@ import { normalizeShopSlug, normalizeShopName } from "@/lib/slug";
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
 
+const TOKEN_CACHE_KEY = "dognet:token";
+const TOKEN_CACHE_TTL = 82800; // 23 hodín
+
 let token: string | null = null;
 
 export async function getToken(): Promise<string> {
   if (token) return token;
+
+  try {
+    const cached = await redis.get<string>(TOKEN_CACHE_KEY);
+    if (cached) {
+      token = cached;
+      return token;
+    }
+  } catch {}
 
   const res = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
@@ -21,12 +32,17 @@ export async function getToken(): Promise<string> {
       email: process.env.DOGNET_EMAIL,
       password: process.env.DOGNET_PASSWORD,
     }),
-    signal: AbortSignal.timeout(8000),
+    signal: AbortSignal.timeout(15000),
   });
-  
+
   const data = await res.json();
   token = data.token || data.data?.token;
   if (!token) throw new Error("Dognet login zlyhal");
+
+  try {
+    await redis.set(TOKEN_CACHE_KEY, token, { ex: TOKEN_CACHE_TTL });
+  } catch {}
+
   return token;
 }
 
@@ -48,7 +64,7 @@ async function _fetchDognetCoupons(): Promise<any[]> {
       expand: "campaign",
       "per-page": 500,
     }),
-    signal: AbortSignal.timeout(10000), // was 20000
+    signal: AbortSignal.timeout(30000),
   });
   const data = await res.json();
   return (data.data || []).map((c: any) => ({
