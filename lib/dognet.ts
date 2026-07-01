@@ -73,7 +73,7 @@ export async function refreshDognetCache(): Promise<{ count: number; error?: str
   try {
     const coupons = await _fetchDognetCoupons();
     if (coupons.length > 0) {
-      await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons);
+      await redis.set(COUPONS_CACHE_KEY, coupons, { ex: COUPONS_CACHE_TTL });
     }
     return { count: coupons.length };
   } catch (err: unknown) {
@@ -294,7 +294,7 @@ export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
       });
 
     if (deals.length >= 3) {
-      try { await redis.setex(CACHE_KEY, 3600, deals); } catch {}
+      try { await redis.set(CACHE_KEY, deals, { ex: 3600 }); } catch {}
       return deals;
     }
   } catch {}
@@ -314,7 +314,7 @@ export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
     }));
 
   if (affialDeals.length >= 3) {
-    try { await redis.setex(CACHE_KEY, 3600, affialDeals); } catch {}
+    try { await redis.set(CACHE_KEY, affialDeals, { ex: 3600 }); } catch {}
     return affialDeals;
   }
 

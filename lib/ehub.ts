@@ -74,7 +74,7 @@ export async function refreshEhubCache(): Promise<{ count: number; error?: strin
   try {
     const coupons = await _fetchEhubCoupons();
     if (coupons.length > 0) {
-      await redis.setex(COUPONS_CACHE_KEY, COUPONS_CACHE_TTL, coupons);
+      await redis.set(COUPONS_CACHE_KEY, coupons, { ex: COUPONS_CACHE_TTL });
     }
     return { count: coupons.length };
   } catch (err: unknown) {
@@ -137,7 +137,7 @@ export async function refreshEhubShopsCache(): Promise<{ count: number; error?: 
   try {
     const shops = await _fetchEhubShops();
     if (shops.length > 0) {
-      await redis.setex(SHOPS_CACHE_KEY, SHOPS_CACHE_TTL, shops);
+      await redis.set(SHOPS_CACHE_KEY, shops, { ex: SHOPS_CACHE_TTL });
     }
     return { count: shops.length };
   } catch (err: unknown) {
