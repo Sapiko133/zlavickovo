@@ -137,6 +137,18 @@ export async function getTopProductIds(limit = 100): Promise<{ id: number; name:
   }
 }
 
+// Počty produktov podľa kategórie — pre homepage "Obľúbené kategórie"
+export async function getCategoryProductCounts(): Promise<Record<string, number>> {
+  try {
+    const sql = getDb();
+    const rows = await sql`SELECT category, COUNT(*)::int AS count FROM hk_products GROUP BY category`;
+    return Object.fromEntries((rows as { category: string; count: number }[]).map(r => [r.category, r.count]));
+  } catch (err) {
+    console.error("[heureka:db] getCategoryProductCounts:", err);
+    return {};
+  }
+}
+
 export async function getFeedStats(): Promise<HkFeedRow[]> {
   try {
     const sql = getDb();
