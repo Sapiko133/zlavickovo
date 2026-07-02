@@ -4,6 +4,9 @@ export interface HkFeedDef {
   domain: string;
   category: string;
   affiliateUrl: string | null;
+  // Produkty, ktorých názov (bez diakritiky, lowercase) obsahuje niektorý z týchto výrazov,
+  // sa neimportujú a existujúce sa pri importe zmažú z hk_products
+  exclude?: string[];
 }
 
 export interface HkProduct {
@@ -39,4 +42,11 @@ export interface ImportFeedResult {
   count: number;
   error?: string;
   durationMs: number;
+}
+
+// Výsledok bezpečnostného čistenia DB pri importe
+export interface PruneResult {
+  orphanProducts: number;   // zmazané produkty feedov, ktoré už nie sú v HEUREKA_FEEDS
+  orphanFeeds: number;      // zmazané riadky z hk_feeds
+  excludedProducts: number; // zmazané produkty matchujúce exclude filter feedu
 }

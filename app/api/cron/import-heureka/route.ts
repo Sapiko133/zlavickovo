@@ -1,4 +1,5 @@
 import { importAllHeurekaFeeds } from "@/lib/heureka/import";
+import { getDb } from "@/lib/db";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -13,12 +14,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const results = await importAllHeurekaFeeds();
+    const { results, prune } = await importAllHeurekaFeeds();
     const total = results.reduce((s, r) => s + r.count, 0);
     const errors = results.filter((r) => r.error);
+    let dbTotal: number | null = null;
+    try {
+      const rows = await getDb()`SELECT COUNT(*)::int AS total FROM hk_products`;
+      dbTotal = (rows[0] as { total: number }).total;
+    } catch {}
     return Response.json({
       ok: true,
       total,
+      dbTotal,
+      prune,
       feeds: results.length,
       errors: errors.length,
       results,

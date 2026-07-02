@@ -2,7 +2,8 @@ import type { HkFeedDef } from "./types";
 
 const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
-// 54 overených Heureka XML feedov (SHOP/SHOPITEM formát, PRODUCTNAME + PRICE_VAT + URL, overené 2026-07-02)
+// 52 overených Heureka XML feedov (SHOP/SHOPITEM formát, PRODUCTNAME + PRICE_VAT + URL, overené 2026-07-02)
+// Bezpečnostné čistenie 2026-07-02: vyradené bottle-store.sk (alkohol) a vaporism.cz (vape/nikotín)
 // Google Shopping feedy vyradené (kosmetikomat.sk, blendea, nechtovyraj.sk)
 // li-go.cz má popri Google feede aj validný /heureka/export/products.xml — pridaný
 // tpmove.sk vyradený — universal.xml má SHOPITEM bez PRODUCTNAME (parser ho nevie spracovať)
@@ -150,13 +151,7 @@ const _FEEDS: HkFeedDef[] = [
     category: "ine",
     affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=d7c0bd56",
   },
-  {
-    id: "vaporism-cz",
-    url: "https://www.vaporism.cz/heureka/export/products.xml",
-    domain: "vaporism.cz",
-    category: "ine",
-    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=40a4002b",
-  },
+  // vaporism.cz vyradený 2026-07-02 — e-cigarety a nikotínové e-liquidy (bezpečnostné čistenie)
 
   // ===== Rozšírenie na ~50 feedov (overené 2026-07-02) =====
   // bývanie / domácnosť
@@ -195,13 +190,7 @@ const _FEEDS: HkFeedDef[] = [
     category: "byvanie",
     affiliateUrl: null,
   },
-  {
-    id: "bottle-store-sk",
-    url: "https://www.bottle-store.sk/heureka/export/products.xml",
-    domain: "bottle-store.sk",
-    category: "byvanie",
-    affiliateUrl: null,
-  },
+  // bottle-store.sk vyradený 2026-07-02 — alkohol e-shop (bezpečnostné čistenie)
   {
     id: "mafecandles-cz",
     url: "https://www.mafecandles.cz/heureka/export/products.xml",
@@ -216,6 +205,8 @@ const _FEEDS: HkFeedDef[] = [
     domain: "zelenazeme.cz",
     category: "zdravie",
     affiliateUrl: null,
+    // bezpečnostné čistenie: CBD kvety/herba a vaporizéry (vrátane príslušenstva) sa neimportujú
+    exclude: ["cbd flower", "cbd kvet", "cbd herba", "vaporiz", "cartridge"],
   },
   {
     id: "matchatea-bio",

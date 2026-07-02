@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { parseHeurekaXml } from "./parser";
 import { HEUREKA_FEEDS } from "./feeds";
-import type { HkFeedDef, ImportFeedResult } from "./types";
+import type { HkFeedDef, ImportFeedResult, PruneResult } from "./types";
 
 const MAX_ITEMS = 500; // rovnaký limit ako v parseri
 const MAX_BYTES = 20 * 1024 * 1024; // núdzová brzda pre feedy s obrími položkami
@@ -64,13 +64,52 @@ async function fetchXml(url: string): Promise<string> {
   }
 }
 
+// Porovnávanie bez diakritiky — "CBD květy" musí chytiť výraz "cbd kvet"
+const deaccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+function isExcluded(name: string, exclude?: string[]): boolean {
+  if (!exclude?.length) return false;
+  const n = deaccent(name);
+  return exclude.some((term) => n.includes(term));
+}
+
+// Bezpečnostné čistenie DB pred importom:
+// 1. zmaže produkty feedov, ktoré už nie sú v HEUREKA_FEEDS (vyradené feedy)
+// 2. zmaže riadky vyradených feedov z hk_feeds
+// 3. zmaže existujúce produkty, ktoré matchujú exclude filter svojho feedu
+export async function pruneRemovedProducts(): Promise<PruneResult> {
+  const sql = getDb();
+  const ids = HEUREKA_FEEDS.map((f) => f.id);
+
+  const orphanProducts = await sql`DELETE FROM hk_products WHERE feed_id <> ALL(${ids}) RETURNING id`;
+  const orphanFeeds = await sql`DELETE FROM hk_feeds WHERE id <> ALL(${ids}) RETURNING id`;
+
+  let excludedProducts = 0;
+  for (const feed of HEUREKA_FEEDS) {
+    if (!feed.exclude?.length) continue;
+    // Diakritiku (květy vs kvety) nevie ILIKE bez unaccent extension — filtrujeme v JS
+    const rows = (await sql`SELECT id, name FROM hk_products WHERE feed_id = ${feed.id}`) as { id: number; name: string }[];
+    const toDelete = rows.filter((r) => isExcluded(r.name, feed.exclude)).map((r) => r.id);
+    if (toDelete.length > 0) {
+      await sql`DELETE FROM hk_products WHERE id = ANY(${toDelete})`;
+      excludedProducts += toDelete.length;
+    }
+  }
+
+  return {
+    orphanProducts: orphanProducts.length,
+    orphanFeeds: orphanFeeds.length,
+    excludedProducts,
+  };
+}
+
 async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
   const sql = getDb();
   const start = Date.now();
 
   try {
     const xml = await fetchXml(feed.url);
-    const products = parseHeurekaXml(xml, feed.category);
+    const products = parseHeurekaXml(xml, feed.category).filter((p) => !isExcluded(p.name, feed.exclude));
 
     if (products.length === 0) {
       await sql`
@@ -125,7 +164,8 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
 // Feedy sa importujú v batchoch po 10 — 54 paralelných fetchov sa delilo o bandwidth a validné XML padali na timeout
 const FEED_BATCH = 10;
 
-export async function importAllHeurekaFeeds(): Promise<ImportFeedResult[]> {
+export async function importAllHeurekaFeeds(): Promise<{ results: ImportFeedResult[]; prune: PruneResult }> {
+  const prune = await pruneRemovedProducts();
   const results: ImportFeedResult[] = [];
 
   for (let i = 0; i < HEUREKA_FEEDS.length; i += FEED_BATCH) {
@@ -146,5 +186,5 @@ export async function importAllHeurekaFeeds(): Promise<ImportFeedResult[]> {
     );
   }
 
-  return results;
+  return { results, prune };
 }
