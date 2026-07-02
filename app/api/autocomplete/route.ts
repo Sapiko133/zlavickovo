@@ -1,7 +1,9 @@
 import { redis } from "@/lib/redis";
 import { getShops as getDognetShops, getCoupons as getDognetCoupons } from "@/lib/dognet";
 import { getEhubShops, getEhubCoupons } from "@/lib/ehub";
+import { getCjShops } from "@/lib/cj";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { TOP_SHOPS } from "@/lib/top-shops";
 import { normalizeShopSlug } from "@/lib/slug";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
@@ -9,7 +11,8 @@ import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
 
-const SHOPS_CACHE_KEY = "shops:all";
+// v2: + TOP_SHOPS (kurátorské obchody so stránkou) + CJ zdroj
+const SHOPS_CACHE_KEY = "shops:all:v2";
 const SHOPS_CACHE_TTL = 86400; // 24 hours
 
 interface ShopEntry {
@@ -43,13 +46,21 @@ async function getAllShops(): Promise<ShopEntry[]> {
     if (cached && Array.isArray(cached) && cached.length > 0) return cached;
   } catch {}
 
-  const [dognetResult, ehubResult] = await Promise.allSettled([
+  const [dognetResult, ehubResult, cjResult] = await Promise.allSettled([
     getDognetShops(),
     getEhubShops(),
+    getCjShops(),
   ]);
 
   const seen = new Set<string>();
   const result: ShopEntry[] = [];
+
+  // Kurátorské obchody so stránkou /kupony/[slug] — musia byť vždy v autocomplete,
+  // aj keď nie sú v žiadnom affiliate feede (napr. Shein cez CJ bez shop feedu)
+  for (const shop of TOP_SHOPS) {
+    seen.add(shop.slug);
+    result.push({ name: shop.name, slug: shop.slug, category: shop.category, domain: shop.domain });
+  }
 
   // Dognet shops (highest priority — have coupon counts)
   if (dognetResult.status === "fulfilled") {
@@ -75,6 +86,17 @@ async function getAllShops(): Promise<ShopEntry[]> {
         category: shop.category || "Iné",
         domain: toDomain(shop.web),
       });
+    }
+  }
+
+  // CJ shops
+  if (cjResult.status === "fulfilled") {
+    for (const shop of cjResult.value) {
+      if (!shop.advertiserName) continue;
+      const slug = normalizeShopSlug(shop.advertiserName);
+      if (!slug || seen.has(slug)) continue;
+      seen.add(slug);
+      result.push({ name: shop.advertiserName, slug, category: "Obchod", domain: "" });
     }
   }
 
@@ -111,6 +133,8 @@ export async function GET(req: Request) {
       return Response.json({ products: [], shops: [], coupons: [] });
     }
     const lq = q.trim().toLowerCase();
+    // Normalizovaný dopyt pre slug matching — "SHEIN" → "shein", "shein.sk"/"shein.com" → "shein"
+    const sq = normalizeShopSlug(q);
 
     const [hkResult, shopsResult, dognetCouponsResult, ehubCouponsResult] =
       await Promise.allSettled([
@@ -136,7 +160,11 @@ export async function GET(req: Request) {
     const shops =
       shopsResult.status === "fulfilled"
         ? shopsResult.value
-            .filter(s => s.name.toLowerCase().includes(lq))
+            .filter(s =>
+              s.name.toLowerCase().includes(lq) ||
+              s.domain.toLowerCase().includes(lq) ||
+              (sq.length > 0 && s.slug.includes(sq))
+            )
             .sort(compareShopsByPriority)
             .slice(0, 5)
             .map(s => ({ name: s.name, slug: s.slug, domain: s.domain }))
