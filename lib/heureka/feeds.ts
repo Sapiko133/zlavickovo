@@ -2,10 +2,11 @@ import type { HkFeedDef } from "./types";
 
 const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
-// 20 overených Heureka XML feedov (SHOP/SHOPITEM formát, overené 2026-07-02)
-// Google Shopping feedy vyradené (kosmetikomat.sk, blendea, li-go.cz, nechtovyraj.sk)
+// 54 overených Heureka XML feedov (SHOP/SHOPITEM formát, PRODUCTNAME + PRICE_VAT + URL, overené 2026-07-02)
+// Google Shopping feedy vyradené (kosmetikomat.sk, blendea, nechtovyraj.sk)
+// li-go.cz má popri Google feede aj validný /heureka/export/products.xml — pridaný
 // tpmove.sk vyradený — universal.xml má SHOPITEM bez PRODUCTNAME (parser ho nevie spracovať)
-// dadaboom, kojenecke-obleceni, belda, herbatica nemajú Affial program — affiliateUrl: null, tlačidlo vedie na URL produktu z feedu
+// Feedy bez Affial programu majú affiliateUrl: null — tlačidlo vedie na URL produktu z feedu
 const _FEEDS: HkFeedDef[] = [
   // bývanie
   {
@@ -155,6 +156,256 @@ const _FEEDS: HkFeedDef[] = [
     domain: "vaporism.cz",
     category: "ine",
     affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=40a4002b",
+  },
+
+  // ===== Rozšírenie na ~50 feedov (overené 2026-07-02) =====
+  // bývanie / domácnosť
+  {
+    id: "li-go-cz",
+    url: "https://www.li-go.cz/heureka/export/products.xml",
+    domain: "li-go.cz",
+    category: "byvanie",
+    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=d344a869",
+  },
+  {
+    id: "artofhome-cz",
+    url: "https://www.artofhome.cz/heureka/export/products.xml",
+    domain: "artofhome.cz",
+    category: "byvanie",
+    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=9612d676",
+  },
+  {
+    id: "nanospace-cz",
+    url: "https://www.nanospace.cz/heureka/export/products.xml",
+    domain: "nanospace.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "kulina-sk",
+    url: "https://www.kulina.sk/heureka/export/products.xml",
+    domain: "kulina.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "kulina-cz",
+    url: "https://www.kulina.cz/heureka/export/products.xml",
+    domain: "kulina.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "bottle-store-sk",
+    url: "https://www.bottle-store.sk/heureka/export/products.xml",
+    domain: "bottle-store.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "mafecandles-cz",
+    url: "https://www.mafecandles.cz/heureka/export/products.xml",
+    domain: "mafecandles.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  // zdravie
+  {
+    id: "zelenazeme-cz",
+    url: "https://www.zelenazeme.cz/heureka/export/products.xml",
+    domain: "zelenazeme.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "matchatea-bio",
+    url: "https://www.matchatea.bio/heureka/export/products.xml",
+    domain: "matchatea.bio",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "puravidashop-cz",
+    url: "https://www.puravidashop.cz/heureka/export/products.xml",
+    domain: "puravidashop.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  // krása
+  {
+    id: "angrybeards-sk",
+    url: "https://www.angrybeards.sk/heureka/export/products.xml",
+    domain: "angrybeards.sk",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  {
+    id: "angrybeards-cz",
+    url: "https://www.angrybeards.cz/heureka/export/products.xml",
+    domain: "angrybeards.cz",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  {
+    id: "creammy-cz",
+    url: "https://www.creammy.cz/heureka/export/products.xml",
+    domain: "creammy.cz",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  // šport
+  {
+    id: "vifsports-cz",
+    url: "https://www.vifsports.cz/heureka/export/products.xml",
+    domain: "vifsports.cz",
+    category: "sport",
+    affiliateUrl: null,
+  },
+  // deti
+  {
+    id: "benlemi-sk",
+    url: "https://www.benlemi.sk/heureka/export/products.xml",
+    domain: "benlemi.sk",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  {
+    id: "slnieckovo-sk",
+    url: "https://www.slnieckovo.sk/heureka/export/products.xml",
+    domain: "slnieckovo.sk",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  {
+    id: "elisdesign-cz",
+    url: "https://www.elisdesign.cz/heureka/export/products.xml",
+    domain: "elisdesign.cz",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  // hobby
+  {
+    id: "aeromodel-sk",
+    url: "https://www.aeromodel.sk/heureka/export/products.xml",
+    domain: "aeromodel.sk",
+    category: "hobby",
+    affiliateUrl: null,
+  },
+  {
+    id: "mincmistr-cz",
+    url: "https://www.mincmistr.cz/heureka/export/products.xml",
+    domain: "mincmistr.cz",
+    category: "hobby",
+    affiliateUrl: null,
+  },
+  // záhrada
+  {
+    id: "mojerosty-sk",
+    url: "https://www.mojerosty.sk/heureka/export/products.xml",
+    domain: "mojerosty.sk",
+    category: "zahrada",
+    affiliateUrl: null,
+  },
+  // móda
+  {
+    id: "daponti-sk",
+    url: "https://www.daponti.sk/heureka/export/products.xml",
+    domain: "daponti.sk",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "miabella-cz",
+    url: "https://www.miabella.cz/heureka/export/products.xml",
+    domain: "miabella.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "tiami-cz",
+    url: "https://www.tiami.cz/heureka/export/products.xml",
+    domain: "tiami.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "lobey-cz",
+    url: "https://www.lobey.cz/heureka/export/products.xml",
+    domain: "lobey.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "salted-cz",
+    url: "https://www.salted.cz/heureka/export/products.xml",
+    domain: "salted.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  // potraviny
+  {
+    id: "kofi-sk",
+    url: "https://www.kofi.sk/heureka/export/products.xml",
+    domain: "kofi.sk",
+    category: "potraviny",
+    affiliateUrl: null,
+  },
+  {
+    id: "coffeesheep-sk",
+    url: "https://www.coffeesheep.sk/heureka/export/products.xml",
+    domain: "coffeesheep.sk",
+    category: "potraviny",
+    affiliateUrl: null,
+  },
+  {
+    id: "cokoladovnatroubelice-cz",
+    url: "https://www.cokoladovnatroubelice.cz/heureka/export/products.xml",
+    domain: "cokoladovnatroubelice.cz",
+    category: "potraviny",
+    affiliateUrl: null,
+  },
+  // iné
+  {
+    id: "fabulo-sk",
+    url: "https://www.fabulo.sk/heureka/export/products.xml",
+    domain: "fabulo.sk",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "darbox-sk",
+    url: "https://www.darbox.sk/heureka/export/products.xml",
+    domain: "darbox.sk",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "heliumking-sk",
+    url: "https://www.heliumking.sk/heureka/export/products.xml",
+    domain: "heliumking.sk",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "plzr-sk",
+    url: "https://www.plzr.sk/heureka/export/products.xml",
+    domain: "plzr.sk",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "keeostore-cz",
+    url: "https://www.keeostore.cz/heureka/export/products.xml",
+    domain: "keeostore.cz",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "trivjednom-cz",
+    url: "https://www.3v1trivjednom.cz/heureka/export/products.xml",
+    domain: "3v1trivjednom.cz",
+    category: "ine",
+    affiliateUrl: null,
   },
 ];
 

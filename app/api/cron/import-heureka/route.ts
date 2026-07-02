@@ -2,7 +2,7 @@ import { importAllHeurekaFeeds } from "@/lib/heureka/import";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 300; // 20 feedov paralelne × max 15s fetch + upserty po 50
+export const maxDuration = 300; // 54 feedov paralelne, fetch timeout 60s + upserty po 50
 
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
