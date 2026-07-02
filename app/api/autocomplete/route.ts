@@ -5,6 +5,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { normalizeShopSlug } from "@/lib/slug";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
+import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
 
@@ -131,12 +132,12 @@ export async function GET(req: Request) {
             .slice(0, 5)
         : [];
 
-    // Obchody — shop cache, abecedne, max 5
+    // Obchody — shop cache, .sk → .cz → ostatné, v rámci priority abecedne, max 5
     const shops =
       shopsResult.status === "fulfilled"
         ? shopsResult.value
             .filter(s => s.name.toLowerCase().includes(lq))
-            .sort((a, b) => skCollator.compare(a.name, b.name))
+            .sort(compareShopsByPriority)
             .slice(0, 5)
             .map(s => ({ name: s.name, slug: s.slug, domain: s.domain }))
         : [];
@@ -170,7 +171,12 @@ export async function GET(req: Request) {
         coupons.push({ title, shopName, shopSlug: normalizeShopSlug(shopName) });
       }
     }
-    coupons.sort((a, b) => skCollator.compare(a.title, b.title));
+    // Kupóny — najprv podľa priority obchodu (.sk → .cz → ostatné), potom podľa názvu
+    coupons.sort((a, b) => {
+      const byShop = compareShopsByPriority({ name: a.shopName }, { name: b.shopName });
+      if (byShop !== 0) return byShop;
+      return skCollator.compare(a.title, b.title);
+    });
 
     return Response.json(
       { products, shops, coupons: coupons.slice(0, 5) },

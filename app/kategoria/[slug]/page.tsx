@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import CouponCard from "@/components/CouponCard";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+import { compareShopsByPriority } from "@/lib/shop-priority";
 import { normalizeShopSlug } from "@/lib/slug";
 import { getCoupons } from "@/lib/dognet";
 import { getEhubCoupons } from "@/lib/ehub";
@@ -61,8 +62,11 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   const year = getYear();
   const faq = getCategoryFAQ(cat);
 
-  // Get Affial shops for this category
-  const affialForCat = AFFIAL_SHOPS.filter(s => s.category === slug || s.category === cat.slug);
+  // Get Affial shops for this category — .sk → .cz → ostatné, abecedne
+  const affialForCat = AFFIAL_SHOPS
+    .filter(s => s.category === slug || s.category === cat.slug)
+    .sort(compareShopsByPriority);
+  const catShops = [...cat.shops].sort(compareShopsByPriority);
 
   // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
   const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
@@ -86,7 +90,14 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
         cat.shops.some(s => name.includes(s.name.toLowerCase()) || name.includes(s.slug)) ||
         cat.keywords.some(k => name.includes(k) || title.includes(k))
       );
-    }).slice(0, 12);
+    })
+      .sort((a: any, b: any) =>
+        compareShopsByPriority(
+          { name: a.campaign?.name || a.campaign_name || "" },
+          { name: b.campaign?.name || b.campaign_name || "" }
+        )
+      )
+      .slice(0, 12);
   } catch {}
 
   const jsonLd = {
@@ -172,7 +183,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             Obchody v kategórii {cat.label}
           </h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
-            {cat.shops.map(shop => {
+            {catShops.map(shop => {
               const href = shop.href ?? `/kupony/${shop.slug}`;
               return (
                 <a

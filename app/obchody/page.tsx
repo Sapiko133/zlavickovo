@@ -3,6 +3,7 @@ import { normalizeShopSlug } from "@/lib/slug";
 import { getEhubShops } from "@/lib/ehub";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { getShopDomain } from "@/lib/shop-domains";
+import { compareShopsByPriority } from "@/lib/shop-priority";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import ObchodyClient, { type ShopItem } from "@/components/ObchodyClient";
@@ -71,8 +72,8 @@ export default async function ObchodyPage() {
     allShops.push({ name: s.name, slug, domain: s.domain, commission: s.commission, source: "affial" });
   }
 
-  // Sort alphabetically (sk locale)
-  allShops.sort((a, b) => a.name.localeCompare(b.name, "sk", { sensitivity: "base" }));
+  // Sort: .sk → .cz → ostatné, v rámci priority abecedne (sk locale)
+  allShops.sort(compareShopsByPriority);
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>

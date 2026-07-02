@@ -12,6 +12,7 @@ import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopTabs from "@/components/ShopTabs";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+import { compareShopsByPriority } from "@/lib/shop-priority";
 // ShopLogo removed — using ShopFavicon throughout
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -72,7 +73,12 @@ function getRelatedShops(currentSlug: string, count = 4) {
   const others = TOP_SLUGS.filter(s => s !== currentSlug);
   const seed = currentSlug.charCodeAt(0) + currentSlug.length;
   const start = seed % Math.max(1, others.length - count);
-  return others.slice(start, start + count);
+  // .sk → .cz → ostatné, v rámci priority abecedne
+  return others.slice(start, start + count).sort((a, b) => {
+    const nameA = a.replace(/-/g, " ");
+    const nameB = b.replace(/-/g, " ");
+    return compareShopsByPriority({ name: nameA }, { name: nameB });
+  });
 }
 
 export async function generateMetadata({ params }: Props) {

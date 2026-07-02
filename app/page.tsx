@@ -1,6 +1,7 @@
 import ShopFavicon from "@/components/ShopFavicon";
 import { normalizeShopSlug } from "@/lib/slug";
 import { getShopDomain } from "@/lib/shop-domains";
+import { compareShopsByPriority } from "@/lib/shop-priority";
 import AdBanner from "@/components/AdBanner";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -104,6 +105,9 @@ export default function Home() {
     }
   }
 
+  // Priorita: .sk → .cz → ostatné, v rámci priority abecedne
+  allShops.sort(compareShopsByPriority);
+
   const homepageAkcie = akcieList.slice(0, 8);
 
   // Sidebar coupons (right panel)
@@ -133,12 +137,25 @@ export default function Home() {
       };
     }),
   ];
+  sidebarCoupons.sort((a, b) =>
+    compareShopsByPriority(
+      { name: a.shopName, domain: a.domain },
+      { name: b.shopName, domain: b.domain }
+    )
+  );
 
-  // 3-col coupons grid
+  // 3-col coupons grid — .sk obchody prvé, potom .cz, potom ostatné
   const allCoupons = [
     ...feed,
     ...sales.filter((s: any) => !feed.some((f: any) => f.id === s.id)),
-  ].slice(0, 9);
+  ]
+    .sort((a: any, b: any) =>
+      compareShopsByPriority(
+        { name: a.campaign?.name || a.name || "" },
+        { name: b.campaign?.name || b.name || "" }
+      )
+    )
+    .slice(0, 9);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fa", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
