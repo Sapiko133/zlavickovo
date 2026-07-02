@@ -160,9 +160,28 @@ export default function Home() {
   return (
     <div style={{ minHeight: "100vh", background: "#f8f9fa", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org", "@type": "WebSite",
-        "name": "Zlavickovo", "url": "https://www.zlavickovo.sk",
-        "potentialAction": { "@type": "SearchAction", "target": { "@type": "EntryPoint", "urlTemplate": "https://www.zlavickovo.sk/kupony/{search_term_string}" }, "query-input": "required name=search_term_string" },
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.zlavickovo.sk/#organization",
+            "name": "Zlavickovo",
+            "url": "https://www.zlavickovo.sk",
+            "logo": "https://www.zlavickovo.sk/favicon.ico",
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.zlavickovo.sk/#website",
+            "name": "Zlavickovo",
+            "url": "https://www.zlavickovo.sk",
+            "publisher": { "@id": "https://www.zlavickovo.sk/#organization" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": { "@type": "EntryPoint", "urlTemplate": "https://www.zlavickovo.sk/hladat?q={search_term_string}" },
+              "query-input": "required name=search_term_string",
+            },
+          },
+        ],
       }) }} />
 
       <style>{`

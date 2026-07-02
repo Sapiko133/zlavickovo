@@ -181,8 +181,8 @@ export default async function ShopPage({ params }: Props) {
       {
         "@type": "BreadcrumbList",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": BASE },
-          { "@type": "ListItem", "position": 2, "name": "Kupóny", "item": `${BASE}/obchody` },
+          { "@type": "ListItem", "position": 1, "name": "Domov", "item": BASE },
+          { "@type": "ListItem", "position": 2, "name": "Obchody", "item": `${BASE}/obchody` },
           { "@type": "ListItem", "position": 3, "name": capitalized, "item": pageUrl },
         ],
       },

@@ -106,7 +106,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       {
         "@type": "BreadcrumbList",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://www.zlavickovo.sk" },
+          { "@type": "ListItem", "position": 1, "name": "Domov", "item": "https://www.zlavickovo.sk" },
           { "@type": "ListItem", "position": 2, "name": "Kategórie", "item": "https://www.zlavickovo.sk/kategoria" },
           { "@type": "ListItem", "position": 3, "name": cat.label, "item": `https://www.zlavickovo.sk/kategoria/${slug}` },
         ],

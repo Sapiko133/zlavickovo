@@ -59,21 +59,39 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const buyUrl = product.affiliate_url || product.url;
   const isAffiliate = Boolean(product.affiliate_url);
 
+  const pageUrl = `https://www.zlavickovo.sk/produkt/${slug}`;
+
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    description: product.description || undefined,
-    image: product.img_url || undefined,
-    brand: { "@type": "Brand", name: product.domain },
-    offers: {
-      "@type": "Offer",
-      price: isNaN(priceNum) ? undefined : priceNum,
-      priceCurrency: "EUR",
-      availability: "https://schema.org/InStock",
-      url: product.affiliate_url || product.url,
-      seller: { "@type": "Organization", name: product.domain },
-    },
+    "@graph": [
+      {
+        "@type": "Product",
+        name: product.name,
+        description: product.description || undefined,
+        image: product.img_url || undefined,
+        brand: { "@type": "Brand", name: product.domain },
+        category: product.category || undefined,
+        offers: {
+          "@type": "Offer",
+          price: isNaN(priceNum) ? undefined : priceNum,
+          priceCurrency: "EUR",
+          availability: "https://schema.org/InStock",
+          url: product.affiliate_url || product.url,
+          seller: { "@type": "Organization", name: product.domain },
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { name: "Domov", item: "https://www.zlavickovo.sk" },
+          { name: "Produkty", item: "https://www.zlavickovo.sk/produkty" },
+          ...(product.category
+            ? [{ name: product.category, item: `https://www.zlavickovo.sk/produkty?kategoria=${encodeURIComponent(product.category)}` }]
+            : []),
+          { name: product.name, item: pageUrl },
+        ].map((e, i) => ({ "@type": "ListItem", position: i + 1, ...e })),
+      },
+    ],
   };
 
   return (
