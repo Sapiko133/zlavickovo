@@ -110,7 +110,7 @@ export default async function ProduktyPage({
             <p style={{ margin: 0, fontSize: 14 }}>
               Spusťte import:{" "}
               <code style={{ background: "#f5f5f5", padding: "2px 6px", borderRadius: 4, fontSize: 12 }}>
-                GET /api/cron/import-heureka?trigger=admin
+                GET /api/cron/import-heureka
               </code>
             </p>
           </div>

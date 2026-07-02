@@ -11,8 +11,9 @@ const TOPICS = [
 
 export async function GET(req: Request) {
   // Verify cron secret to prevent unauthorized calls
+  const cronSecret = process.env.CRON_SECRET;
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

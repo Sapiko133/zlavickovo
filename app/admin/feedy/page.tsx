@@ -109,15 +109,8 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
       <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 32px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
         <a href="/admin" style={{ color: "#22C55E", textDecoration: "none", fontSize: 13 }}>← Admin</a>
         <span style={{ fontWeight: 700, fontSize: 16 }}>📡 Feed Management</span>
-        <div style={{ marginLeft: "auto" }}>
-          <a
-            href="/api/cron/import-feeds?trigger=admin"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ padding: "8px 18px", borderRadius: 8, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none" }}
-          >
-            ▶ Importovať teraz
-          </a>
+        <div style={{ marginLeft: "auto", fontSize: 12, color: "#888" }}>
+          Import: <code style={{ background: "#f5f5f5", padding: "2px 6px", borderRadius: 4 }}>GET /api/cron/import-feeds</code> s Bearer CRON_SECRET
         </div>
       </div>
 

@@ -7,12 +7,8 @@ export const maxDuration = 300;
 export async function GET(req: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = req.headers.get("authorization");
-  const trigger = req.nextUrl.searchParams.get("trigger");
 
-  const isCronAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
-  const isAdminTrigger = trigger === "admin";
-
-  if (!isAdminTrigger && !isCronAuth) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
