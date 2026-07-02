@@ -3,14 +3,65 @@ import { parseHeurekaXml } from "./parser";
 import { HEUREKA_FEEDS } from "./feeds";
 import type { HkFeedDef, ImportFeedResult } from "./types";
 
+const MAX_ITEMS = 500; // rovnaký limit ako v parseri
+const MAX_BYTES = 20 * 1024 * 1024; // núdzová brzda pre feedy s obrími položkami
+
+// Nájde koniec ďalšieho </SHOPITEM> (uppercase aj lowercase variant) od pozície `from`, -1 ak nie je
+function nextShopitemEnd(xml: string, from: number): number {
+  const upper = xml.indexOf("</SHOPITEM>", from);
+  const lower = xml.indexOf("</shopitem>", from);
+  const idx = upper === -1 ? lower : lower === -1 ? upper : Math.min(upper, lower);
+  return idx === -1 ? -1 : idx + "</SHOPITEM>".length;
+}
+
+// Orezané XML treba korektne uzavrieť, inak ho parser zahodí
+function closeTruncatedXml(xml: string): string {
+  const closers: string[] = [];
+  const head = xml.slice(0, 4096); // wrapper tagy (<rss>, <SHOP>) sú na začiatku feedu
+  for (const m of head.matchAll(/<(rss|RSS|SHOP|shop)(?=[\s>])/g)) {
+    closers.unshift(`</${m[1]}>`);
+  }
+  return xml + closers.join("");
+}
+
 async function fetchXml(url: string): Promise<string> {
   const res = await fetch(url, {
-    signal: AbortSignal.timeout(60000), // veľké XML potrebujú viac ako 15s aj pri 10 paralelných sťahovaniach
+    signal: AbortSignal.timeout(60000),
     headers: { "User-Agent": "Zlavickovo/1.0 (+https://zlavickovo.sk)" },
     next: { revalidate: 0 },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.text();
+  if (!res.body) return res.text();
+
+  // Streamuj len začiatok feedu — parser berie max 500 produktov, celé XML (aj stovky MB) zabíjalo pamäť inštancie
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let xml = "";
+  let items = 0;
+  let searchFrom = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) return xml + decoder.decode(); // feed má menej ako 500 položiek — je kompletný
+
+      xml += decoder.decode(value, { stream: true });
+
+      let end: number;
+      while (items < MAX_ITEMS && (end = nextShopitemEnd(xml, searchFrom)) !== -1) {
+        items++;
+        searchFrom = end;
+      }
+      if (items >= MAX_ITEMS) {
+        return closeTruncatedXml(xml.slice(0, searchFrom));
+      }
+      if (xml.length >= MAX_BYTES) {
+        return searchFrom > 0 ? closeTruncatedXml(xml.slice(0, searchFrom)) : xml;
+      }
+    }
+  } finally {
+    reader.cancel().catch(() => {});
+  }
 }
 
 async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
