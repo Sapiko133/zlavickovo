@@ -1,4 +1,5 @@
 import { redis } from "@/lib/redis";
+import { createShopMatcher } from "@/lib/shop-match";
 
 const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v1";
@@ -86,8 +87,8 @@ export async function refreshEhubCache(): Promise<{ count: number; error?: strin
 
 export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon[]> {
   const all = await getEhubCoupons();
-  const lower = shopName.toLowerCase();
-  return all.filter(c => c.campaign_name.toLowerCase().includes(lower));
+  const matchesShop = createShopMatcher(shopName);
+  return all.filter(c => matchesShop(c.campaign_name));
 }
 
 async function _fetchEhubShops(): Promise<EhubShop[]> {

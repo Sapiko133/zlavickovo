@@ -1,10 +1,9 @@
 import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
-import { findAffialShop, AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { findAffialShop } from "@/lib/affial-shops";
 import { getStaticShops } from "@/lib/static-data";
 import { normalizeShopSlug } from "@/lib/slug";
-import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
@@ -129,40 +128,6 @@ export default async function ShopPage({ params }: Props) {
     dognetAffiliateUrl ??
     affialShop?.affiliateUrl ??
     `https://${shopDomain}`;
-
-  // Also directly match AFFIAL_COUPONS by domain pattern: slug "zalando" → zalando.sk / zalando.cz
-  const domainBases = [
-    `${baseSlug}.sk`, `${baseSlug}.cz`, `${baseSlug}.com`,
-    `${baseSlug}.eu`, `${baseSlug}.net`,
-  ];
-  const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
-  const seenCouponCodes = new Set(coupons.map((c: any) => c.code?.toUpperCase()).filter(Boolean));
-  const extraAffial = AFFIAL_COUPONS
-    .filter(c =>
-      domainBases.includes(c.domain) ||
-      c.shop.toLowerCase().includes(shopName.toLowerCase()) ||
-      shopName.toLowerCase().includes(c.shop.toLowerCase().replace(/\.(sk|cz|com|eu|net)$/, ""))
-    )
-    .filter(c => !seenCouponCodes.has(c.code?.toUpperCase()))
-    .map((c, i) => {
-      const trackingUrl = affialShopMap.get(c.domain) ?? `https://${c.domain}`;
-      return {
-        id: `affial-direct-${c.domain}-${i}`,
-        title: `${c.discount} zľava`,
-        name: `${c.discount} zľava`,
-        code: c.code,
-        type: 1,
-        affiliate_link: trackingUrl,
-        url: trackingUrl,
-        valid_to: c.expires !== "neomedzená" ? c.expires : null,
-        campaign: { name: c.shop },
-        campaign_name: c.shop,
-        description: `Platný kód pre ${c.shop}${c.expires !== "neomedzená" ? ` – platí do ${c.expires}` : ""}`,
-        source: "affial-static",
-      };
-    });
-
-  coupons = [...coupons, ...extraAffial];
 
   const rawCodeCoupons = coupons.filter((c: any) => c.code && c.code.trim() !== "");
   const dealCoupons = coupons.filter((c: any) => !c.code || c.code.trim() === "");

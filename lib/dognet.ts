@@ -1,10 +1,12 @@
 import { getAffialCoupons } from "@/lib/affial";
 import { getCjCouponsByShop } from "@/lib/cj";
+import { getEhubCoupons } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
 import { getShopDomain } from "@/lib/shop-domains";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import { normalizeShopSlug, normalizeShopName } from "@/lib/slug";
+import { STATIC_AKCIE, type AkciaType } from "@/lib/akcie";
+import { createShopMatcher } from "@/lib/shop-match";
 import { cleanDognetShopName } from "@/lib/shop-name";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
@@ -106,33 +108,47 @@ export async function refreshDognetCache(): Promise<{ count: number; error?: str
   }
 }
 
+// Akcia type → Dognet coupon type (labels in ShopTabs: 1=Zľava, 2=Darček, 3=Výpredaj, 4=Iné, 5=Doprava zadarmo)
+const AKCIA_TYPE_TO_COUPON_TYPE: Record<AkciaType, number> = {
+  doprava: 5, vypredaj: 3, welcome: 1, gift: 2, event: 4,
+};
+
 export async function getCouponsByShop(shopName: string) {
-  const [dognetAll, affialAll, cjAll] = await Promise.all([
+  const [dognetAll, affialAll, ehubAll, cjAll] = await Promise.all([
     getCoupons().catch(() => []),
     getAffialCoupons().catch(() => []),
+    getEhubCoupons().catch(() => []),
     getCjCouponsByShop(shopName).catch(() => []),
   ]);
 
-  const lower = shopName.toLowerCase();
-  const shopSlug = normalizeShopSlug(shopName);
-  const shopNorm = normalizeShopName(shopName);
+  // Slug/domain/normalized-name matching — "Alza.sk", "Alza", "alza.sk", "alza" → /kupony/alza
+  const matchesShop = createShopMatcher(shopName);
 
   const dognet = dognetAll
-    .filter((c: any) => {
-      const camName = c.campaign?.name ?? "";
-      // "Ejoytablety.cz" contains "ejoytablety"
-      if (camName.toLowerCase().includes(lower)) return true;
-      // Diacritics: normalizeShopSlug("Pôžičky.sk") === "pozicky"
-      if (normalizeShopSlug(camName) === shopSlug) return true;
-      // Strip all non-alphanumeric: "Ejoytablety.cz" → "ejoytablety" === "ejoytablety"
-      if (normalizeShopName(camName) === shopNorm) return true;
-      return false;
-    })
+    .filter((c: any) => matchesShop(c.campaign?.name, c.campaign?.url ?? c.campaign?.website_url))
     .map((c: any) => ({ ...c, source: "dognet" }));
 
+  // Affial XML campaign_name is a domain ("zalando.sk") — match it as name AND domain
   const affialXml = affialAll.filter((c: any) =>
-    c.campaign_name?.toLowerCase().includes(lower)
+    matchesShop(c.campaign_name, c.campaign_name)
   );
+
+  const ehub = ehubAll
+    .filter((c) => matchesShop(c.campaign_name))
+    .map((c) => ({
+      id: `ehub-${c.id}`,
+      code: c.code,
+      title: c.title || c.description || `Kupón pre ${c.campaign_name}`,
+      name: c.title,
+      description: c.description,
+      type: 1,
+      affiliate_link: c.affiliate_link,
+      url: c.affiliate_link,
+      valid_to: c.valid_to,
+      campaign: { name: c.campaign_name },
+      campaign_name: c.campaign_name,
+      source: "ehub" as const,
+    }));
 
   const cj = cjAll.map((c: any) => ({
     id: c.id,
@@ -150,16 +166,9 @@ export async function getCouponsByShop(shopName: string) {
 
   const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
 
-  // Static AFFIAL_COUPONS — match by shop name or domain base
+  // Static AFFIAL_COUPONS — match by shop name or domain
   const affialStatic = AFFIAL_COUPONS
-    .filter(c => {
-      const domainBase = c.domain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-");
-      return (
-        c.shop.toLowerCase().includes(lower) ||
-        c.domain.toLowerCase().includes(lower) ||
-        domainBase.toLowerCase() === lower
-      );
-    })
+    .filter(c => matchesShop(c.shop, c.domain))
     .map((c, i) => {
       const trackingUrl = affialShopMap.get(c.domain) ?? `https://${c.domain}`;
       return {
@@ -178,14 +187,36 @@ export async function getCouponsByShop(shopName: string) {
       };
     });
 
+  // STATIC_AKCIE (same source as /akcie page) — the shop's ongoing deals must show on its page too
+  const staticAkcie = STATIC_AKCIE
+    .filter(a => matchesShop(a.shopName, a.domain))
+    .map(a => ({
+      id: `akcia-${a.id}`,
+      code: "",
+      title: a.title,
+      name: a.title,
+      description: a.description,
+      type: AKCIA_TYPE_TO_COUPON_TYPE[a.type] ?? 4,
+      affiliate_link: a.affiliateUrl,
+      url: a.affiliateUrl,
+      valid_to: a.validTo ?? null,
+      campaign: { name: a.shopName },
+      campaign_name: a.shopName,
+      source: "static-akcia" as const,
+    }));
+
   const seenCodes = new Set(
     [...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
   );
+  const uniqueEhub = ehub.filter(
+    (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
+  );
+  for (const c of uniqueEhub) if (c.code) seenCodes.add(c.code.toUpperCase());
   const uniqueAffialXml = affialXml.filter(
     (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
   );
 
-  return [...dognet, ...cj, ...uniqueAffialXml, ...affialStatic];
+  return [...dognet, ...uniqueEhub, ...cj, ...uniqueAffialXml, ...affialStatic, ...staticAkcie];
 }
 
 export async function getLatestCoupons(limit = 6) {
