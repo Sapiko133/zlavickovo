@@ -46,7 +46,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
   }
 
   return (
-    <div style={{
+    <div className="coupon-row-inner" style={{
       background: T.white,
       border: `1px solid ${T.border}`,
       borderRadius: T.rLg,
@@ -69,7 +69,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
           <span style={{
             fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: T.rFull,
             background: "#DCFCE7", color: "#15803D",
-          }}>✓ Overený</span>
+          }}>Možný kupón</span>
           <span style={{
             fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: T.rFull,
             background: T.bgAlt, color: T.textMuted,
@@ -103,7 +103,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
       </div>
 
       {/* Right CTA */}
-      <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 160 }}>
+      <div className="coupon-row-cta" style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, minWidth: 160 }}>
         {hasCode ? (
           revealed ? (
             <>
@@ -191,7 +191,8 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUr
       <style>{`
         @media(max-width:640px){
           .coupon-row-inner { flex-direction: column !important; }
-          .coupon-row-cta { min-width: unset !important; width: 100% !important; }
+          .coupon-row-cta { min-width: unset !important; width: 100% !important; align-items: stretch !important; }
+          .coupon-row-cta button, .coupon-row-cta a { width: 100% !important; }
         }
       `}</style>
 

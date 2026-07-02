@@ -247,7 +247,7 @@ export default async function KuponyPage({
               style={{
                 padding: "8px 14px", borderRadius: "9px 0 0 9px",
                 border: "1.5px solid #e0e0e0", borderRight: "none",
-                background: "#fafafa", fontSize: 13, fontFamily: "inherit",
+                background: "#fafafa", fontSize: 16, fontFamily: "inherit",
                 outline: "none", width: 220,
               }}
             />

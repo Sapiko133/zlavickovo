@@ -107,7 +107,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
               autoComplete="off"
               style={{
                 flex: 1, padding: "12px 0", border: "none", background: "transparent",
-                fontSize: 15, color: "#1d1d1f", outline: "none", fontFamily: "inherit",
+                fontSize: 16, color: "#1d1d1f", outline: "none", fontFamily: "inherit",
               }}
             />
             {query && (

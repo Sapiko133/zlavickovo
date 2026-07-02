@@ -107,7 +107,7 @@ export default function CouponCard({ coupon, token, sponsored }: {
             ? { background: "#FFF7ED", color: "#C2410C" }
             : { background: T.greenMid, color: T.greenDark }),
         }}>
-          {sponsored ? t("sponsored") : "✓ Overený"}
+          {sponsored ? t("sponsored") : "Možný kupón"}
         </span>
       </div>
 

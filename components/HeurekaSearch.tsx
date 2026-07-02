@@ -41,7 +41,7 @@ export default function HeurekaSearch({ shopName }: { shopName?: string }) {
           style={{
             flex: 1, padding: "10px 14px", borderRadius: 10,
             border: "1.5px solid var(--border)", background: "var(--bg)",
-            color: "var(--text)", fontSize: 14, fontFamily: "inherit",
+            color: "var(--text)", fontSize: 16, fontFamily: "inherit",
             outline: "none",
           }}
         />

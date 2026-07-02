@@ -185,7 +185,7 @@ export default function Nav() {
                 onKeyDown={handleKeyDown}
                 placeholder={t("search_placeholder")}
                 autoComplete="off"
-                style={{ flex: 1, padding: "9px 14px", border: "none", background: "transparent", fontSize: 14, color: "#1d1d1f", outline: "none", fontFamily: "inherit" }}
+                style={{ flex: 1, padding: "9px 14px", border: "none", background: "transparent", fontSize: 16, color: "#1d1d1f", outline: "none", fontFamily: "inherit" }}
               />
               {query && (
                 <button onClick={() => { setQuery(""); setDropOpen(false); inputRef.current?.focus(); }}

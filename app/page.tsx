@@ -182,7 +182,7 @@ export default function Home() {
         .cat-pill:hover { background: #22C55E !important; color: #fff !important; border-color: #22C55E !important; }
         @media(max-width:900px) {
           .home-2col { flex-direction: column !important; }
-          .home-side { display: none !important; }
+          .home-side { width: 100% !important; }
           .shops-grid-hp { grid-template-columns: repeat(3,1fr) !important; }
           .coupons-grid { grid-template-columns: repeat(2,1fr) !important; }
           .akcie-grid { grid-template-columns: repeat(2,1fr) !important; }

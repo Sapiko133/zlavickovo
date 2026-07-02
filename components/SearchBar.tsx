@@ -84,7 +84,7 @@ export default function SearchBar() {
           onKeyDown={handleKeyDown}
           placeholder={mode === "shop" ? "Napr. Alza, Shein, Zalando..." : "Napr. iPhone, Nike tenisky..."}
           autoComplete="off"
-          style={{ flex: 1, padding: "16px 20px", borderRadius: "12px 0 0 12px", border: "none", background: "transparent", color: "#1d1d1f", fontSize: 15, outline: "none", fontFamily: "inherit" }}
+          style={{ flex: 1, padding: "16px 20px", borderRadius: "12px 0 0 12px", border: "none", background: "transparent", color: "#1d1d1f", fontSize: 16, outline: "none", fontFamily: "inherit" }}
         />
         {query && (
           <button onClick={() => { setQuery(""); setOpen(false); inputRef.current?.focus(); }}
