@@ -88,6 +88,56 @@ function filterSuggestions(list: Suggestion[], query: string, max = 8): Suggesti
   return matches.slice(0, max);
 }
 
+// ── Unified autocomplete (Nav) — products + shops + coupons ──
+export interface UnifiedProduct { slug: string; name: string; url: string }
+export interface UnifiedShop { name: string; slug: string; domain: string }
+export interface UnifiedCoupon { title: string; shopName: string; shopSlug: string }
+
+export interface UnifiedResults {
+  products: UnifiedProduct[];
+  shops: UnifiedShop[];
+  coupons: UnifiedCoupon[];
+}
+
+const EMPTY_UNIFIED: UnifiedResults = { products: [], shops: [], coupons: [] };
+
+export function useUnifiedAutocomplete(query: string): { results: UnifiedResults; loading: boolean } {
+  const [results, setResults] = useState<UnifiedResults>(EMPTY_UNIFIED);
+  const [loading, setLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) {
+      setResults(EMPTY_UNIFIED);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      fetch(`/api/autocomplete?mode=unified&q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
+        .then(r => r.json())
+        .then((d: UnifiedResults) => {
+          setResults({
+            products: Array.isArray(d?.products) ? d.products : [],
+            shops: Array.isArray(d?.shops) ? d.shops : [],
+            coupons: Array.isArray(d?.coupons) ? d.coupons : [],
+          });
+          setLoading(false);
+        })
+        .catch((err) => { if (err?.name !== "AbortError") setLoading(false); });
+    }, 250);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  return { results, loading };
+}
+
 export function useAutocomplete(query: string, mode: "shop" | "product" = "shop"): Suggestion[] {
   const [shopDynamic, setShopDynamic] = useState<Suggestion[]>(_shopCache ?? []);
   const [productResults, setProductResults] = useState<Suggestion[]>([]);

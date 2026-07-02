@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ShopFavicon from "@/components/ShopFavicon";
-import { useAutocomplete } from "@/hooks/useAutocomplete";
+import { useUnifiedAutocomplete } from "@/hooks/useAutocomplete";
 
 const CAT_LIST = [
   { slug: "elektronika", label: "Elektronika", emoji: "💻" },
@@ -72,10 +72,20 @@ export default function Nav() {
   const searchRef = useRef<HTMLDivElement>(null);
   const inputRef  = useRef<HTMLInputElement>(null);
 
-  const suggestions = useAutocomplete(query, "shop");
+  const { results, loading } = useUnifiedAutocomplete(query);
+
+  const flatItems = [
+    ...results.products.map(p => ({ type: "product" as const, label: p.name, sub: "Produkt", href: p.url, domain: "" })),
+    ...results.shops.map(s => ({ type: "shop" as const, label: s.name, sub: "Obchod", href: `/kupony/${s.slug}`, domain: s.domain })),
+    ...results.coupons.map(c => ({ type: "coupon" as const, label: c.title, sub: c.shopName, href: `/kupony/${c.shopSlug}`, domain: "" })),
+  ];
+  const hasResults = flatItems.length > 0;
+  const showEmpty = query.trim().length >= 2 && !loading && !hasResults;
 
   useEffect(() => { setHighlight(-1); }, [query]);
-  useEffect(() => { setDropOpen(focused && suggestions.length > 0); }, [suggestions, focused]);
+  useEffect(() => {
+    setDropOpen(focused && query.trim().length >= 2 && (hasResults || showEmpty));
+  }, [hasResults, showEmpty, focused, query]);
 
   useEffect(() => {
     if (!catOpen) return;
@@ -103,26 +113,26 @@ export default function Nav() {
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
-  const goShop = useCallback((slug: string, name: string) => {
+  const goItem = useCallback((href: string, label: string) => {
     setDropOpen(false);
     setFocused(false);
-    setQuery(name);
-    router.push(`/kupony/${slug}`);
+    setQuery(label);
+    router.push(href);
   }, [router]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlight(h => (h + 1) % Math.max(suggestions.length, 1));
+      setHighlight(h => (h + 1) % Math.max(flatItems.length, 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight(h => h <= 0 ? suggestions.length - 1 : h - 1);
+      setHighlight(h => h <= 0 ? flatItems.length - 1 : h - 1);
     } else if (e.key === "Escape") {
       setDropOpen(false); setHighlight(-1); inputRef.current?.blur();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const pick = highlight >= 0 ? suggestions[highlight] : suggestions[0];
-      if (pick) { goShop(pick.slug, pick.name); }
+      const pick = highlight >= 0 ? flatItems[highlight] : flatItems[0];
+      if (pick) { goItem(pick.href, pick.label); }
       else if (query.trim()) {
         setDropOpen(false);
         router.push("/hladat?q=" + encodeURIComponent(query.trim()));
@@ -171,7 +181,7 @@ export default function Nav() {
                 type="text"
                 value={query}
                 onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
-                onFocus={() => { setFocused(true); if (suggestions.length > 0) setDropOpen(true); }}
+                onFocus={() => { setFocused(true); if (hasResults) setDropOpen(true); }}
                 onKeyDown={handleKeyDown}
                 placeholder={t("search_placeholder")}
                 autoComplete="off"
@@ -186,8 +196,8 @@ export default function Nav() {
               )}
               <button
                 onClick={() => {
-                  const pick = suggestions[highlight >= 0 ? highlight : 0];
-                  if (pick) goShop(pick.slug, pick.name);
+                  const pick = flatItems[highlight >= 0 ? highlight : 0];
+                  if (pick) goItem(pick.href, pick.label);
                   else if (query.trim()) { setDropOpen(false); router.push("/hladat?q=" + encodeURIComponent(query.trim())); }
                 }}
                 style={{ padding: "8px 16px", border: "none", borderRadius: "0 8px 8px 0", background: "#22C55E", color: "#fff", cursor: "pointer", fontSize: 15, fontWeight: 700, flexShrink: 0, fontFamily: "inherit" }}
@@ -196,24 +206,50 @@ export default function Nav() {
             </div>
 
             {/* Dropdown */}
-            {dropOpen && suggestions.length > 0 && (
+            {dropOpen && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 400, overflow: "hidden" }}>
-                {suggestions.map((s, i) => (
-                  <div key={`${s.slug}-${i}`}
-                    className="nav-drop-item"
-                    onMouseDown={e => { e.preventDefault(); goShop(s.slug, s.name); }}
-                    onMouseEnter={() => setHighlight(i)}
-                    onMouseLeave={() => setHighlight(-1)}
-                    style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", background: highlight === i ? "#F0FDF4" : "#fff", borderBottom: i < suggestions.length - 1 ? "1px solid #f5f5f5" : "none" }}
-                  >
-                    <ShopFavicon domain={s.domain || ""} name={s.name} size={28} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</div>
-                      <div style={{ fontSize: 11, color: "#999" }}>{s.category}</div>
-                    </div>
-                    <span style={{ fontSize: 11, color: "#ccc", flexShrink: 0 }}>→</span>
+                {showEmpty ? (
+                  <div style={{ padding: "14px 16px", fontSize: 13, color: "#999", textAlign: "center" }}>
+                    Nenašli sa žiadne výsledky
                   </div>
-                ))}
+                ) : (
+                  ([
+                    { title: "Produkty", start: 0, count: results.products.length },
+                    { title: "Obchody", start: results.products.length, count: results.shops.length },
+                    { title: "Kupóny", start: results.products.length + results.shops.length, count: results.coupons.length },
+                  ] as const).map(sec => sec.count > 0 && (
+                    <div key={sec.title}>
+                      <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", background: "#fafafa", borderBottom: "1px solid #f5f5f5" }}>
+                        {sec.title}
+                      </div>
+                      {flatItems.slice(sec.start, sec.start + sec.count).map((item, j) => {
+                        const i = sec.start + j;
+                        return (
+                          <div key={`${item.href}-${i}`}
+                            className="nav-drop-item"
+                            onMouseDown={e => { e.preventDefault(); goItem(item.href, item.label); }}
+                            onMouseEnter={() => setHighlight(i)}
+                            onMouseLeave={() => setHighlight(-1)}
+                            style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 14px", cursor: "pointer", background: highlight === i ? "#F0FDF4" : "#fff", borderBottom: "1px solid #f5f5f5" }}
+                          >
+                            {item.type === "shop" ? (
+                              <ShopFavicon domain={item.domain || ""} name={item.label} size={28} />
+                            ) : (
+                              <span style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
+                                {item.type === "product" ? "🛍️" : "🎟️"}
+                              </span>
+                            )}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                              <div style={{ fontSize: 11, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.sub}</div>
+                            </div>
+                            <span style={{ fontSize: 11, color: "#ccc", flexShrink: 0 }}>→</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))
+                )}
               </div>
             )}
           </div>
