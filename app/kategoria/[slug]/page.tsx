@@ -28,11 +28,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
     description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
-    alternates: { canonical: `https://zlavickovo.sk/kategoria/${slug}` },
+    alternates: { canonical: `https://www.zlavickovo.sk/kategoria/${slug}` },
     openGraph: {
       title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
       description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
-      url: `https://zlavickovo.sk/kategoria/${slug}`, type: "website",
+      url: `https://www.zlavickovo.sk/kategoria/${slug}`, type: "website",
     },
   };
 }
@@ -106,9 +106,9 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       {
         "@type": "BreadcrumbList",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://zlavickovo.sk" },
-          { "@type": "ListItem", "position": 2, "name": "Kategórie", "item": "https://zlavickovo.sk/kategoria" },
-          { "@type": "ListItem", "position": 3, "name": cat.label, "item": `https://zlavickovo.sk/kategoria/${slug}` },
+          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://www.zlavickovo.sk" },
+          { "@type": "ListItem", "position": 2, "name": "Kategórie", "item": "https://www.zlavickovo.sk/kategoria" },
+          { "@type": "ListItem", "position": 3, "name": cat.label, "item": `https://www.zlavickovo.sk/kategoria/${slug}` },
         ],
       },
       {

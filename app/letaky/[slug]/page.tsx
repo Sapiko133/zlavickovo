@@ -22,7 +22,7 @@ export async function generateMetadata({ params }: Props) {
   return {
     title: `${letak.name} leták aktuálny ${month} ${year}`,
     description: `Aktuálny ${letak.name} leták ${month} ${year}. ${letak.updateText.charAt(0).toUpperCase() + letak.updateText.slice(1)}. Nájdite najlepšie akcie a zľavy.`,
-    alternates: { canonical: `https://zlavickovo.sk/letaky/${slug}` },
+    alternates: { canonical: `https://www.zlavickovo.sk/letaky/${slug}` },
     openGraph: {
       title: `${letak.name} leták ${month} ${year} | Zlavickovo`,
       description: `Aktuálny ${letak.name} leták online. ${letak.updateText}.`,
@@ -63,9 +63,9 @@ export default async function LetatPage({ params }: Props) {
       {
         "@type": "BreadcrumbList",
         "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://zlavickovo.sk" },
-          { "@type": "ListItem", "position": 2, "name": "Letáky", "item": "https://zlavickovo.sk/letaky" },
-          { "@type": "ListItem", "position": 3, "name": letak.name, "item": `https://zlavickovo.sk/letaky/${slug}` },
+          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://www.zlavickovo.sk" },
+          { "@type": "ListItem", "position": 2, "name": "Letáky", "item": "https://www.zlavickovo.sk/letaky" },
+          { "@type": "ListItem", "position": 3, "name": letak.name, "item": `https://www.zlavickovo.sk/letaky/${slug}` },
         ],
       },
       {

@@ -5,7 +5,7 @@ import { CATEGORIES_LIST } from "@/lib/categories";
 export const metadata = {
   title: "Kategórie kupónov | Zlavickovo",
   description: "Prehľad všetkých kategórií zľavových kódov a kupónov pre slovenské obchody.",
-  alternates: { canonical: "https://zlavickovo.sk/kategoria" },
+  alternates: { canonical: "https://www.zlavickovo.sk/kategoria" },
 };
 
 export default function KategoriaPage() {

@@ -9,11 +9,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Aktuálne akcie supermarketov | Potraviny & Reťazce",
   description: "Aktuálne týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalších obchodov. Nájdi najlepšie zľavy.",
-  alternates: { canonical: "https://zlavickovo.sk/letaky" },
+  alternates: { canonical: "https://www.zlavickovo.sk/letaky" },
   openGraph: {
     title: "Aktuálne akcie supermarketov | Zlavickovo",
     description: "Týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalšie. Aktualizované automaticky.",
-    url: "https://zlavickovo.sk/letaky",
+    url: "https://www.zlavickovo.sk/letaky",
     type: "website",
     locale: "sk_SK",
   },

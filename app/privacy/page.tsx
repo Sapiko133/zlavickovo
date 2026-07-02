@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Ochrana súkromia | Zlavickovo.sk",
   description: "Zásady ochrany osobných údajov portálu Zlavickovo.sk. GDPR, cookies, affiliate linky.",
-  alternates: { canonical: "https://zlavickovo.sk/privacy" },
+  alternates: { canonical: "https://www.zlavickovo.sk/privacy" },
 };
 
 const UPDATED = "26. 6. 2026";

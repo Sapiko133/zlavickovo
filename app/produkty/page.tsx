@@ -27,7 +27,7 @@ export async function generateMetadata({
   return {
     title,
     description: "Porovnaj ceny a nájdi najlepšie produkty so zľavou od overených predajcov.",
-    alternates: { canonical: "https://zlavickovo.sk/produkty" },
+    alternates: { canonical: "https://www.zlavickovo.sk/produkty" },
   };
 }
 

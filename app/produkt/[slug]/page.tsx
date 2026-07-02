@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     description:
       product.description ||
       `Kúp ${product.name} za najlepšiu cenu na ${product.domain}. Overený predajca.`,
-    alternates: { canonical: `https://zlavickovo.sk/produkt/${slug}` },
+    alternates: { canonical: `https://www.zlavickovo.sk/produkt/${slug}` },
     openGraph: {
       title: product.name,
       description: product.description || `${product.name} na ${product.domain}`,

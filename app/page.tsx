@@ -20,11 +20,11 @@ export const revalidate = 3600;
 export const metadata = {
   title: "Zlavickovo ✂️ Zľavové kódy a kupóny pre slovenské obchody 2026",
   description: "Nájdi aktuálne zľavové kódy pre Alza, Shein, Zalando a 100+ obchodov. AI vyhľadávanie kupónov zadarmo.",
-  alternates: { canonical: "https://zlavickovo.sk" },
+  alternates: { canonical: "https://www.zlavickovo.sk" },
   openGraph: {
     title: "Zlavickovo – Zľavové kódy a kupóny 2026",
     description: "Nájdi aktuálne zľavové kódy pre 100+ slovenských obchodov. AI vyhľadávanie zadarmo.",
-    url: "https://zlavickovo.sk", type: "website", locale: "sk_SK",
+    url: "https://www.zlavickovo.sk", type: "website", locale: "sk_SK",
   },
   twitter: {
     card: "summary_large_image",
@@ -161,8 +161,8 @@ export default function Home() {
     <div style={{ minHeight: "100vh", background: "#f8f9fa", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org", "@type": "WebSite",
-        "name": "Zlavickovo", "url": "https://zlavickovo.sk",
-        "potentialAction": { "@type": "SearchAction", "target": { "@type": "EntryPoint", "urlTemplate": "https://zlavickovo.sk/kupony/{search_term_string}" }, "query-input": "required name=search_term_string" },
+        "name": "Zlavickovo", "url": "https://www.zlavickovo.sk",
+        "potentialAction": { "@type": "SearchAction", "target": { "@type": "EntryPoint", "urlTemplate": "https://www.zlavickovo.sk/kupony/{search_term_string}" }, "query-input": "required name=search_term_string" },
       }) }} />
 
       <style>{`

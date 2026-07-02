@@ -19,7 +19,7 @@ import Nav from "@/components/Nav";
 
 type Props = { params: Promise<{ slug: string }> };
 
-const BASE = "https://zlavickovo.sk";
+const BASE = "https://www.zlavickovo.sk";
 
 export const revalidate = 3600;
 

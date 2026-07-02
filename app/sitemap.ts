@@ -6,10 +6,11 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { getAllPosts } from "@/lib/blog";
 import { LETAKY } from "@/lib/letaky";
 import { normalizeShopSlug } from "@/lib/slug";
+import { getTopProductIds, toProductSlug } from "@/lib/heureka/query";
 
 export const revalidate = 3600;
 
-const BASE = "https://zlavickovo.sk";
+const BASE = "https://www.zlavickovo.sk";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let shops: { id: number; name: string; count: number }[] = [];
@@ -61,6 +62,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  // Produkty z hk_products (Heureka DB)
+  let productUrls: MetadataRoute.Sitemap = [];
+  try {
+    const products = await getTopProductIds(10000);
+    productUrls = products.map(p => ({
+      url: `${BASE}/produkt/${toProductSlug(p.name, p.id)}`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.6,
+    }));
+  } catch {}
+
   let blogUrls: MetadataRoute.Sitemap = [];
   try {
     const posts = getAllPosts();
@@ -79,6 +92,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/akcie`,         lastModified: new Date(), changeFrequency: "daily",  priority: 0.9 },
     { url: `${BASE}/letaky`,        lastModified: new Date(), changeFrequency: "daily",  priority: 0.8 },
     { url: `${BASE}/kategoria`,     lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE}/produkty`,      lastModified: new Date(), changeFrequency: "daily",  priority: 0.8 },
 
     { url: `${BASE}/blog`,          lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     ...categoryUrls,
@@ -87,5 +101,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...shopUrls,
     ...affialShopUrls,
     ...affialCouponUrls,
+    ...productUrls,
   ];
 }

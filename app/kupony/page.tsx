@@ -14,11 +14,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Všetky zľavové kódy a kupóny 2026 | Zlavickovo.sk",
   description: "Aktuálne overené zľavové kódy pre 100+ obchodov. Zľavy, akcie a promo kódy zadarmo.",
-  alternates: { canonical: "https://zlavickovo.sk/kupony" },
+  alternates: { canonical: "https://www.zlavickovo.sk/kupony" },
   openGraph: {
     title: "Všetky zľavové kódy 2026 – Zlavickovo.sk",
     description: "Aktuálne kupóny pre 100+ slovenských obchodov.",
-    url: "https://zlavickovo.sk/kupony",
+    url: "https://www.zlavickovo.sk/kupony",
     type: "website",
     locale: "sk_SK",
   },

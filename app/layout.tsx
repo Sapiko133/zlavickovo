@@ -18,16 +18,30 @@ export const metadata: Metadata = {
   description:
     "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
   keywords: ["zlavove kody", "kupony", "zlava", "zlavickovo", "zlavovy kod", "Slovakia"],
-  openGraph: { siteName: "Zlavickovo", locale: "sk_SK", type: "website" },
+  openGraph: {
+    title: "Zlavickovo – zľavové kódy a kupóny 2026",
+    description:
+      "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
+    url: "https://www.zlavickovo.sk",
+    siteName: "Zlavickovo",
+    locale: "sk_SK",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Zlavickovo – zľavové kódy a kupóny 2026",
+    description:
+      "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
+  },
   alternates: {
-    canonical: "https://zlavickovo.sk",
+    canonical: "https://www.zlavickovo.sk",
     languages: {
-      sk: "https://zlavickovo.sk",
-      cs: "https://zlavickovo.sk",
-      "x-default": "https://zlavickovo.sk",
+      sk: "https://www.zlavickovo.sk",
+      cs: "https://www.zlavickovo.sk",
+      "x-default": "https://www.zlavickovo.sk",
     },
   },
-  metadataBase: new URL("https://zlavickovo.sk"),
+  metadataBase: new URL("https://www.zlavickovo.sk"),
 };
 
 export default function RootLayout({

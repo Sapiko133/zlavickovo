@@ -10,11 +10,11 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Akcie a výhodné ponuky 2026 | Zlavickovo.sk",
   description: "Aktuálne akcie, výpredaje a doprava zadarmo od stoviek obchodov. Doprava zadarmo Alza, Zalando, Notino a ďalšie.",
-  alternates: { canonical: "https://zlavickovo.sk/akcie" },
+  alternates: { canonical: "https://www.zlavickovo.sk/akcie" },
   openGraph: {
     title: "Akcie a výhodné ponuky | Zlavickovo",
     description: "Doprava zadarmo, výpredaje a špeciálne ponuky z oblíbených obchodov.",
-    url: "https://zlavickovo.sk/akcie", type: "website", locale: "sk_SK",
+    url: "https://www.zlavickovo.sk/akcie", type: "website", locale: "sk_SK",
   },
 };
 

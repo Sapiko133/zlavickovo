@@ -14,7 +14,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Všetky obchody A-Z | Zlavickovo.sk",
   description: "Prehľad všetkých obchodov so zľavovými kódmi a kupónmi. Nájdi kupóny pre tvoj obľúbený eshop – zoradené podľa abecedy.",
-  alternates: { canonical: "https://zlavickovo.sk/obchody" },
+  alternates: { canonical: "https://www.zlavickovo.sk/obchody" },
 };
 
 function shopSlug(name: string) {
