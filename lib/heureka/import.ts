@@ -5,7 +5,7 @@ import type { HkFeedDef, ImportFeedResult } from "./types";
 
 async function fetchXml(url: string): Promise<string> {
   const res = await fetch(url, {
-    signal: AbortSignal.timeout(60000), // 54 paralelných sťahovaní sa delí o bandwidth — veľké XML potrebujú viac ako 15s
+    signal: AbortSignal.timeout(60000), // veľké XML potrebujú viac ako 15s aj pri 10 paralelných sťahovaniach
     headers: { "User-Agent": "Zlavickovo/1.0 (+https://zlavickovo.sk)" },
     next: { revalidate: 0 },
   });
@@ -71,18 +71,29 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
   }
 }
 
-// 3 feedy paralelne — pri škálovaní na 203 zmeniť na batche po 10
+// Feedy sa importujú v batchoch po 10 — 54 paralelných fetchov sa delilo o bandwidth a validné XML padali na timeout
+const FEED_BATCH = 10;
+
 export async function importAllHeurekaFeeds(): Promise<ImportFeedResult[]> {
-  const settled = await Promise.allSettled(HEUREKA_FEEDS.map(importSingleFeed));
-  return settled.map((r, i) =>
-    r.status === "fulfilled"
-      ? r.value
-      : {
-          feedId: HEUREKA_FEEDS[i].id,
-          domain: HEUREKA_FEEDS[i].domain,
-          count: 0,
-          error: String((r as PromiseRejectedResult).reason),
-          durationMs: 0,
-        }
-  );
+  const results: ImportFeedResult[] = [];
+
+  for (let i = 0; i < HEUREKA_FEEDS.length; i += FEED_BATCH) {
+    const batch = HEUREKA_FEEDS.slice(i, i + FEED_BATCH);
+    const settled = await Promise.allSettled(batch.map(importSingleFeed));
+    results.push(
+      ...settled.map((r, j) =>
+        r.status === "fulfilled"
+          ? r.value
+          : {
+              feedId: batch[j].id,
+              domain: batch[j].domain,
+              count: 0,
+              error: String((r as PromiseRejectedResult).reason),
+              durationMs: 0,
+            }
+      )
+    );
+  }
+
+  return results;
 }
