@@ -12,6 +12,7 @@ import ShopTabs from "@/components/ShopTabs";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { compareShopsByPriority } from "@/lib/shop-priority";
+import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/lib/shop-affiliate";
 // ShopLogo removed — using ShopFavicon throughout
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -119,15 +120,20 @@ export default async function ShopPage({ params }: Props) {
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
 
-  // Shop visit URL — priority: Dognet affiliate → Affial → direct domain
+  // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
   const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
-  const dognetAffiliateUrl = coupons.find((c: any) =>
-    typeof c.url === "string" && c.url.includes("go.dognet.com")
-  )?.url ?? null;
-  const shopVisitUrl: string =
-    dognetAffiliateUrl ??
+  const shopAffiliateUrl: string | null =
+    affiliateUrlFromCoupons(coupons) ??
     affialShop?.affiliateUrl ??
-    `https://${shopDomain}`;
+    (await getShopAffiliateUrl(capitalized).catch(() => null));
+  const shopVisitUrl: string = shopAffiliateUrl ?? `https://${shopDomain}`;
+
+  // Priame odkazy bez trackingu (statické akcie, fallbacky) nahradí affiliate URL, ak existuje
+  if (shopAffiliateUrl) {
+    coupons = coupons.map((c: any) =>
+      hasDirectLink(c) ? { ...c, url: shopAffiliateUrl, affiliate_link: shopAffiliateUrl } : c
+    );
+  }
 
   const rawCodeCoupons = coupons.filter((c: any) => c.code && c.code.trim() !== "");
   const dealCoupons = coupons.filter((c: any) => !c.code || c.code.trim() === "");

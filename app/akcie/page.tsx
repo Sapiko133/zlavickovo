@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
 import { STATIC_AKCIE, dognetCouponToAkcia, type Akcia, type AkciaType } from "@/lib/akcie";
 import { getSalesCoupons } from "@/lib/dognet";
+import { resolveAkciaAffiliateUrls } from "@/lib/shop-affiliate";
 import type { Metadata } from "next";
 
 export const revalidate = 3600;
@@ -106,7 +107,11 @@ export default async function AkciePage() {
       .map(dognetCouponToAkcia);
   } catch {}
 
-  const allAkcie: Akcia[] = [...dognetAkcie, ...STATIC_AKCIE];
+  // Statické akcie: priamy odkaz nahradí affiliate URL, ak pre obchod existuje
+  let staticAkcie: Akcia[] = STATIC_AKCIE;
+  try { staticAkcie = await resolveAkciaAffiliateUrls(STATIC_AKCIE); } catch {}
+
+  const allAkcie: Akcia[] = [...dognetAkcie, ...staticAkcie];
 
   // Dedup by id
   const seen = new Set<string>();
