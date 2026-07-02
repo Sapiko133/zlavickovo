@@ -3,7 +3,7 @@ export interface HkFeedDef {
   url: string;
   domain: string;
   category: string;
-  affiliateUrl: string;
+  affiliateUrl: string | null;
 }
 
 export interface HkProduct {
@@ -16,7 +16,7 @@ export interface HkProduct {
   img_url: string;
   domain: string;
   category: string;
-  affiliate_url: string;
+  affiliate_url: string | null;
   updated_at: string;
 }
 

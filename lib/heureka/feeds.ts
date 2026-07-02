@@ -5,7 +5,7 @@ const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 // 20 overených Heureka XML feedov (SHOP/SHOPITEM formát, overené 2026-07-02)
 // Google Shopping feedy vyradené (kosmetikomat.sk, blendea, li-go.cz, nechtovyraj.sk)
 // tpmove.sk vyradený — universal.xml má SHOPITEM bez PRODUCTNAME (parser ho nevie spracovať)
-// dadaboom, kojenecke-obleceni, belda, herbatica nemajú Affial program — link vedie priamo do obchodu
+// dadaboom, kojenecke-obleceni, belda, herbatica nemajú Affial program — affiliateUrl: null, tlačidlo vedie na URL produktu z feedu
 const _FEEDS: HkFeedDef[] = [
   // bývanie
   {
@@ -42,7 +42,7 @@ const _FEEDS: HkFeedDef[] = [
     url: "https://www.belda.sk/heureka/export/products.xml",
     domain: "belda.sk",
     category: "sport",
-    affiliateUrl: "https://www.belda.sk/",
+    affiliateUrl: null,
   },
   // zdravie
   {
@@ -64,7 +64,7 @@ const _FEEDS: HkFeedDef[] = [
     url: "http://www.herbatica.sk/heureka/export/products.xml",
     domain: "herbatica.sk",
     category: "zdravie",
-    affiliateUrl: "https://www.herbatica.sk/",
+    affiliateUrl: null,
   },
   {
     id: "neurinu-cz",
@@ -109,14 +109,14 @@ const _FEEDS: HkFeedDef[] = [
     url: "https://www.dadaboom.sk/feed-heureka-tl7hkzvm56.xml",
     domain: "dadaboom.sk",
     category: "deti",
-    affiliateUrl: "https://www.dadaboom.sk/",
+    affiliateUrl: null,
   },
   {
     id: "kojenecke-obleceni-eu",
     url: "https://www.kojenecke-obleceni.eu/export/heureka/472b02a8-25a0-4294-bec4-055a24411fd3",
     domain: "kojenecke-obleceni.eu",
     category: "deti",
-    affiliateUrl: "https://www.kojenecke-obleceni.eu/",
+    affiliateUrl: null,
   },
   // potraviny
   {
@@ -160,5 +160,5 @@ const _FEEDS: HkFeedDef[] = [
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
   ...f,
-  affiliateUrl: f.affiliateUrl.replace("6202d95ce406b", AFFIAL_AID),
+  affiliateUrl: f.affiliateUrl ? f.affiliateUrl.replace("6202d95ce406b", AFFIAL_AID) : null,
 }));

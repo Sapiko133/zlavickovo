@@ -55,6 +55,10 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
 
   const priceNum = parseFloat(product.price.replace(/[^\d.,]/g, "").replace(",", "."));
 
+  // Feedy bez affiliate programu majú affiliate_url null — tlačidlo vedie priamo na produkt
+  const buyUrl = product.affiliate_url || product.url;
+  const isAffiliate = Boolean(product.affiliate_url);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -67,7 +71,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
       price: isNaN(priceNum) ? undefined : priceNum,
       priceCurrency: "EUR",
       availability: "https://schema.org/InStock",
-      url: product.affiliate_url,
+      url: product.affiliate_url || product.url,
       seller: { "@type": "Organization", name: product.domain },
     },
   };
@@ -165,7 +169,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
 
             {/* CTA */}
             <a
-              href={product.affiliate_url}
+              href={buyUrl}
               target="_blank"
               rel="nofollow noopener noreferrer"
               style={{
@@ -180,7 +184,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             </a>
 
             <p style={{ fontSize: 11, color: "#bbb", marginTop: 10, margin: "10px 0 0" }}>
-              Partnerský odkaz · Cena overená pri poslednom importe XML feeda
+              {isAffiliate ? "Partnerský odkaz · " : ""}Cena overená pri poslednom importe XML feeda
             </p>
           </div>
         </div>
