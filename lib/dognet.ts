@@ -5,6 +5,7 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { normalizeShopSlug, normalizeShopName } from "@/lib/slug";
+import { cleanDognetShopName } from "@/lib/shop-name";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -67,12 +68,18 @@ async function _fetchDognetCoupons(): Promise<any[]> {
     signal: AbortSignal.timeout(30000),
   });
   const data = await res.json();
-  return (data.data || []).map((c: any) => ({
-    ...c,
-    affiliate_link: c.url || c.affiliate_link || "#",
-    title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (c.campaign?.name || "Kupón")),
-    name: c.name || c.title || c.description || "",
-  }));
+  return (data.data || []).map((c: any) => {
+    const campaign = c.campaign?.name
+      ? { ...c.campaign, name: cleanDognetShopName(c.campaign.name) }
+      : c.campaign;
+    return {
+      ...c,
+      campaign,
+      affiliate_link: c.url || c.affiliate_link || "#",
+      title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (campaign?.name || "Kupón")),
+      name: c.name || c.title || c.description || "",
+    };
+  });
 }
 
 // Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
@@ -235,19 +242,21 @@ export async function getShops() {
     for (const c of coupons) {
       const cam = c.campaign;
       if (!cam?.name) continue;
-      const key = cam.name.toLowerCase();
+      const name = cleanDognetShopName(cam.name);
+      const key = name.toLowerCase();
       const entry = map.get(key);
       if (entry) { entry.count++; }
-      else { map.set(key, { id: cam.id ?? 0, name: cam.name, count: 1, logoUrl: cam.logo_url }); }
+      else { map.set(key, { id: cam.id ?? 0, name, count: 1, logoUrl: cam.logo_url }); }
     }
 
     // Add all campaigns without coupons (fill remaining 200 slots)
     if (cmpRes.status === "fulfilled" && Array.isArray(cmpRes.value?.data)) {
       for (const c of cmpRes.value.data) {
         if (!c.name) continue;
-        const key = c.name.toLowerCase();
+        const name = cleanDognetShopName(c.name);
+        const key = name.toLowerCase();
         if (!map.has(key)) {
-          map.set(key, { id: c.id ?? 0, name: c.name, count: 0, logoUrl: c.logo_url });
+          map.set(key, { id: c.id ?? 0, name, count: 0, logoUrl: c.logo_url });
         }
       }
     }
