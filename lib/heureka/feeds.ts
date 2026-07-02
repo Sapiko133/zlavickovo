@@ -4,7 +4,8 @@ const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
 // 20 overených Heureka XML feedov (SHOP/SHOPITEM formát, overené 2026-07-02)
 // Google Shopping feedy vyradené (kosmetikomat.sk, blendea, li-go.cz, nechtovyraj.sk)
-// Posledné 3 feedy (dadaboom, kojenecke-obleceni, belda) nemajú Affial program — link vedie priamo do obchodu
+// tpmove.sk vyradený — universal.xml má SHOPITEM bez PRODUCTNAME (parser ho nevie spracovať)
+// dadaboom, kojenecke-obleceni, belda, herbatica nemajú Affial program — link vedie priamo do obchodu
 const _FEEDS: HkFeedDef[] = [
   // bývanie
   {
@@ -37,13 +38,6 @@ const _FEEDS: HkFeedDef[] = [
     affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=796cb0f7",
   },
   {
-    id: "tpmove-sk",
-    url: "https://www.tpmove.sk/universal.xml",
-    domain: "tpmove.sk",
-    category: "sport",
-    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=588d5af3",
-  },
-  {
     id: "belda-sk",
     url: "https://www.belda.sk/heureka/export/products.xml",
     domain: "belda.sk",
@@ -64,6 +58,13 @@ const _FEEDS: HkFeedDef[] = [
     domain: "altevita.sk",
     category: "zdravie",
     affiliateUrl: "https://altevita.sk/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=8bbcdb52",
+  },
+  {
+    id: "herbatica-sk",
+    url: "http://www.herbatica.sk/heureka/export/products.xml",
+    domain: "herbatica.sk",
+    category: "zdravie",
+    affiliateUrl: "https://www.herbatica.sk/",
   },
   {
     id: "neurinu-cz",

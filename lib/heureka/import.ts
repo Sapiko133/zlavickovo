@@ -5,7 +5,7 @@ import type { HkFeedDef, ImportFeedResult } from "./types";
 
 async function fetchXml(url: string): Promise<string> {
   const res = await fetch(url, {
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(60000), // 20 paralelných sťahovaní sa delí o bandwidth — veľké XML potrebujú viac ako 15s
     headers: { "User-Agent": "Zlavickovo/1.0 (+https://zlavickovo.sk)" },
     next: { revalidate: 0 },
   });
