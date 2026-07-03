@@ -163,9 +163,27 @@ export async function getFeedStats(): Promise<HkFeedRow[]> {
   }
 }
 
-export function formatPrice(price: string): string {
+// Feed ani DB nemajú pole meny — inferujeme z domény obchodu (.cz účtuje v CZK)
+export function currencyForDomain(domain?: string): "EUR" | "CZK" {
+  return /\.cz$/i.test((domain ?? "").trim()) ? "CZK" : "EUR";
+}
+
+export function formatAmount(n: number, domain?: string): string {
+  const currency = currencyForDomain(domain);
+  if (currency === "CZK") {
+    return n.toLocaleString("cs-CZ", {
+      style: "currency",
+      currency: "CZK",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: Number.isInteger(n) ? 0 : 2,
+    });
+  }
+  return n.toLocaleString("sk-SK", { style: "currency", currency: "EUR" });
+}
+
+export function formatPrice(price: string, domain?: string): string {
   if (!price) return "";
   const n = parseFloat(price.replace(/[^\d.,]/g, "").replace(",", "."));
   if (isNaN(n)) return price;
-  return n.toLocaleString("sk-SK", { style: "currency", currency: "EUR" });
+  return formatAmount(n, domain);
 }

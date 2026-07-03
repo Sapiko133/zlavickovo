@@ -158,7 +158,7 @@ export default async function ProduktyPage({
 
 function ProductCard({ product }: { product: HkProduct }) {
   const slug = toProductSlug(product.name, product.id);
-  const price = formatPrice(product.price);
+  const price = formatPrice(product.price, product.domain);
 
   return (
     <a

@@ -47,7 +47,7 @@ interface HomepageShop {
 
 function ProductCard({ p }: { p: HkProduct }) {
   const pSlug = toProductSlug(p.name, p.id);
-  const pPrice = formatPrice(p.price);
+  const pPrice = formatPrice(p.price, p.domain);
   return (
     <a href={`/produkt/${pSlug}`} className="prod-card"
       style={{ display: "flex", flexDirection: "column", background: "#fff", borderRadius: 16, border: "1.5px solid #e8e8e8", textDecoration: "none", color: "#1d1d1f", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
@@ -280,7 +280,7 @@ export default async function Home() {
                     </div>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
-                      <div style={{ fontSize: 13, fontWeight: 800, color: ORANGE_DARK, marginTop: 2 }}>{formatPrice(p.price)}</div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: ORANGE_DARK, marginTop: 2 }}>{formatPrice(p.price, p.domain)}</div>
                     </div>
                   </a>
                 ))}
@@ -403,7 +403,7 @@ export default async function Home() {
           <div className="trend-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
             {trending.map(p => {
               const pSlug = toProductSlug(p.name, p.id);
-              const pPrice = formatPrice(p.price);
+              const pPrice = formatPrice(p.price, p.domain);
               return (
                 <a key={p.id} href={`/produkt/${pSlug}`} className="trend-row"
                   style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 16px", borderRadius: 14, background: "#fff", border: "1.5px solid #eceff3", textDecoration: "none", color: "#1d1d1f" }}>

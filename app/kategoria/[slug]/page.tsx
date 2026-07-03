@@ -276,7 +276,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
               {hkProducts.map((p: HkProduct) => {
                 const pSlug = toProductSlug(p.name, p.id);
-                const pPrice = formatPrice(p.price);
+                const pPrice = formatPrice(p.price, p.domain);
                 return (
                   <a
                     key={p.id}

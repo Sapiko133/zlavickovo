@@ -9,6 +9,8 @@ import {
   idFromSlug,
   getTopProductIds,
   formatPrice,
+  formatAmount,
+  currencyForDomain,
 } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!id) return {};
   const product = await getProductById(id);
   if (!product) return {};
-  const price = formatPrice(product.price);
+  const price = formatPrice(product.price, product.domain);
   return {
     title: `${product.name}${price ? ` – ${price}` : ""} | Zlavickovo.sk`,
     description:
@@ -65,7 +67,8 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   if (!product) notFound();
 
   const related = await getRelatedProducts(product, 4);
-  const price = formatPrice(product.price);
+  const price = formatPrice(product.price, product.domain);
+  const currency = currencyForDomain(product.domain);
 
   const priceNum = parseFloat(String(product.price ?? "").replace(/[^\d.,]/g, "").replace(",", "."));
 
@@ -80,7 +83,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   }
   const couponPrice =
     couponPercent !== null
-      ? (priceNum * (1 - couponPercent / 100)).toLocaleString("sk-SK", { style: "currency", currency: "EUR" })
+      ? formatAmount(priceNum * (1 - couponPercent / 100), product.domain)
       : null;
 
   // Feedy bez affiliate programu majú affiliate_url null — tlačidlo vedie priamo na produkt
@@ -102,7 +105,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
         offers: {
           "@type": "Offer",
           price: isNaN(priceNum) ? undefined : priceNum,
-          priceCurrency: "EUR",
+          priceCurrency: currency,
           availability: "https://schema.org/InStock",
           url: product.affiliate_url || product.url,
           seller: { "@type": "Organization", name: product.domain },
@@ -262,7 +265,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {related.map((p: HkProduct) => {
-                const rPrice = formatPrice(p.price);
+                const rPrice = formatPrice(p.price, p.domain);
                 const rSlug = toProductSlug(p.name, p.id);
                 return (
                   <a
