@@ -5,8 +5,8 @@ import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { normalizeShopSlug } from "@/lib/slug";
-import { getCoupons } from "@/lib/dognet";
-import { getEhubCoupons } from "@/lib/ehub";
+import { getCouponsByCategory } from "@/lib/category-coupons";
+import { isCategoryId } from "@/lib/taxonomy";
 import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { notFound } from "next/navigation";
@@ -20,14 +20,6 @@ export function generateStaticParams() {
 }
 
 function getYear() { return new Date().getFullYear(); }
-
-// Match na hranici slova — "tv" nesmie chytiť "bohatstvo", "mall" nesmie chytiť "smallable".
-// Text aj term sa porovnávajú lowercase; diakritiku rieši \p{L}.
-function matchesTerm(text: string, term: string): boolean {
-  if (!text || !term) return false;
-  const esc = term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}($|[^\\p{L}\\p{N}])`, "u").test(text);
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -79,34 +71,11 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
   const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
 
-  // Parallelizovane: kupony (external APIs) + produkty (DB) naraz
-  const [[dognet, ehub], hkProducts] = await Promise.all([
-    Promise.allSettled([getCoupons(), getEhubCoupons()]),
+  // Parallelizovane: kupony (podla kategorie obchodu, nie keywords) + produkty (DB)
+  const [coupons, hkProducts] = await Promise.all([
+    isCategoryId(slug) ? getCouponsByCategory(slug, 12).catch(() => []) : Promise.resolve([]),
     PILOT_CATS.has(slug) ? getProductsByHkCategory(slug, 8).catch(() => []) : Promise.resolve<HkProduct[]>([]),
   ]);
-
-  let coupons: any[] = [];
-  try {
-    const all = [
-      ...(dognet.status === "fulfilled" ? dognet.value : []),
-      ...(ehub.status === "fulfilled" ? ehub.value : []),
-    ];
-    coupons = all.filter((c: any) => {
-      const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
-      const title = (c.title || c.name || "").toLowerCase();
-      return (
-        cat.shops.some(s => matchesTerm(name, s.name) || matchesTerm(name, s.slug)) ||
-        cat.keywords.some(k => matchesTerm(name, k) || matchesTerm(title, k))
-      );
-    })
-      .sort((a: any, b: any) =>
-        compareShopsByPriority(
-          { name: a.campaign?.name || a.campaign_name || "" },
-          { name: b.campaign?.name || b.campaign_name || "" }
-        )
-      )
-      .slice(0, 12);
-  } catch {}
 
   const jsonLd = {
     "@context": "https://schema.org",
