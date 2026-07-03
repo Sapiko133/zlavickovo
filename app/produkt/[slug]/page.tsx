@@ -11,6 +11,20 @@ import {
   formatPrice,
 } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
+import { getCouponsByShop } from "@/lib/dognet";
+
+/** Najvyššia percentuálna zľava z kupónov obchodu (1–90 %), inak null. */
+function bestCouponPercent(coupons: any[]): number | null {
+  let best: number | null = null;
+  for (const c of coupons) {
+    const text = `${c?.title ?? ""} ${c?.name ?? ""} ${c?.description ?? ""}`;
+    for (const m of text.matchAll(/(\d{1,2})\s*%/g)) {
+      const p = parseInt(m[1], 10);
+      if (p >= 1 && p <= 90 && (best === null || p > best)) best = p;
+    }
+  }
+  return best;
+}
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -54,6 +68,18 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const price = formatPrice(product.price);
 
   const priceNum = parseFloat(product.price.replace(/[^\d.,]/g, "").replace(",", "."));
+
+  // Možná cena po kupóne — najvyššia % zľava z kupónov obchodu, len orientačný odhad
+  let couponPercent: number | null = null;
+  if (!isNaN(priceNum) && priceNum > 0) {
+    try {
+      couponPercent = bestCouponPercent(await getCouponsByShop(product.domain));
+    } catch {}
+  }
+  const couponPrice =
+    couponPercent !== null
+      ? (priceNum * (1 - couponPercent / 100)).toLocaleString("sk-SK", { style: "currency", currency: "EUR" })
+      : null;
 
   // Feedy bez affiliate programu majú affiliate_url null — tlačidlo vedie priamo na produkt
   const buyUrl = product.affiliate_url || product.url;
@@ -181,6 +207,25 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 900, color: "#22C55E", letterSpacing: "-1px" }}>
                   {price}
+                </div>
+              </div>
+            )}
+
+            {/* Možná cena po kupóne */}
+            {couponPercent !== null && couponPrice && (
+              <div style={{
+                background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 14,
+                padding: "14px 18px", marginBottom: 24, maxWidth: 560,
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d", marginBottom: 4 }}>
+                  Možná cena po kupóne
+                </div>
+                <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+                  Pri uplatnení kupónu <strong>-{couponPercent} %</strong> môže byť cena približne{" "}
+                  <strong style={{ color: "#15803d" }}>{couponPrice}</strong>.
+                </div>
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+                  Kupón nemusí platiť na tento konkrétny produkt.
                 </div>
               </div>
             )}
