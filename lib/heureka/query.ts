@@ -164,8 +164,15 @@ export async function getFeedStats(): Promise<HkFeedRow[]> {
 }
 
 // Feed ani DB nemajú pole meny — inferujeme z domény obchodu (.cz účtuje v CZK)
+// Explicitné overridy pre známe české obchody s ne-CZ doménou
+const CURRENCY_OVERRIDES: Record<string, "EUR" | "CZK"> = {
+  "kojenecke-obleceni.eu": "CZK",
+};
+
 export function currencyForDomain(domain?: string): "EUR" | "CZK" {
-  return /\.cz$/i.test((domain ?? "").trim()) ? "CZK" : "EUR";
+  const d = (domain ?? "").trim().toLowerCase();
+  if (CURRENCY_OVERRIDES[d]) return CURRENCY_OVERRIDES[d];
+  return /\.cz$/i.test(d) ? "CZK" : "EUR";
 }
 
 export function formatAmount(n: number, domain?: string): string {
