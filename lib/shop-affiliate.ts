@@ -2,6 +2,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { getEhubShops } from "@/lib/ehub";
 import { getCoupons as getDognetCoupons } from "@/lib/dognet";
 import { createShopMatcher } from "@/lib/shop-match";
+import { getShopPriority } from "@/lib/shop-priority";
 
 /**
  * Affiliate preklik do obchodu — jediné pravidlo:
@@ -33,6 +34,16 @@ export function hasDirectLink(c: any): boolean {
   return false;
 }
 
+/** Krajinská priorita eHub kampane (.sk > .cz > ostatné) podľa webu, inak názvu. */
+function ehubCountryPriority(s: { name?: string; web?: string }): number {
+  const host = (s.web || "")
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/[/?#].*$/, "");
+  return getShopPriority(host || s.name || "");
+}
+
 /** Shop-level affiliate URL zo zdrojov mimo kupónov: Affial partneri → eHub kampane (defaultLink). */
 export async function getShopAffiliateUrl(shopName: string): Promise<string | null> {
   const matches = createShopMatcher(shopName);
@@ -40,9 +51,13 @@ export async function getShopAffiliateUrl(shopName: string): Promise<string | nu
   const affial = AFFIAL_SHOPS.find(s => matches(s.name, s.domain));
   if (affial?.affiliateUrl?.startsWith("http")) return affial.affiliateUrl;
 
+  // Tá istá značka môže mať viac krajinských programov (Aquaangels.sk aj
+  // Aqua-angels.cz) — vyber .sk pred .cz, nie prvý match v poradí feedu.
   const ehubShops = await getEhubShops().catch(() => []);
-  const ehub = ehubShops.find(s => matches(s.name, s.web));
-  if (ehub?.affiliateLink?.startsWith("http")) return ehub.affiliateLink;
+  const ehub = ehubShops
+    .filter(s => matches(s.name, s.web) && s.affiliateLink?.startsWith("http"))
+    .sort((a, b) => ehubCountryPriority(a) - ehubCountryPriority(b))[0];
+  if (ehub) return ehub.affiliateLink;
 
   return null;
 }

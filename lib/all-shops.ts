@@ -8,7 +8,7 @@ import { TOP_SHOPS } from "@/lib/top-shops";
 import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { getShopDomain } from "@/lib/shop-domains";
 import { getStaticShops, getStaticEhubShops } from "@/lib/static-data";
-import { compareShopsByPriority } from "@/lib/shop-priority";
+import { compareShopsByPriority, getShopPriority } from "@/lib/shop-priority";
 
 /**
  * Jediný zdroj pravdy pre všetky obchody na webe.
@@ -43,7 +43,7 @@ export interface KnownShop {
   logoUrl?: string;
 }
 
-const CACHE_KEY = "shops:known:v1";
+const CACHE_KEY = "shops:known:v2"; // v2: krajinská priorita pri norm-kolízii
 const CACHE_TTL = 86400; // 24 hodín
 
 const AFFIAL_CAT_LABELS: Record<string, string> = {
@@ -100,7 +100,40 @@ class ShopCollector {
 
     if (existingSlug) {
       const e = this.bySlug.get(existingSlug)!;
-      if (!e.domain && domain) e.domain = domain;
+
+      // Norm-kolízia dvoch krajinských variantov (Aquaangels.sk vs Aqua-angels.cz):
+      // víťaza určuje krajina (.sk > .cz > ostatné), nie poradie v zdroji.
+      // Nováčik s lepšou krajinou preberá identitu (meno/slug/doménu),
+      // kurátorské "top" záznamy sa nikdy nenahrádzajú.
+      const newPriority = getShopPriority(domain || name);
+      const oldPriority = getShopPriority(e.domain || e.name);
+      if (e.source !== "top" && newPriority < oldPriority) {
+        this.bySlug.delete(existingSlug);
+        this.bySlug.set(slug, {
+          name,
+          slug,
+          domain,
+          category:
+            e.category && e.category !== "Obchod"
+              ? e.category
+              : input.category || "Obchod",
+          source: input.source,
+          count: input.count ?? e.count,
+          commission: input.commission || e.commission,
+          logoUrl: input.logoUrl || e.logoUrl,
+        });
+        for (const [n, s] of this.slugByNorm) {
+          if (s === existingSlug) this.slugByNorm.set(n, slug);
+        }
+        if (norm && !this.slugByNorm.has(norm)) this.slugByNorm.set(norm, slug);
+        return;
+      }
+
+      // Doménu horšej krajiny nikdy nedopĺňať do záznamu lepšej krajiny
+      // (.cz doména nesmie prepísať/doplniť .sk obchod).
+      if (!e.domain && domain && getShopPriority(domain) <= getShopPriority(e.name)) {
+        e.domain = domain;
+      }
       if (e.count === undefined && input.count !== undefined) e.count = input.count;
       if (!e.commission && input.commission) e.commission = input.commission;
       if (!e.logoUrl && input.logoUrl) e.logoUrl = input.logoUrl;
