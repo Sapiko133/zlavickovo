@@ -17,7 +17,7 @@ import { getCouponsByShop } from "@/lib/dognet";
 function bestCouponPercent(coupons: any[]): number | null {
   let best: number | null = null;
   for (const c of coupons) {
-    const text = `${c?.title ?? ""} ${c?.name ?? ""} ${c?.description ?? ""}`;
+    const text = `${c?.title ?? ""} ${c?.name ?? ""}`;
     for (const m of text.matchAll(/(\d{1,2})\s*%/g)) {
       const p = parseInt(m[1], 10);
       if (p >= 1 && p <= 90 && (best === null || p > best)) best = p;
@@ -67,14 +67,16 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const related = await getRelatedProducts(product, 4);
   const price = formatPrice(product.price);
 
-  const priceNum = parseFloat(product.price.replace(/[^\d.,]/g, "").replace(",", "."));
+  const priceNum = parseFloat(String(product.price ?? "").replace(/[^\d.,]/g, "").replace(",", "."));
 
   // Možná cena po kupóne — najvyššia % zľava z kupónov obchodu, len orientačný odhad
   let couponPercent: number | null = null;
   if (!isNaN(priceNum) && priceNum > 0) {
     try {
       couponPercent = bestCouponPercent(await getCouponsByShop(product.domain));
-    } catch {}
+    } catch (error) {
+      console.error("[product-coupon-estimate]", error);
+    }
   }
   const couponPrice =
     couponPercent !== null
@@ -122,7 +124,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <style>{`
         .rel-card { transition: transform .15s, border-color .15s; }
         .rel-card:hover { transform: translateY(-2px); border-color: #22C55E !important; }
