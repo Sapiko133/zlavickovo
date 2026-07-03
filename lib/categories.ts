@@ -26,7 +26,7 @@ export const CATEGORIES: Record<string, CategoryDef> = {
       { name: "Alza", slug: "alza" },
       { name: "Datart", slug: "datart" },
       { name: "Mall", slug: "mall" },
-      { name: "CZC", slug: "czc" },
+      { name: "CZC.cz", slug: "czc" },
       { name: "NAY", slug: "nay" },
       { name: "Okay.sk", slug: "okay" },
     ],
@@ -101,7 +101,7 @@ export const CATEGORIES: Record<string, CategoryDef> = {
     slug: "potraviny", label: "Potraviny", emoji: "🛒",
     desc: "Aktuálne akcie a letáky z potravinových reťazcov.",
     color: "#16a34a", bg: "#dcfce7",
-    keywords: ["potraviny", "jedlo", "supermarket", "nákup", "akcie"],
+    keywords: ["potraviny", "jedlo", "supermarket"],
     shops: [
       { name: "Lidl", slug: "lidl", href: "/letaky/lidl" },
       { name: "Kaufland", slug: "kaufland", href: "/letaky/kaufland" },

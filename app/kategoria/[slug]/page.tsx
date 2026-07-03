@@ -21,6 +21,14 @@ export function generateStaticParams() {
 
 function getYear() { return new Date().getFullYear(); }
 
+// Match na hranici slova — "tv" nesmie chytiť "bohatstvo", "mall" nesmie chytiť "smallable".
+// Text aj term sa porovnávajú lowercase; diakritiku rieši \p{L}.
+function matchesTerm(text: string, term: string): boolean {
+  if (!text || !term) return false;
+  const esc = term.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^\\p{L}\\p{N}])${esc}($|[^\\p{L}\\p{N}])`, "u").test(text);
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const cat = CATEGORIES[slug];
@@ -87,8 +95,8 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
       const title = (c.title || c.name || "").toLowerCase();
       return (
-        cat.shops.some(s => name.includes(s.name.toLowerCase()) || name.includes(s.slug)) ||
-        cat.keywords.some(k => name.includes(k) || title.includes(k))
+        cat.shops.some(s => matchesTerm(name, s.name) || matchesTerm(name, s.slug)) ||
+        cat.keywords.some(k => matchesTerm(name, k) || matchesTerm(title, k))
       );
     })
       .sort((a: any, b: any) =>
@@ -230,7 +238,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                     {shop.name}
                   </span>
                   <span style={{ fontSize: 11, color: "#16A34A", fontWeight: 700, background: "#F0FDF4", padding: "2px 8px", borderRadius: 100 }}>
-                    💰 {shop.commission}
+                    kupóny →
                   </span>
                 </a>
               );

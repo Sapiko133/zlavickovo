@@ -12,6 +12,7 @@ const GENERIC: Record<string, string> = {
   martinus: "Martinus je najobľúbenejší slovenský kníhkupec s obrovským výberom kníh, e-kníh a audiokníh. Ponúka slovenské aj české tituly, novinky aj klasiku za výhodné ceny.",
   "about-you": "About You je personalizovaná módna platforma s výberom prispôsobeným tvojmu vkusu. Predáva oblečenie, obuv a doplnky od stoviek európskych a svetových značiek.",
   "dr-max": "Dr. Max je najväčšia lekárenská sieť na Slovensku. Online lekáreň ponúka lieky bez predpisu, vitamíny, doplnky stravy a kozmetiku s rýchlym doručením.",
+  czc: "CZC.cz je jeden z najväčších českých e-shopov s počítačmi, komponentmi, notebookmi, mobilmi a hernou technikou. Ponúka odborné poradenstvo, rýchle doručenie aj na Slovensko a pravidelné akcie na PC zostavy, grafické karty a príslušenstvo. Ceny sú v českých korunách, obchod je súčasťou skupiny Alza.",
   gymbeam: "GymBeam je slovenská fitness e-commerce úspešnica s vlastnou výrobou proteínov, vitamínov a ďalších doplnkov stravy. Výborný pomer ceny a kvality pre každého, kto dbá o zdravý životný štýl.",
 };
 
@@ -22,6 +23,10 @@ function genericDesc(shopName: string): string {
 }
 
 export async function getShopDescription(shopName: string, slug: string): Promise<string> {
+  // Kurátorský text má prednosť pred cache aj AI — deterministický popis
+  // a zároveň oprava zlých cachovaných textov (napr. "Czc je populárny...")
+  if (GENERIC[slug]) return GENERIC[slug];
+
   const cacheKey = `shop_desc:${slug}`;
 
   // 1. Try Redis cache

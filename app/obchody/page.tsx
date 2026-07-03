@@ -26,7 +26,6 @@ export default async function ObchodyPage() {
     slug: s.slug,
     domain: s.domain || `${s.slug}.sk`,
     count: s.count || undefined,
-    commission: s.commission || undefined,
     logoUrl: s.logoUrl || undefined,
     source: s.source,
   }));

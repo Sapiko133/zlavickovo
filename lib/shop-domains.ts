@@ -23,6 +23,7 @@ const DOMAIN_MAP: Record<string, string> = {
   "ccc": "ccc.eu",
   "obi": "obi.sk",
   "datart": "datart.sk",
+  "czc": "czc.cz",
   "nay": "nay.sk",
   "okay": "okay.sk",
   "planeo": "planeo.sk",

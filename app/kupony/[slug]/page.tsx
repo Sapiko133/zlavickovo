@@ -22,6 +22,12 @@ const BASE = "https://www.zlavickovo.sk";
 
 export const revalidate = 3600;
 
+// Správne obchodné meno pre slugy, ktoré nie sú v žiadnom feede
+// a kapitalizácia zo slugu by vyrobila nezmysel ("Czc" namiesto "CZC.cz")
+const SHOP_NAME_OVERRIDES: Record<string, string> = {
+  czc: "CZC.cz",
+};
+
 const TOP_SLUGS = [
   "alza","shein","zalando","mall","notino","sportisimo",
   "ikea","dedoles","martinus","about-you","answear","dr-max",
@@ -85,7 +91,7 @@ export async function generateMetadata({ params }: Props) {
   const isCz = slug.endsWith("-cz");
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const name = baseSlug.replace(/-/g, " ");
-  const shopName = name.charAt(0).toUpperCase() + name.slice(1);
+  const shopName = SHOP_NAME_OVERRIDES[baseSlug] ?? (name.charAt(0).toUpperCase() + name.slice(1));
   const { month, year } = currentMonthYear();
   const pageUrl = `${BASE}/kupony/${slug}`;
 
@@ -110,7 +116,10 @@ export default async function ShopPage({ params }: Props) {
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const shopName = baseSlug.replace(/-/g, " ");
   const affialShop = findAffialShop(slug);
-  const capitalized = affialShop?.name ?? (shopName.charAt(0).toUpperCase() + shopName.slice(1));
+  const capitalized =
+    affialShop?.name ??
+    SHOP_NAME_OVERRIDES[baseSlug] ??
+    (shopName.charAt(0).toUpperCase() + shopName.slice(1));
   const { month, year } = currentMonthYear();
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
@@ -207,11 +216,6 @@ export default async function ShopPage({ params }: Props) {
                 <span style={{ fontSize: 12, background: "#F1F5F9", color: "#475569", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>
                   Aktualizované: {month} {year}
                 </span>
-                {affialShop && (
-                  <span style={{ fontSize: 12, background: "#FEF9C3", color: "#854D0E", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
-                    Provízia {affialShop.commission}
-                  </span>
-                )}
                 {isCz && (
                   <span style={{ fontSize: 12, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>CZ</span>
                 )}
@@ -303,10 +307,7 @@ export default async function ShopPage({ params }: Props) {
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
                   Partnerský obchod
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 }}>{affialShop.name}</div>
-                <div style={{ fontSize: 13, color: "#16A34A", fontWeight: 600, marginBottom: 16 }}>
-                  Provízia {affialShop.commission}
-                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 16 }}>{affialShop.name}</div>
                 <a href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
                   style={{
                     display: "block", padding: "12px", borderRadius: 12,

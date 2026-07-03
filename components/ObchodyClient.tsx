@@ -8,7 +8,6 @@ export interface ShopItem {
   slug: string;
   domain: string;
   count?: number;
-  commission?: string;
   logoUrl?: string;
   source: "top" | "dognet" | "ehub" | "cj" | "affial" | "affial-coupon";
 }
@@ -253,8 +252,6 @@ function ShopCard({ shop }: { shop: ShopItem }) {
         <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>
           {shop.count != null && shop.count > 0
             ? `${shop.count} kupón${shop.count === 1 ? "" : shop.count < 5 ? "y" : "ov"}`
-            : shop.commission
-            ? `💰 ${shop.commission}`
             : "kupóny"}
         </div>
       </div>
