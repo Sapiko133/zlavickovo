@@ -1,11 +1,8 @@
 import { MetadataRoute } from "next";
-import { getShops } from "@/lib/dognet";
 import { CATEGORIES } from "@/lib/categories";
-import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { getAllKnownShops, getStaticKnownShops } from "@/lib/all-shops";
 import { getAllPosts } from "@/lib/blog";
 import { LETAKY } from "@/lib/letaky";
-import { normalizeShopSlug } from "@/lib/slug";
 import { getTopProductIds, toProductSlug } from "@/lib/heureka/query";
 
 export const revalidate = 3600;
@@ -13,40 +10,20 @@ export const revalidate = 3600;
 const BASE = "https://www.zlavickovo.sk";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  let shops: { id: number; name: string; count: number }[] = [];
-  try { shops = await getShops(); } catch {}
+  // Jediný zdroj pravdy — lib/all-shops.ts (rovnaké slugy ako autocomplete a /obchody)
+  let shops: Awaited<ReturnType<typeof getAllKnownShops>> = [];
+  try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
 
-  // Dognet shop slugs (deduplicated set for later use)
-  const dognetSlugs = new Set(shops.map(s => normalizeShopSlug(s.name)));
-
-  const shopUrls = shops.flatMap(shop => {
-    const sl = normalizeShopSlug(shop.name);
-    return [
-      { url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
-      { url: `${BASE}/kupony/${sl}-cz`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.7 },
+  const shopUrls: MetadataRoute.Sitemap = shops.flatMap(shop => {
+    const urls: MetadataRoute.Sitemap = [
+      { url: `${BASE}/kupony/${shop.slug}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
     ];
+    // CZ mutácia stránky existuje len pre Dognet kampane
+    if (shop.source === "dognet") {
+      urls.push({ url: `${BASE}/kupony/${shop.slug}-cz`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.7 });
+    }
+    return urls;
   });
-
-  // Affial shop slugs not already in Dognet
-  const affialShopSlugs = new Set<string>();
-  const affialShopUrls: MetadataRoute.Sitemap = [];
-  for (const s of AFFIAL_SHOPS) {
-    const sl = s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
-    if (!dognetSlugs.has(sl) && !affialShopSlugs.has(sl)) {
-      affialShopSlugs.add(sl);
-      affialShopUrls.push({ url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily", priority: 0.7 });
-    }
-  }
-
-  // Affial coupon shop slugs not already covered
-  const affialCouponUrls: MetadataRoute.Sitemap = [];
-  for (const c of AFFIAL_COUPONS) {
-    const sl = c.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
-    if (!dognetSlugs.has(sl) && !affialShopSlugs.has(sl)) {
-      affialShopSlugs.add(sl);
-      affialCouponUrls.push({ url: `${BASE}/kupony/${sl}`, lastModified: new Date(), changeFrequency: "daily", priority: 0.6 });
-    }
-  }
 
   const categoryUrls: MetadataRoute.Sitemap = Object.keys(CATEGORIES).map(catSlug => ({
     url: `${BASE}/kategoria/${catSlug}`,
@@ -99,8 +76,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...letakyUrls,
     ...blogUrls,
     ...shopUrls,
-    ...affialShopUrls,
-    ...affialCouponUrls,
     ...productUrls,
   ];
 }

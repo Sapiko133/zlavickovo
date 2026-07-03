@@ -1,9 +1,4 @@
-import { getShops } from "@/lib/dognet";
-import { normalizeShopSlug } from "@/lib/slug";
-import { getEhubShops } from "@/lib/ehub";
-import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import { getShopDomain } from "@/lib/shop-domains";
-import { compareShopsByPriority } from "@/lib/shop-priority";
+import { getAllKnownShops, getStaticKnownShops } from "@/lib/all-shops";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import ObchodyClient, { type ShopItem } from "@/components/ObchodyClient";
@@ -17,63 +12,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.zlavickovo.sk/obchody" },
 };
 
-function shopSlug(name: string) {
-  return normalizeShopSlug(name);
-}
-
 export default async function ObchodyPage() {
-  let dognetShops: { id: number; name: string; count: number; logoUrl?: string }[] = [];
-  let ehubShops: Awaited<ReturnType<typeof getEhubShops>> = [];
-
+  // Jediný zdroj pravdy — lib/all-shops.ts (už deduplikované a zoradené)
+  let knownShops: Awaited<ReturnType<typeof getAllKnownShops>> = [];
   try {
-    [dognetShops, ehubShops] = await Promise.all([
-      getShops().catch(() => []),
-      getEhubShops().catch(() => []),
-    ]);
-  } catch {}
-
-  const seenNames = new Set<string>();
-  const seenSlugs = new Set<string>();
-  const allShops: ShopItem[] = [];
-
-  // 1. Dognet (primary — has coupon counts)
-  for (const s of dognetShops) {
-    const key = s.name.toLowerCase().trim();
-    const slug = shopSlug(s.name);
-    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
-    seenNames.add(key);
-    seenSlugs.add(slug);
-    const domain = getShopDomain(s.name) || `${slug}.sk`;
-    allShops.push({ name: s.name, slug, domain, count: s.count || undefined, logoUrl: s.logoUrl || undefined, source: "dognet" });
+    knownShops = await getAllKnownShops();
+  } catch {
+    knownShops = getStaticKnownShops();
   }
 
-  // 2. eHub
-  for (const s of ehubShops) {
-    if (!s.name) continue;
-    const key = s.name.toLowerCase().trim();
-    const rawDomain = s.web.replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
-    const slug = rawDomain
-      ? rawDomain.replace(/\.(sk|cz|eu|com|net|org)$/, "").replace(/\./g, "-")
-      : shopSlug(s.name);
-    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
-    seenNames.add(key);
-    seenSlugs.add(slug);
-    const domain = rawDomain || getShopDomain(s.name) || `${slug}.sk`;
-    allShops.push({ name: s.name, slug, domain, commission: s.commission, logoUrl: s.logoUrl || undefined, source: "ehub" });
-  }
-
-  // 3. Affial (static, has domain + commission)
-  for (const s of AFFIAL_SHOPS) {
-    const key = s.name.toLowerCase().trim();
-    const slug = s.domain.replace(/\.(sk|cz|eu|com|net)$/, "").replace(/\./g, "-");
-    if (seenNames.has(key) || seenSlugs.has(slug)) continue;
-    seenNames.add(key);
-    seenSlugs.add(slug);
-    allShops.push({ name: s.name, slug, domain: s.domain, commission: s.commission, source: "affial" });
-  }
-
-  // Sort: .sk → .cz → ostatné, v rámci priority abecedne (sk locale)
-  allShops.sort(compareShopsByPriority);
+  const allShops: ShopItem[] = knownShops.map(s => ({
+    name: s.name,
+    slug: s.slug,
+    domain: s.domain || `${s.slug}.sk`,
+    count: s.count || undefined,
+    commission: s.commission || undefined,
+    logoUrl: s.logoUrl || undefined,
+    source: s.source,
+  }));
 
   return (
     <div style={{ minHeight: "100vh", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>

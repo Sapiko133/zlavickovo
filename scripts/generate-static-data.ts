@@ -5,8 +5,9 @@ async function main() {
   // Load .env.local for local development (must be before any lib imports)
   const envPath = path.join(process.cwd(), ".env.local");
   if (fs.existsSync(envPath)) {
+    // CRLF-safe split — s "\n" by riadky končili "\r" a regex s $ by nič nematchol
     fs.readFileSync(envPath, "utf-8")
-      .split("\n")
+      .split(/\r?\n/)
       .forEach(line => {
         const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/);
         if (m) {

@@ -1,19 +1,12 @@
-import { redis } from "@/lib/redis";
-import { getShops as getDognetShops, getCoupons as getDognetCoupons } from "@/lib/dognet";
-import { getEhubShops, getEhubCoupons } from "@/lib/ehub";
-import { getCjShops } from "@/lib/cj";
-import { AFFIAL_SHOPS } from "@/lib/affial-shops";
-import { TOP_SHOPS } from "@/lib/top-shops";
+import { getCoupons as getDognetCoupons } from "@/lib/dognet";
+import { getEhubCoupons } from "@/lib/ehub";
+import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopSlug } from "@/lib/slug";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
-
-// v2: + TOP_SHOPS (kurátorské obchody so stránkou) + CJ zdroj
-const SHOPS_CACHE_KEY = "shops:all:v2";
-const SHOPS_CACHE_TTL = 86400; // 24 hours
 
 interface ShopEntry {
   name: string;
@@ -31,93 +24,10 @@ interface ProductEntry {
   url?: string;
 }
 
-function toDomain(web: string): string {
-  try {
-    const url = web.startsWith("http") ? web : `https://${web}`;
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return web.replace(/^www\./, "");
-  }
-}
-
+// Jediný zdroj pravdy — lib/all-shops.ts (getAllKnownShops)
 async function getAllShops(): Promise<ShopEntry[]> {
-  try {
-    const cached = await redis.get<ShopEntry[]>(SHOPS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
-  } catch {}
-
-  const [dognetResult, ehubResult, cjResult] = await Promise.allSettled([
-    getDognetShops(),
-    getEhubShops(),
-    getCjShops(),
-  ]);
-
-  const seen = new Set<string>();
-  const result: ShopEntry[] = [];
-
-  // Kurátorské obchody so stránkou /kupony/[slug] — musia byť vždy v autocomplete,
-  // aj keď nie sú v žiadnom affiliate feede (napr. Shein cez CJ bez shop feedu)
-  for (const shop of TOP_SHOPS) {
-    seen.add(shop.slug);
-    result.push({ name: shop.name, slug: shop.slug, category: shop.category, domain: shop.domain });
-  }
-
-  // Dognet shops (highest priority — have coupon counts)
-  if (dognetResult.status === "fulfilled") {
-    for (const shop of dognetResult.value) {
-      if (!shop.name) continue;
-      const slug = normalizeShopSlug(shop.name);
-      if (seen.has(slug)) continue;
-      seen.add(slug);
-      result.push({ name: shop.name, slug, category: "Obchod", domain: "" });
-    }
-  }
-
-  // eHub shops
-  if (ehubResult.status === "fulfilled") {
-    for (const shop of ehubResult.value) {
-      if (!shop.name || !shop.web) continue;
-      const slug = normalizeShopSlug(shop.name);
-      if (seen.has(slug)) continue;
-      seen.add(slug);
-      result.push({
-        name: shop.name,
-        slug,
-        category: shop.category || "Iné",
-        domain: toDomain(shop.web),
-      });
-    }
-  }
-
-  // CJ shops
-  if (cjResult.status === "fulfilled") {
-    for (const shop of cjResult.value) {
-      if (!shop.advertiserName) continue;
-      const slug = normalizeShopSlug(shop.advertiserName);
-      if (!slug || seen.has(slug)) continue;
-      seen.add(slug);
-      result.push({ name: shop.advertiserName, slug, category: "Obchod", domain: "" });
-    }
-  }
-
-  // AFFIAL shops (static)
-  for (const shop of AFFIAL_SHOPS) {
-    const slug = normalizeShopSlug(shop.name);
-    if (seen.has(slug)) continue;
-    seen.add(slug);
-    result.push({
-      name: shop.name,
-      slug,
-      category: "Partnerský obchod",
-      domain: shop.domain,
-    });
-  }
-
-  if (result.length > 0) {
-    try { await redis.set(SHOPS_CACHE_KEY, result, { ex: SHOPS_CACHE_TTL }); } catch {}
-  }
-
-  return result;
+  const shops = await getAllKnownShops();
+  return shops.map(s => ({ name: s.name, slug: s.slug, category: s.category, domain: s.domain }));
 }
 
 const skCollator = new Intl.Collator("sk", { sensitivity: "base" });

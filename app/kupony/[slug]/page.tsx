@@ -2,8 +2,7 @@ import { Suspense } from "react";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop } from "@/lib/affial-shops";
-import { getStaticShops } from "@/lib/static-data";
-import { normalizeShopSlug } from "@/lib/slug";
+import { getStaticKnownShops } from "@/lib/all-shops";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
@@ -30,16 +29,16 @@ const TOP_SLUGS = [
 ];
 
 export async function generateStaticParams() {
-  const dognetShops = getStaticShops();
+  // Jediný zdroj pravdy — lib/all-shops.ts (statická varianta bez siete)
+  const knownShops = getStaticKnownShops();
   const seen = new Set<string>(TOP_SLUGS);
   const params = TOP_SLUGS.map(s => ({ slug: s }));
 
-  for (const shop of dognetShops) {
+  for (const shop of knownShops) {
     if (params.length >= 50) break;
-    const slug = normalizeShopSlug(shop.name);
-    if (slug && !seen.has(slug)) {
-      seen.add(slug);
-      params.push({ slug });
+    if (shop.slug && !seen.has(shop.slug)) {
+      seen.add(shop.slug);
+      params.push({ slug: shop.slug });
     }
   }
 

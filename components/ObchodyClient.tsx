@@ -10,7 +10,7 @@ export interface ShopItem {
   count?: number;
   commission?: string;
   logoUrl?: string;
-  source: "dognet" | "ehub" | "affial";
+  source: "top" | "dognet" | "ehub" | "cj" | "affial" | "affial-coupon";
 }
 
 const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
