@@ -9,6 +9,8 @@ import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { getShopDomain } from "@/lib/shop-domains";
 import { getStaticShops, getStaticEhubShops } from "@/lib/static-data";
 import { compareShopsByPriority, getShopPriority } from "@/lib/shop-priority";
+import { resolveCategory } from "@/lib/shop-categories";
+import { TAXONOMY, type CategoryId } from "@/lib/taxonomy";
 
 /**
  * Jediný zdroj pravdy pre všetky obchody na webe.
@@ -34,7 +36,10 @@ export interface KnownShop {
   slug: string;
   /** Doména obchodu, "" ak neznáma */
   domain: string;
+  /** Zobrazovaný label kategórie (z taxonómie, ak je obchod zaradený) */
   category: string;
+  /** Kanonická kategória z resolveCategory(), null = nezaradený obchod */
+  categoryId: CategoryId | null;
   /** Zdroj s najvyššou prioritou, z ktorého obchod pochádza */
   source: KnownShopSource;
   /** Počet kupónov (Dognet) */
@@ -43,15 +48,8 @@ export interface KnownShop {
   logoUrl?: string;
 }
 
-const CACHE_KEY = "shops:known:v2"; // v2: krajinská priorita pri norm-kolízii
+const CACHE_KEY = "shops:known:v3"; // v3: categoryId cez resolveCategory (taxonómia)
 const CACHE_TTL = 86400; // 24 hodín
-
-const AFFIAL_CAT_LABELS: Record<string, string> = {
-  zdravie: "Zdravie", krasa: "Krása", byvanie: "Bývanie",
-  moda: "Móda", sport: "Šport", deti: "Deti", ine: "Iné",
-  elektronika: "Elektronika", potraviny: "Potraviny",
-  cestovanie: "Cestovanie", knihy: "Knihy",
-};
 
 function webToDomain(web: string): string {
   try {
@@ -113,6 +111,7 @@ class ShopCollector {
           name,
           slug,
           domain,
+          categoryId: null,
           category:
             e.category && e.category !== "Obchod"
               ? e.category
@@ -147,6 +146,7 @@ class ShopCollector {
       name,
       slug,
       domain,
+      categoryId: null,
       category: input.category || "Obchod",
       source: input.source,
       count: input.count,
@@ -203,12 +203,13 @@ export function buildKnownShops(input: {
     c.add({ name: s.advertiserName, source: "cj", commission: s.commission || undefined });
   }
 
-  // 5. Affial partnerské obchody (statické)
+  // 5. Affial partnerské obchody (statické) — s.category je priamo CategoryId,
+  // na label ho prevedie finálny resolveCategory pass
   for (const s of AFFIAL_SHOPS) {
     c.add({
       name: s.name,
       domain: s.domain,
-      category: AFFIAL_CAT_LABELS[s.category] ?? "Iné",
+      category: s.category,
       source: "affial",
       commission: s.commission,
     });
@@ -219,8 +220,24 @@ export function buildKnownShops(input: {
     c.add({ name: s.shop, domain: s.domain, category: "Partnerský obchod", source: "affial-coupon" });
   }
 
+  // Kanonická kategória — explicitná mapa (shop-categories.ts), fallback na
+  // sieťový label zdroja. Nezaradené obchody majú categoryId null.
+  const resolved = c.list().map(s => {
+    const categoryId = resolveCategory({
+      slug: s.slug,
+      name: s.name,
+      domain: s.domain,
+      networkCategory: s.category,
+    });
+    return {
+      ...s,
+      categoryId,
+      category: categoryId ? TAXONOMY[categoryId].label : s.category,
+    };
+  });
+
   // .sk → .cz → ostatné, v rámci priority abecedne
-  return c.list().sort(compareShopsByPriority);
+  return resolved.sort(compareShopsByPriority);
 }
 
 /**
