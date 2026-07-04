@@ -26,13 +26,13 @@
     "mode_url": "🔗 URL"
   },
   "coupon": {
-    "show_code": "Get code",
+    "show_code": "Show code",
     "copy": "Copy",
     "copied": "✓ Copied",
     "expires": "until",
     "verified": "✓",
     "sponsored": "Spons.",
-    "go_to_shop": "Go to deal →",
+    "go_to_shop": "Go to offer",
     "use_deal": "Use deal →"
   }
 }

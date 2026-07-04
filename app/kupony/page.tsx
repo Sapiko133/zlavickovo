@@ -9,6 +9,7 @@ import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { resolveCategory } from "@/lib/shop-categories";
 import type { Metadata } from "next";
 import CodeReveal from "./CodeReveal";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 
 export const revalidate = 3600;
 
@@ -61,6 +62,90 @@ interface UnifiedCoupon {
 function extractDiscount(text: string): number | null {
   const m = text.match(/(\d+)\s*%/);
   return m ? parseInt(m[1]) : null;
+}
+
+function CouponGridCard({ c }: { c: UnifiedCoupon }) {
+  const srcColor = SOURCE_COLORS[c.source];
+  const expiryStr = c.validTo
+    ? new Date(c.validTo).toLocaleDateString("sk-SK", { day: "numeric", month: "numeric", year: "numeric" })
+    : null;
+
+  return (
+    <div
+      className="coupon-card"
+      style={{
+        background: "#fff", borderRadius: 12,
+        border: "1.5px solid #e5e7eb",
+        boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+        display: "flex", flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Card header */}
+      <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f5f5f5" }}>
+        <ShopFavicon domain={getShopDomain(c.shopName) || ""} name={c.shopName} size={40} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {c.shopName || "Obchod"}
+          </div>
+          {expiryStr && (
+            <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>
+              Platí do {expiryStr}
+            </div>
+          )}
+        </div>
+        {/* Source badge */}
+        <div style={{
+          fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5,
+          background: `${srcColor}15`, color: srcColor, flexShrink: 0,
+        }}>
+          {SOURCE_LABELS[c.source]}
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div style={{ padding: "12px 16px", flex: 1 }}>
+        <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+          <CouponTypeBadge kind={c.token ? "kupon" : "akcia"} />
+          {c.discountPct && (
+            <span style={{
+              fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 5,
+              background: "#22C55E", color: "#fff",
+            }}>
+              -{c.discountPct}%
+            </span>
+          )}
+          {c.hasFreeShipping && !c.discountPct && (
+            <span style={{
+              fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
+              background: "#dbeafe", color: "#1d4ed8",
+            }}>
+              🚚 Doprava zdarma
+            </span>
+          )}
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5,
+            background: "#F0FDF4", color: "#16A34A",
+          }}>
+            {TYPE_LABELS[c.type] || "Akcia"}
+          </span>
+        </div>
+        <div className="line-clamp2" style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 5 }}>
+          {c.title || "Zľava"}
+        </div>
+        {c.description && (
+          <div className="line-clamp2" style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>
+            {c.description}
+          </div>
+        )}
+      </div>
+
+      {/* Card footer */}
+      <div style={{ padding: "10px 16px 14px", borderTop: "1px dashed #f0f0f0" }}>
+        <CodeReveal token={c.token} link={c.affiliateLink} shopName={c.shopName} />
+      </div>
+    </div>
+  );
 }
 
 async function getAllCoupons(): Promise<UnifiedCoupon[]> {
@@ -168,10 +253,17 @@ export default async function KuponyPage({
     filtered = filtered.filter(c => c.token !== null);
   }
 
-  const total = filtered.length;
+  // Rozdelenie: kupóny (majú kód) pred akciami (bez kódu)
+  const kuponyAll = filtered.filter(c => c.token !== null);
+  const akcieAll = filtered.filter(c => c.token === null);
+  const ordered = [...kuponyAll, ...akcieAll];
+
+  const total = ordered.length;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const currentPage = Math.min(page, totalPages);
-  const paginated = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+  const paginated = ordered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
+  const pageKupony = paginated.filter(c => c.token !== null);
+  const pageAkcie = paginated.filter(c => c.token === null);
 
   function url(overrides: Record<string, string>) {
     const p = new URLSearchParams();
@@ -226,7 +318,7 @@ export default async function KuponyPage({
                 🎟️ Všetky zľavové kódy a kupóny
               </h1>
               <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
-                {total > 0 ? `${total} kupónov` : "Načítavam..."} z Dognet, Affial a eHub partnerov
+                {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií` : "Načítavam..."} z Dognet, Affial a eHub partnerov
               </p>
             </div>
           </div>
@@ -332,91 +424,28 @@ export default async function KuponyPage({
             </a>
           </div>
         ) : (
-          <div className="kupony-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-            {paginated.map(c => {
-              const srcColor = SOURCE_COLORS[c.source];
-              const expiryStr = c.validTo
-                ? new Date(c.validTo).toLocaleDateString("sk-SK", { day: "numeric", month: "numeric", year: "numeric" })
-                : null;
-
-              return (
-                <div
-                  key={c.id}
-                  className="coupon-card"
-                  style={{
-                    background: "#fff", borderRadius: 12,
-                    border: "1.5px solid #e5e7eb",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-                    display: "flex", flexDirection: "column",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* Card header */}
-                  <div style={{ padding: "14px 16px 10px", display: "flex", alignItems: "center", gap: 10, borderBottom: "1px solid #f5f5f5" }}>
-                    <ShopFavicon domain={getShopDomain(c.shopName) || ""} name={c.shopName} size={40} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {c.shopName || "Obchod"}
-                      </div>
-                      {expiryStr && (
-                        <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>
-                          Platí do {expiryStr}
-                        </div>
-                      )}
-                    </div>
-                    {/* Source badge */}
-                    <div style={{
-                      fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5,
-                      background: `${srcColor}15`, color: srcColor, flexShrink: 0,
-                    }}>
-                      {SOURCE_LABELS[c.source]}
-                    </div>
-                  </div>
-
-                  {/* Card body */}
-                  <div style={{ padding: "12px 16px", flex: 1 }}>
-                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
-                      {c.discountPct && (
-                        <span style={{
-                          fontSize: 11, fontWeight: 800, padding: "2px 8px", borderRadius: 5,
-                          background: "#22C55E", color: "#fff",
-                        }}>
-                          -{c.discountPct}%
-                        </span>
-                      )}
-                      {c.hasFreeShipping && !c.discountPct && (
-                        <span style={{
-                          fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 5,
-                          background: "#dbeafe", color: "#1d4ed8",
-                        }}>
-                          🚚 Doprava zdarma
-                        </span>
-                      )}
-                      <span style={{
-                        fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 5,
-                        background: "#F0FDF4", color: "#16A34A",
-                      }}>
-                        {TYPE_LABELS[c.type] || "Akcia"}
-                      </span>
-                    </div>
-                    <div className="line-clamp2" style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f", lineHeight: 1.4, marginBottom: 5 }}>
-                      {c.title || "Zľava"}
-                    </div>
-                    {c.description && (
-                      <div className="line-clamp2" style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>
-                        {c.description}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Card footer */}
-                  <div style={{ padding: "10px 16px 14px", borderTop: "1px dashed #f0f0f0" }}>
-                    <CodeReveal token={c.token} link={c.affiliateLink} shopName={c.shopName} />
-                  </div>
+          <>
+            {pageKupony.length > 0 && (
+              <section style={{ marginBottom: pageAkcie.length > 0 ? 40 : 0 }}>
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
+                  🎟️ Kupóny <span style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>({kuponyAll.length})</span>
+                </h2>
+                <div className="kupony-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                  {pageKupony.map(c => <CouponGridCard key={c.id} c={c} />)}
                 </div>
-              );
-            })}
-          </div>
+              </section>
+            )}
+            {pageAkcie.length > 0 && (
+              <section>
+                <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
+                  🔥 Akcie <span style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>({akcieAll.length})</span>
+                </h2>
+                <div className="kupony-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+                  {pageAkcie.map(c => <CouponGridCard key={c.id} c={c} />)}
+                </div>
+              </section>
+            )}
+          </>
         )}
 
         {/* Pagination */}
@@ -481,7 +510,7 @@ export default async function KuponyPage({
 
         {total > 0 && (
           <p style={{ textAlign: "center", fontSize: 12, color: "#bbb", marginTop: 16 }}>
-            Strana {currentPage} z {totalPages} · {total} kupónov celkom
+            Strana {currentPage} z {totalPages} · {kuponyAll.length} kupónov a {akcieAll.length} akcií celkom
           </p>
         )}
       </div>

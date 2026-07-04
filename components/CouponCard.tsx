@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
 import ShopFavicon from "@/components/ShopFavicon";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { getShopDomain } from "@/lib/shop-domains";
 import { T } from "@/lib/design-tokens";
 
@@ -101,14 +102,16 @@ export default function CouponCard({ coupon, token, sponsored }: {
             </div>
           )}
         </div>
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: T.rFull, flexShrink: 0,
-          ...(sponsored
-            ? { background: "#FFF7ED", color: "#C2410C" }
-            : { background: T.greenMid, color: T.greenDark }),
-        }}>
-          {sponsored ? t("sponsored") : "Možný kupón"}
-        </span>
+        {sponsored ? (
+          <span style={{
+            fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: T.rFull, flexShrink: 0,
+            background: "#FFF7ED", color: "#C2410C",
+          }}>
+            {t("sponsored")}
+          </span>
+        ) : (
+          <CouponTypeBadge kind={(token || code) ? "kupon" : "akcia"} />
+        )}
       </div>
 
       {/* Body */}

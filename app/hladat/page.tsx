@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { findShop, getCategoryLabel } from "@/lib/search/queryClassifier";
 import { normalizeShopSlug } from "@/lib/slug";
 
@@ -53,7 +54,7 @@ function RevealCode({ code, link }: { code: string; link?: string }) {
           fontFamily: "monospace", letterSpacing: 1,
         }}
       >
-        ••••••• Zobraziť
+        •••••• Zobraziť kód
       </button>
     );
   }
@@ -90,6 +91,10 @@ function SearchResults() {
   const [redirecting, setRedirecting] = useState(false);
 
   const categoryLabel = q ? getCategoryLabel(q) : null;
+
+  // Kupón = má kód, akcia = bez kódu (musí mať aspoň odkaz)
+  const codeCoupons = coupons.filter((c: any) => c.code && String(c.code).trim() !== "");
+  const dealCoupons = coupons.filter((c: any) => (!c.code || String(c.code).trim() === "") && (c.affiliate_link || c.url));
 
   // Dopyt = existujúci obchod (getAllKnownShops) → redirect na /kupony/[slug]
   useEffect(() => {
@@ -234,49 +239,71 @@ function SearchResults() {
         {/* RIGHT: Sidebar (30%) */}
         <div className="hl-sidebar" style={{ width: 300, flexShrink: 0, display: "flex", flexDirection: "column", gap: 16 }}>
 
-          {/* Kupóny box */}
-          <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-              <span>🏷️</span> Možné kupóny
+          {/* Načítavanie kupónov */}
+          {loadingCoupons && (
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: "12px 0" }}>Načítavam kupóny...</div>
             </div>
-            {loadingCoupons && (
-              <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: "12px 0" }}>Načítavam...</div>
-            )}
-            {!loadingCoupons && coupons.length === 0 && (
-              <div style={{ color: "#aaa", fontSize: 13, textAlign: "center", padding: "8px 0" }}>Žiadne kupóny nenájdené</div>
-            )}
-            {coupons.slice(0, 5).map((c: any, i: number) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 0", borderBottom: i < Math.min(coupons.length, 5) - 1 ? "1px solid #f5f5f5" : "none" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {c.title?.length > 45 ? c.title.slice(0, 45) + "…" : c.title}
-                </div>
-                <div style={{ fontSize: 11, color: "#aaa" }}>{c.shopName ?? c.campaign_name}</div>
-                {c.code
-                  ? <div style={{ marginTop: 2 }}><RevealCode code={c.code} link={c.affiliate_link || c.url} /></div>
-                  : c.affiliate_link && (
-                    <a href={c.affiliate_link} target="_blank" rel="nofollow noopener noreferrer" style={{ fontSize: 12, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
-                      Zobraziť akciu ↗
-                    </a>
-                  )
-                }
-              </div>
-            ))}
-            {coupons.length > 0 && (() => {
-              // Odkaz na stránku obchodu prvého kupónu — nie na /kupony/<dopyt>,
-              // ktorý nemusí existovať
-              const shopSlug = normalizeShopSlug(coupons[0]?.shopName ?? coupons[0]?.campaign_name ?? "");
-              return shopSlug ? (
-                <a href={`/kupony/${shopSlug}`} style={{ display: "block", marginTop: 10, fontSize: 13, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
-                  Všetky kupóny ›
-                </a>
-              ) : null;
-            })()}
-          </div>
+          )}
 
-          {/* Akcie box */}
+          {/* Kupóny box (s kódom) — skrytý keď nemá obsah */}
+          {!loadingCoupons && codeCoupons.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>🏷️</span> Kupóny
+              </div>
+              {codeCoupons.slice(0, 5).map((c: any, i: number) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 0", borderBottom: i < Math.min(codeCoupons.length, 5) - 1 ? "1px solid #f5f5f5" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <CouponTypeBadge kind="kupon" />
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {c.title?.length > 38 ? c.title.slice(0, 38) + "…" : c.title}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#aaa" }}>{c.shopName ?? c.campaign_name}</div>
+                  <div style={{ marginTop: 2 }}><RevealCode code={c.code} link={c.affiliate_link || c.url} /></div>
+                </div>
+              ))}
+              {(() => {
+                // Odkaz na stránku obchodu prvého kupónu — nie na /kupony/<dopyt>,
+                // ktorý nemusí existovať
+                const shopSlug = normalizeShopSlug(codeCoupons[0]?.shopName ?? codeCoupons[0]?.campaign_name ?? "");
+                return shopSlug ? (
+                  <a href={`/kupony/${shopSlug}`} style={{ display: "block", marginTop: 10, fontSize: 13, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
+                    Všetky kupóny ›
+                  </a>
+                ) : null;
+              })()}
+            </div>
+          )}
+
+          {/* Akcie box (bez kódu) — skrytý keď nemá obsah */}
+          {!loadingCoupons && dealCoupons.length > 0 && (
+            <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>🔥</span> Akcie
+              </div>
+              {dealCoupons.slice(0, 5).map((c: any, i: number) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 0", borderBottom: i < Math.min(dealCoupons.length, 5) - 1 ? "1px solid #f5f5f5" : "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <CouponTypeBadge kind="akcia" />
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {c.title?.length > 38 ? c.title.slice(0, 38) + "…" : c.title}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#aaa" }}>{c.shopName ?? c.campaign_name}</div>
+                  <a href={c.affiliate_link || c.url} target="_blank" rel="nofollow noopener noreferrer" style={{ fontSize: 12, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
+                    Prejsť na ponuku ↗
+                  </a>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Letáky box */}
           <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #e5e7eb", padding: "18px", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
-              <span>🗞️</span> Akcie obchodov
+              <span>🗞️</span> Letáky obchodov
             </div>
             {[
               { name: "Lidl", slug: "lidl", color: "#FFD700", textColor: "#333", letter: "L" },
@@ -292,7 +319,7 @@ function SearchResults() {
               </a>
             ))}
             <a href="/letaky" style={{ display: "block", marginTop: 10, fontSize: 13, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
-              Zobraziť všetky akcie ›
+              Zobraziť všetky letáky ›
             </a>
           </div>
 

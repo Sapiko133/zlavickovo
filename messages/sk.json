@@ -26,13 +26,13 @@
     "mode_url": "🔗 URL"
   },
   "coupon": {
-    "show_code": "Získať kód",
+    "show_code": "Zobraziť kód",
     "copy": "Kopírovať",
     "copied": "✓ Skopírované",
     "expires": "do",
     "verified": "✓",
     "sponsored": "Sponz.",
-    "go_to_shop": "Prejsť na akciu →",
+    "go_to_shop": "Prejsť na ponuku",
     "use_deal": "Využiť akciu →"
   }
 }

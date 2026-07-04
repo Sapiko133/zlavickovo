@@ -243,7 +243,7 @@ export default async function Home() {
 
       {/* ── HERO — tmavý blok + pravý panel kupónov ── */}
       <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1E293B 60%, #27364a 100%)`, padding: "48px 20px 56px" }}>
-        <div className="hero-grid" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 340px", gap: 40, alignItems: "start" }}>
+        <div className="hero-grid" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: sidebarCoupons.length > 0 ? "1fr 340px" : "1fr", gap: 40, alignItems: "start" }}>
 
           {/* Ľavá časť — text + CTA + search + produktové mini karty */}
           <div>
@@ -288,10 +288,12 @@ export default async function Home() {
             )}
           </div>
 
-          {/* Pravý panel — Najnovšie kupóny (max 4) */}
-          <div className="hero-side" style={{ width: "100%" }}>
-            <HomeCouponSidebar coupons={sidebarCoupons} />
-          </div>
+          {/* Pravý panel — Najnovšie kupóny (max 4), skrytý keď nemá obsah */}
+          {sidebarCoupons.length > 0 && (
+            <div className="hero-side" style={{ width: "100%" }}>
+              <HomeCouponSidebar coupons={sidebarCoupons} />
+            </div>
+          )}
         </div>
       </div>
 

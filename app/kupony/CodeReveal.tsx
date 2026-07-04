@@ -67,7 +67,7 @@ export default function CodeReveal({
           boxShadow: "0 4px 14px rgba(34,197,94,0.3)",
         }}
       >
-        Zobraziť zľavu ↗
+        Prejsť na ponuku ↗
       </a>
     );
   }

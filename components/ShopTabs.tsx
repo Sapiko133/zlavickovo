@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { T } from "@/lib/design-tokens";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 
 type Tab = "kupony" | "akcie";
 
@@ -66,10 +67,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Badges */}
         <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: T.rFull,
-            background: "#DCFCE7", color: "#15803D",
-          }}>Možný kupón</span>
+          <CouponTypeBadge kind={hasCode ? "kupon" : "akcia"} />
           <span style={{
             fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: T.rFull,
             background: T.bgAlt, color: T.textMuted,
@@ -150,7 +148,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
               onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLButtonElement).style.boxShadow = T.shadowGreenLg; }}
               onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "none"; (e.currentTarget as HTMLButtonElement).style.boxShadow = T.shadowGreen; }}
             >
-              Získať kód →
+              Zobraziť kód
             </button>
           )
         ) : (
@@ -167,7 +165,7 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
             onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = T.shadowGreenLg; }}
             onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.transform = "none"; (e.currentTarget as HTMLAnchorElement).style.boxShadow = T.shadowGreen; }}
           >
-            Prejsť na akciu →
+            Prejsť na ponuku →
           </a>
         )}
       </div>
@@ -196,7 +194,8 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUr
         }
       `}</style>
 
-      {/* Tab bar */}
+      {/* Tab bar — zobrazí len taby s obsahom */}
+      {(codeCoupons.length > 0 || dealCoupons.length > 0) && (
       <div style={{
         display: "flex", gap: 4, marginBottom: 20,
         background: T.bgAlt, borderRadius: T.rLg, padding: 4,
@@ -205,7 +204,7 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUr
         {([
           { key: "kupony" as Tab, label: "🏷️ Kupóny s kódom", count: codeCoupons.length },
           { key: "akcie"  as Tab, label: "🔥 Akcie",          count: dealCoupons.length },
-        ]).map(t => (
+        ]).filter(t => t.count > 0).map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
@@ -229,6 +228,7 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUr
           </button>
         ))}
       </div>
+      )}
 
       {/* Coupon list */}
       {displayed.length > 0 ? (

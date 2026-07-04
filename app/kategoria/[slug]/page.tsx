@@ -98,6 +98,10 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
     PILOT_CATS.has(slug) ? getProductsByHkCategory(slug, 8).catch(() => []) : Promise.resolve<HkProduct[]>([]),
   ]);
 
+  // Kupón = má kód, akcia = bez kódu
+  const kuponyList = coupons.filter((c: any) => c.code && String(c.code).trim() !== "");
+  const akcieList = coupons.filter((c: any) => !c.code || String(c.code).trim() === "");
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -236,26 +240,35 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
           </div>
         </section>
 
-        {/* Coupons */}
-        <section>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px", color: "#1d1d1f" }}>
-            🎟️ Kupóny pre {cat.label.toLowerCase()}
-          </h2>
-          {coupons.length > 0 ? (
+        {/* Kupóny (s kódom) — sekcia sa zobrazí len ak má obsah */}
+        {kuponyList.length > 0 && (
+          <section>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px", color: "#1d1d1f" }}>
+              🎟️ Kupóny pre {cat.label.toLowerCase()}
+            </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
-              {coupons.map((coupon: any) => {
-                const token = coupon.code ? Buffer.from(`cat:${coupon.code}`).toString("base64") : null;
+              {kuponyList.map((coupon: any) => {
+                const token = Buffer.from(`cat:${coupon.code}`).toString("base64");
                 const { code: _c, ...couponData } = coupon;
                 return <CouponCard key={coupon.id} coupon={couponData} token={token} />;
               })}
             </div>
-          ) : (
-            <div style={{ padding: "40px", textAlign: "center", color: "#aaa", background: "#fff", borderRadius: 14, border: "1px solid #e8e8e8" }}>
-              <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
-              <p style={{ margin: 0 }}>Momentálne žiadne kupóny. Skontroluj neskôr.</p>
+          </section>
+        )}
+
+        {/* Akcie (bez kódu) — sekcia sa zobrazí len ak má obsah */}
+        {akcieList.length > 0 && (
+          <section style={{ marginTop: kuponyList.length > 0 ? 48 : 0 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px", color: "#1d1d1f" }}>
+              🔥 Akcie pre {cat.label.toLowerCase()}
+            </h2>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
+              {akcieList.map((coupon: any) => (
+                <CouponCard key={coupon.id} coupon={coupon} token={null} />
+              ))}
             </div>
-          )}
-        </section>
+          </section>
+        )}
 
         {/* Produkty z Heureka DB */}
         {hkProducts.length > 0 && (

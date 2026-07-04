@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 
 interface Props {
   code: any;
@@ -44,13 +45,7 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
           <span style={{ fontWeight: 700, fontSize: 14, color: "#1d1d1f", flex: 1, marginRight: 8, lineHeight: 1.3 }}>
             {code.discount || code.description || "Špeciálna zľava"}
           </span>
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 5, flexShrink: 0,
-            background: type === "promo" ? "#ede9fe" : "#f0fdf4",
-            color: type === "promo" ? "#7C3AED" : "#16a34a",
-          }}>
-            {type === "promo" ? "Promo kód" : "Akcia"}
-          </span>
+          <CouponTypeBadge kind={type === "promo" ? "kupon" : "akcia"} />
         </div>
         {code.description && type === "promo" && (
           <div style={{ fontSize: 12, color: "#666", lineHeight: 1.5 }}>{code.description}</div>
@@ -114,7 +109,7 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
               fontSize: 13, textAlign: "center", textDecoration: "none",
             }}
           >
-            Prejsť na akciu →
+            Prejsť na ponuku →
           </a>
         )}
       </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
+import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { T } from "@/lib/design-tokens";
 
 export interface SidebarCoupon {
@@ -55,6 +56,7 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
             {coupon.title.length > 26 ? coupon.title.slice(0, 26) + "…" : coupon.title}
           </div>
         </div>
+        <CouponTypeBadge kind="kupon" />
         {coupon.discount && (
           <span style={{
             fontSize: 10, fontWeight: 800, color: T.white, background: T.green,
@@ -101,6 +103,9 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
 }
 
 export default function HomeCouponSidebar({ coupons }: { coupons: SidebarCoupon[] }) {
+  // Sekcia bez obsahu sa nezobrazuje
+  if (coupons.length === 0) return null;
+
   return (
     <div style={{
       background: T.white, borderRadius: T.rLg, border: `1px solid ${T.border}`,
