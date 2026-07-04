@@ -47,8 +47,17 @@ export interface EhubCoupon {
   discount: string;
   campaign_name: string;
   affiliate_link: string;
+  valid_from: string | null;
   valid_to: string | null;
   source: "ehub";
+}
+
+// Datumy su YYYY-MM-DD, staci string porovnanie.
+function isDateRangeActive(validFrom: string | null | undefined, validTill: string | null | undefined): boolean {
+  const today = new Date().toISOString().slice(0, 10);
+  if (validFrom && String(validFrom).slice(0, 10) > today) return false;
+  if (validTill && String(validTill).slice(0, 10) < today) return false;
+  return true;
 }
 
 export interface EhubShop {
@@ -63,24 +72,30 @@ export interface EhubShop {
 
 async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
   const vouchers = await _fetchAllPages("vouchers", "vouchers");
-  return vouchers.map((v: any) => ({
-    id: String(v.id ?? ""),
-    title: String(v.name ?? v.title ?? ""),
-    code: String(v.code ?? ""),
-    description: String(v.description ?? ""),
-    discount: String(v.value ?? ""),
-    campaign_name: String(v.campaignName ?? ""),
-    affiliate_link: String(v.url ?? v.link ?? "#"),
-    valid_to: v.validTill ?? null,
-    source: "ehub" as const,
-  }));
+  return vouchers
+    .filter((v: any) => v.isValid === true && isDateRangeActive(v.validFrom, v.validTill))
+    .map((v: any) => ({
+      id: String(v.id ?? ""),
+      title: String(v.name ?? v.title ?? ""),
+      code: String(v.code ?? ""),
+      description: String(v.description ?? ""),
+      discount: String(v.value ?? ""),
+      campaign_name: String(v.campaignName ?? ""),
+      affiliate_link: String(v.url ?? v.link ?? "#"),
+      valid_from: v.validFrom ?? null,
+      valid_to: v.validTill ?? null,
+      source: "ehub" as const,
+    }));
 }
 
 // Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
+// Datumovy filter sa aplikuje aj tu, aby 24h cache nezobrazovala medzicasom expirovane vouchery.
 export async function getEhubCoupons(): Promise<EhubCoupon[]> {
   try {
     const cached = await redis.get<EhubCoupon[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached.filter(c => isDateRangeActive(c.valid_from, c.valid_to));
+    }
   } catch {}
   return [];
 }
