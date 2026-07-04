@@ -46,14 +46,13 @@ export default function SearchBar() {
     } else if (e.key === "Escape") {
       setOpen(false); setHighlight(-1);
     } else if (e.key === "Enter") {
+      // Bez zvýraznenej položky → fulltext /hladat (rovnako ako HeroSearch);
+      // nikdy nesmerovať na /kupony/<dopyt>, ktorý nemusí existovať
       if (highlight >= 0 && suggestions[highlight]) {
         navigate(suggestions[highlight].slug, suggestions[highlight].name);
-      } else if (suggestions.length > 0) {
-        navigate(suggestions[0].slug, suggestions[0].name);
       } else if (query.trim()) {
         setOpen(false);
-        if (mode === "shop") router.push(`/kupony/${query.trim().toLowerCase().replace(/\s+/g, "-")}`);
-        else router.push("/hladat?q=" + encodeURIComponent(query.trim()));
+        router.push("/hladat?q=" + encodeURIComponent(query.trim()));
       }
     }
   }
@@ -93,10 +92,10 @@ export default function SearchBar() {
         )}
         <button
           onClick={() => {
-            if (suggestions.length > 0) navigate(suggestions[highlight >= 0 ? highlight : 0].slug, suggestions[highlight >= 0 ? highlight : 0].name);
+            if (highlight >= 0 && suggestions[highlight]) navigate(suggestions[highlight].slug, suggestions[highlight].name);
             else if (query.trim()) {
-              if (mode === "shop") router.push(`/kupony/${query.trim().toLowerCase().replace(/\s+/g, "-")}`);
-              else router.push("/hladat?q=" + encodeURIComponent(query.trim()));
+              setOpen(false);
+              router.push("/hladat?q=" + encodeURIComponent(query.trim()));
             }
           }}
           style={{ padding: "16px 28px", borderRadius: "0 12px 12px 0", border: "none", background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 15, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, fontFamily: "inherit", transition: "background .15s" }}

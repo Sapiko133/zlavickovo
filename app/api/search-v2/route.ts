@@ -1,6 +1,9 @@
 import { getCoupons } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
 import { getEhubCoupons } from "@/lib/ehub";
+import { getCjCoupons } from "@/lib/cj";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
 import { createHash } from "crypto";
@@ -69,7 +72,8 @@ export async function POST(req: Request) {
 
   const query = q.trim();
   const hash = createHash("md5").update(query.toLowerCase()).digest("hex");
-  const cacheKey = `search_cache:${hash}`;
+  // v2: pridané CJ + statické Affial kupóny — nový prefix invaliduje starú cache
+  const cacheKey = `search_cache:v2:${hash}`;
 
   // Redis cache
   try {
@@ -83,13 +87,37 @@ export async function POST(req: Request) {
     letaky: [],
   };
 
-  // Kupóny (Dognet + Affial + eHub)
+  // Kupóny — rovnaké zdroje ako shop stránka (Dognet + Affial + eHub + CJ + statické Affial)
   try {
-    const [dognetAll, affialAll, ehubAll] = await Promise.all([getCoupons(), getAffialCoupons(), getEhubCoupons()]);
+    const [dognetAll, affialAll, ehubAll, cjAll] = await Promise.all([
+      getCoupons().catch(() => []),
+      getAffialCoupons().catch(() => []),
+      getEhubCoupons().catch(() => []),
+      getCjCoupons().catch(() => []),
+    ]);
     const relevantShops = getRelevantShops(query);
     const qLow = query.toLowerCase();
 
-    result.coupons = [...dognetAll, ...affialAll, ...ehubAll].filter((c: any) => {
+    // CJ a statické Affial kupóny namapované na spoločný tvar (campaign_name/title/code/affiliate_link)
+    const cjMapped = cjAll.map((c) => ({
+      id: c.id,
+      campaign_name: c.advertiserName,
+      title: c.description,
+      code: c.code,
+      affiliate_link: c.link,
+      type: 1,
+    }));
+    const affialShopMap = new Map(AFFIAL_SHOPS.map(s => [s.domain, s.affiliateUrl]));
+    const affialStatic = AFFIAL_COUPONS.map((c, i) => ({
+      id: `affial-static-${c.domain}-${i}`,
+      campaign_name: c.shop,
+      title: `${c.discount} zľava`,
+      code: c.code,
+      affiliate_link: affialShopMap.get(c.domain) ?? `https://${c.domain}`,
+      type: 1,
+    }));
+
+    result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic].filter((c: any) => {
       const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
       const title = (c.title || c.name || "").toLowerCase();
       return (

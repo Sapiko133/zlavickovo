@@ -1,43 +1,18 @@
-const SHOP_LIST: Array<{ names: string[]; slug: string }> = [
-  { names: ["alza"], slug: "alza" },
-  { names: ["zalando"], slug: "zalando" },
-  { names: ["shein"], slug: "shein" },
-  { names: ["mall", "mall.sk", "mall.cz"], slug: "mall" },
-  { names: ["notino"], slug: "notino" },
-  { names: ["sportisimo"], slug: "sportisimo" },
-  { names: ["ikea"], slug: "ikea" },
-  { names: ["dedoles"], slug: "dedoles" },
-  { names: ["martinus"], slug: "martinus" },
-  { names: ["gymbeam", "gym beam"], slug: "gymbeam" },
-  { names: ["dr max", "dr. max", "drmax"], slug: "dr-max" },
-  { names: ["lidl"], slug: "lidl" },
-  { names: ["kaufland"], slug: "kaufland" },
-  { names: ["tesco"], slug: "tesco" },
-  { names: ["billa"], slug: "billa" },
-  { names: ["booking", "booking.com"], slug: "booking-com" },
-  { names: ["superstrava", "superstrava.sk"], slug: "superstrava-sk" },
-  { names: ["blendea"], slug: "blendea-sk" },
-  { names: ["kosmetikomat"], slug: "kosmetikomat-sk" },
-  { names: ["vimax", "vimax.sk"], slug: "vimax-sk" },
-  { names: ["herbatica"], slug: "herbatica-sk" },
-  { names: ["datart"], slug: "datart" },
-  { names: ["nay"], slug: "nay" },
-  { names: ["okay", "okay.sk"], slug: "okay" },
-  { names: ["samsung"], slug: "samsung" },
-  { names: ["asos"], slug: "asos" },
-  { names: ["about you", "aboutyou"], slug: "about-you" },
-  { names: ["answear"], slug: "answear" },
-  { names: ["zara"], slug: "zara" },
-  { names: ["hm", "h&m", "h m"], slug: "hm" },
-  { names: ["adidas"], slug: "adidas" },
-  { names: ["nike"], slug: "nike" },
-  { names: ["decathlon"], slug: "decathlon" },
-  { names: ["airbnb"], slug: "airbnb" },
-  { names: ["invia"], slug: "invia" },
-  { names: ["rohlik", "rohlik.sk"], slug: "rohlik" },
-  { names: ["lenovo"], slug: "lenovo" },
-  { names: ["panta rhei", "pantarhei"], slug: "panta-rhei" },
-];
+import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
+
+/**
+ * Klasifikácia vyhľadávacieho dopytu: obchod / kategória / produkt.
+ *
+ * Obchody NIE sú ručný zoznam — jediný zdroj pravdy je getAllKnownShops()
+ * (lib/all-shops.ts), na klientovi dostupný cez GET /api/autocomplete
+ * (default mode). Na /kupony/[slug] smerujeme len dopyty, ktoré presne
+ * zodpovedajú existujúcemu obchodu.
+ */
+
+export interface KnownShopLite {
+  name: string;
+  slug: string;
+}
 
 const CATEGORY_MAP: Record<string, string> = {
   "mobily": "Mobily",
@@ -88,25 +63,52 @@ const CATEGORY_MAP: Record<string, string> = {
 
 export type QueryType = "shop" | "category" | "product";
 
-export function classifyQuery(query: string): QueryType {
-  const lq = query.toLowerCase().trim();
-  if (findShop(lq)) return "shop";
-  if (CATEGORY_MAP[lq]) return "category";
-  return "product";
-}
-
-export function findShop(query: string): { slug: string } | null {
-  const lq = query.toLowerCase().trim();
-  for (const shop of SHOP_LIST) {
-    if (shop.names.includes(lq)) return { slug: shop.slug };
-  }
-  // Partial: query starts with a known shop name
-  for (const shop of SHOP_LIST) {
-    if (shop.names.some((n) => lq === n || lq.startsWith(n + " "))) {
-      return { slug: shop.slug };
-    }
+/**
+ * Nájde obchod v zozname známych obchodov — len presná zhoda
+ * (normalizovaný slug alebo normalizovaný názov). "alza"/"Alza.sk" → alza,
+ * ale "samsung" nevráti nič, ak taký obchod v zozname nie je.
+ */
+export function findShopInList(
+  query: string,
+  shops: KnownShopLite[]
+): { slug: string } | null {
+  const sq = normalizeShopSlug(query);
+  const nq = normalizeShopName(query);
+  if (!sq && !nq) return null;
+  for (const shop of shops) {
+    if (sq && shop.slug === sq) return { slug: shop.slug };
+    if (nq && normalizeShopName(shop.name) === nq) return { slug: shop.slug };
   }
   return null;
+}
+
+// Zoznam obchodov sa načíta raz a zdieľa medzi volaniami (module scope)
+let _shopsCache: KnownShopLite[] | null = null;
+let _shopsPromise: Promise<KnownShopLite[]> | null = null;
+
+async function loadKnownShops(): Promise<KnownShopLite[]> {
+  if (_shopsCache) return _shopsCache;
+  if (!_shopsPromise) {
+    _shopsPromise = fetch("/api/autocomplete")
+      .then(r => r.json())
+      .then((d: KnownShopLite[]) => {
+        _shopsCache = Array.isArray(d)
+          ? d.map(s => ({ name: s.name, slug: s.slug }))
+          : [];
+        return _shopsCache;
+      })
+      .catch(() => {
+        _shopsPromise = null;
+        return [];
+      });
+  }
+  return _shopsPromise;
+}
+
+/** Async varianta pre klienta — sama si načíta zoznam obchodov. */
+export async function findShop(query: string): Promise<{ slug: string } | null> {
+  const shops = await loadKnownShops();
+  return findShopInList(query, shops);
 }
 
 export function getCategoryLabel(query: string): string | null {

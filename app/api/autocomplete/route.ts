@@ -1,5 +1,8 @@
 import { getCoupons as getDognetCoupons } from "@/lib/dognet";
 import { getEhubCoupons } from "@/lib/ehub";
+import { getAffialCoupons } from "@/lib/affial";
+import { getCjCoupons } from "@/lib/cj";
+import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopSlug } from "@/lib/slug";
 import { feedManager } from "@/lib/feeds/FeedManager";
@@ -46,12 +49,14 @@ export async function GET(req: Request) {
     // Normalizovaný dopyt pre slug matching — "SHEIN" → "shein", "shein.sk"/"shein.com" → "shein"
     const sq = normalizeShopSlug(q);
 
-    const [hkResult, shopsResult, dognetCouponsResult, ehubCouponsResult] =
+    const [hkResult, shopsResult, dognetCouponsResult, ehubCouponsResult, affialCouponsResult, cjCouponsResult] =
       await Promise.allSettled([
         searchHkProducts(q, 20),
         getAllShops(),
         getDognetCoupons(),
         getEhubCoupons(),
+        getAffialCoupons(),
+        getCjCoupons(),
       ]);
 
     // Produkty — hk_products, abecedne, max 5
@@ -66,7 +71,14 @@ export async function GET(req: Request) {
             .slice(0, 5)
         : [];
 
-    // Obchody — shop cache, .sk → .cz → ostatné, v rámci priority abecedne, max 5
+    // Obchody — shop cache, max 5. Radenie: exact match → prefix → substring,
+    // v rámci rovnakej zhody .sk → .cz → ostatné ("mall" → Mall pred BabyMall)
+    const matchRank = (s: ShopEntry): number => {
+      const name = s.name.toLowerCase();
+      if (name === lq || (sq.length > 0 && s.slug === sq)) return 0;
+      if (name.startsWith(lq) || (sq.length > 0 && s.slug.startsWith(sq))) return 1;
+      return 2;
+    };
     const shops =
       shopsResult.status === "fulfilled"
         ? shopsResult.value
@@ -75,39 +87,48 @@ export async function GET(req: Request) {
               s.domain.toLowerCase().includes(lq) ||
               (sq.length > 0 && s.slug.includes(sq))
             )
-            .sort(compareShopsByPriority)
+            .sort((a, b) => matchRank(a) - matchRank(b) || compareShopsByPriority(a, b))
             .slice(0, 5)
             .map(s => ({ name: s.name, slug: s.slug, domain: s.domain }))
         : [];
 
-    // Kupóny — Redis cache (dognet + ehub), abecedne, max 5
+    // Kupóny — rovnaké zdroje ako shop stránka (Dognet + eHub + Affial XML +
+    // CJ + statické Affial kupóny), max 5
     interface CouponEntry { title: string; shopName: string; shopSlug: string }
     const coupons: CouponEntry[] = [];
     const seenCoupons = new Set<string>();
 
+    const pushCoupon = (title: string, shopName: string) => {
+      if (!title || !shopName) return;
+      if (!title.toLowerCase().includes(lq) && !shopName.toLowerCase().includes(lq)) return;
+      const key = `${title.toLowerCase()}|${shopName.toLowerCase()}`;
+      if (seenCoupons.has(key)) return;
+      seenCoupons.add(key);
+      coupons.push({ title, shopName, shopSlug: normalizeShopSlug(shopName) });
+    };
+
     if (dognetCouponsResult.status === "fulfilled") {
       for (const c of dognetCouponsResult.value) {
-        const title = c.title || c.name || "";
-        const shopName = c.campaign?.name || "";
-        if (!title || !shopName) continue;
-        if (!title.toLowerCase().includes(lq) && !shopName.toLowerCase().includes(lq)) continue;
-        const key = `${title.toLowerCase()}|${shopName.toLowerCase()}`;
-        if (seenCoupons.has(key)) continue;
-        seenCoupons.add(key);
-        coupons.push({ title, shopName, shopSlug: normalizeShopSlug(shopName) });
+        pushCoupon(c.title || c.name || "", c.campaign?.name || "");
       }
     }
     if (ehubCouponsResult.status === "fulfilled") {
       for (const c of ehubCouponsResult.value) {
-        const title = c.title || c.description || "";
-        const shopName = c.campaign_name || "";
-        if (!title || !shopName) continue;
-        if (!title.toLowerCase().includes(lq) && !shopName.toLowerCase().includes(lq)) continue;
-        const key = `${title.toLowerCase()}|${shopName.toLowerCase()}`;
-        if (seenCoupons.has(key)) continue;
-        seenCoupons.add(key);
-        coupons.push({ title, shopName, shopSlug: normalizeShopSlug(shopName) });
+        pushCoupon(c.title || c.description || "", c.campaign_name || "");
       }
+    }
+    if (affialCouponsResult.status === "fulfilled") {
+      for (const c of affialCouponsResult.value) {
+        pushCoupon(c.title || c.description || "", c.campaign_name || "");
+      }
+    }
+    if (cjCouponsResult.status === "fulfilled") {
+      for (const c of cjCouponsResult.value) {
+        pushCoupon(c.description || "", c.advertiserName || "");
+      }
+    }
+    for (const c of AFFIAL_COUPONS) {
+      pushCoupon(`${c.discount} zľava`, c.shop);
     }
     // Kupóny — najprv podľa priority obchodu (.sk → .cz → ostatné), potom podľa názvu
     coupons.sort((a, b) => {

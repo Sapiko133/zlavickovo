@@ -131,7 +131,8 @@ export default function Nav() {
       setDropOpen(false); setHighlight(-1); inputRef.current?.blur();
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const pick = highlight >= 0 ? flatItems[highlight] : flatItems[0];
+      // Bez zvýraznenej položky → fulltext /hladat (rovnako ako HeroSearch)
+      const pick = highlight >= 0 ? flatItems[highlight] : null;
       if (pick) { goItem(pick.href, pick.label); }
       else if (query.trim()) {
         setDropOpen(false);
@@ -196,7 +197,7 @@ export default function Nav() {
               )}
               <button
                 onClick={() => {
-                  const pick = flatItems[highlight >= 0 ? highlight : 0];
+                  const pick = highlight >= 0 ? flatItems[highlight] : null;
                   if (pick) goItem(pick.href, pick.label);
                   else if (query.trim()) { setDropOpen(false); router.push("/hladat?q=" + encodeURIComponent(query.trim())); }
                 }}

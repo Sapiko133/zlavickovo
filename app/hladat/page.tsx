@@ -5,7 +5,8 @@ import { useEffect, useState, Suspense } from "react";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
-import { classifyQuery, findShop, getCategoryLabel } from "@/lib/search/queryClassifier";
+import { findShop, getCategoryLabel } from "@/lib/search/queryClassifier";
+import { normalizeShopSlug } from "@/lib/slug";
 
 function CopyCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -88,23 +89,22 @@ function SearchResults() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
-  const queryType = q ? classifyQuery(q) : "product";
   const categoryLabel = q ? getCategoryLabel(q) : null;
 
-  // Shop query → redirect to /kupony/[slug]
+  // Dopyt = existujúci obchod (getAllKnownShops) → redirect na /kupony/[slug]
   useEffect(() => {
     if (!q) return;
-    if (queryType === "shop") {
-      const shop = findShop(q);
-      if (shop) {
-        setRedirecting(true);
-        router.replace(`/kupony/${shop.slug}`);
-      }
-    }
-  }, [q, queryType, router]);
+    let cancelled = false;
+    findShop(q).then((shop) => {
+      if (cancelled || !shop) return;
+      setRedirecting(true);
+      router.replace(`/kupony/${shop.slug}`);
+    });
+    return () => { cancelled = true; };
+  }, [q, router]);
 
   useEffect(() => {
-    if (!q || queryType === "shop") return;
+    if (!q) return;
     setLoadingCoupons(true);
     setLoadingProducts(true);
     setCoupons([]);
@@ -123,9 +123,9 @@ function SearchResults() {
       .then((r) => r.json())
       .then((d) => { setProducts(Array.isArray(d) ? d : []); setLoadingProducts(false); })
       .catch(() => setLoadingProducts(false));
-  }, [q, queryType]);
+  }, [q]);
 
-  if (redirecting || queryType === "shop") {
+  if (redirecting) {
     return (
       <div style={{ padding: "80px 24px", textAlign: "center", color: "#888" }}>
         <div style={{ fontSize: 14 }}>Presmerovávam na stránku obchodu...</div>
@@ -261,11 +261,16 @@ function SearchResults() {
                 }
               </div>
             ))}
-            {coupons.length > 0 && (
-              <a href={`/kupony/${q.toLowerCase().replace(/\s+/g, "-")}`} style={{ display: "block", marginTop: 10, fontSize: 13, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
-                Všetky kupóny ›
-              </a>
-            )}
+            {coupons.length > 0 && (() => {
+              // Odkaz na stránku obchodu prvého kupónu — nie na /kupony/<dopyt>,
+              // ktorý nemusí existovať
+              const shopSlug = normalizeShopSlug(coupons[0]?.shopName ?? coupons[0]?.campaign_name ?? "");
+              return shopSlug ? (
+                <a href={`/kupony/${shopSlug}`} style={{ display: "block", marginTop: 10, fontSize: 13, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
+                  Všetky kupóny ›
+                </a>
+              ) : null;
+            })()}
           </div>
 
           {/* Akcie box */}

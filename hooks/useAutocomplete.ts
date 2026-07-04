@@ -56,11 +56,14 @@ function mergeUnique(base: Suggestion[], extra: Suggestion[]): Suggestion[] {
 function filterSuggestions(list: Suggestion[], query: string, max = 8): Suggestion[] {
   const lq = query.toLowerCase();
   const matches = list.filter(s => s.name.toLowerCase().includes(lq));
-  matches.sort((a, b) => {
-    const aP = a.name.toLowerCase().startsWith(lq) ? 0 : 1;
-    const bP = b.name.toLowerCase().startsWith(lq) ? 0 : 1;
-    return aP - bP;
-  });
+  // Relevancia: exact match → prefix → substring ("mall" → Mall pred BabyMall)
+  const rankOf = (s: Suggestion) => {
+    const n = s.name.toLowerCase();
+    if (n === lq) return 0;
+    if (n.startsWith(lq)) return 1;
+    return 2;
+  };
+  matches.sort((a, b) => rankOf(a) - rankOf(b));
   return matches.slice(0, max);
 }
 
