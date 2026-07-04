@@ -1,6 +1,7 @@
 import { MetadataRoute } from "next";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { getAllKnownShops, getStaticKnownShops } from "@/lib/all-shops";
+import { isAdultShop } from "@/lib/shop-categories";
 import { getAllPosts } from "@/lib/blog";
 import { LETAKY } from "@/lib/letaky";
 import { getTopProductIds, toProductSlug } from "@/lib/heureka/query";
@@ -14,7 +15,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   let shops: Awaited<ReturnType<typeof getAllKnownShops>> = [];
   try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
 
-  const shopUrls: MetadataRoute.Sitemap = shops.flatMap(shop => {
+  // Erotické / 18+ obchody nechávame mimo sitemap (stránky ostávajú dostupné)
+  const indexableShops = shops.filter(shop => !isAdultShop(shop));
+
+  const shopUrls: MetadataRoute.Sitemap = indexableShops.flatMap(shop => {
     const urls: MetadataRoute.Sitemap = [
       { url: `${BASE}/kupony/${shop.slug}`, lastModified: new Date(), changeFrequency: "daily" as const, priority: 0.8 },
     ];

@@ -354,6 +354,39 @@ export const SHOP_CATEGORIES: Record<string, CategoryId> = {
   pobalsa: "ine",
 };
 
+/**
+ * Erotické / 18+ obchody (kanonické slugy). Stránky /kupony/[slug] zostávajú
+ * dostupné, ale tieto obchody sa NESMÚ objaviť v sitemap.
+ */
+export const ADULT_SHOP_SLUGS = new Set<string>([
+  "intimnenakupy",
+  "eros",
+  "69shop",
+  "lovesexshop",
+  "szexshop",
+  "erotikashow",
+  "titkossexshop",
+  "goodlove",
+  "vagyaim",
+  "desirel",
+]);
+
+/** Záchytná sieť pre nové erotické kampane, ktoré ešte nie sú v ADULT_SHOP_SLUGS. */
+const ADULT_NAME_RX = /erotik|erotic|sexshop|sex-shop|sextoy/i;
+
+/** True pre erotický / 18+ obchod — podľa slugu, mena alebo domény. */
+export function isAdultShop(input: { slug?: string | null; name?: string | null; domain?: string | null }): boolean {
+  const keys = [
+    input.slug || "",
+    input.name ? normalizeShopSlug(input.name) : "",
+    input.domain ? normalizeShopSlug(input.domain) : "",
+  ];
+  for (const key of keys) {
+    if (key && ADULT_SHOP_SLUGS.has(key)) return true;
+  }
+  return ADULT_NAME_RX.test(`${input.slug ?? ""} ${input.name ?? ""} ${input.domain ?? ""}`);
+}
+
 export interface ResolveCategoryInput {
   /** Zobrazované meno obchodu ("Alza.sk", "Dr. Max") */
   name?: string | null;

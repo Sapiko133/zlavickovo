@@ -4,7 +4,7 @@ import CouponCard from "@/components/CouponCard";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { compareShopsByPriority } from "@/lib/shop-priority";
-import { normalizeShopSlug } from "@/lib/slug";
+import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { getCouponsByCategory } from "@/lib/category-coupons";
 import { TAXONOMY, TAXONOMY_LIST, isCategoryId, type TaxonomyCategory } from "@/lib/taxonomy";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
@@ -68,11 +68,26 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   const year = getYear();
   const faq = getCategoryFAQ(cat);
 
-  // Get Affial shops for this category — .sk → .cz → ostatné, abecedne
+  // Obchody kategórie — .sk → .cz → ostatné, abecedne. Deduplikované podľa
+  // kanonického mena (normalizeShopName zahodí TLD aj interpunkciu), takže
+  // kurátorský featured obchod, jeho Affial záznam a .sk/.cz mutácie sa
+  // zobrazia len raz — featured má prednosť, potom .sk pred .cz.
+  const seenShopKeys = new Set<string>();
+  const catShops = [...cat.featuredShops].sort(compareShopsByPriority).filter(shop => {
+    const key = normalizeShopName(shop.name) || shop.slug;
+    if (seenShopKeys.has(key)) return false;
+    seenShopKeys.add(key);
+    return true;
+  });
   const affialForCat = AFFIAL_SHOPS
     .filter(s => s.category === cat.id)
-    .sort(compareShopsByPriority);
-  const catShops = [...cat.featuredShops].sort(compareShopsByPriority);
+    .sort(compareShopsByPriority)
+    .filter(shop => {
+      const key = normalizeShopName(shop.domain || shop.name);
+      if (seenShopKeys.has(key)) return false;
+      seenShopKeys.add(key);
+      return true;
+    });
 
   // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
   const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
