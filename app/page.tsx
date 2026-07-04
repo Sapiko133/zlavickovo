@@ -11,7 +11,7 @@ import { getStaticShops, getStaticEhubShops, getStaticSales, getStaticFeed } fro
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
-import { CATEGORIES_LIST } from "@/lib/categories";
+import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { getProducts, getCategoryProductCounts, toProductSlug, formatPrice } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 
@@ -164,8 +164,8 @@ export default async function Home() {
   const shopCount = allShops.length;
 
   // Obľúbené kategórie — tie s produktmi v DB prvé
-  const favCategories = [...CATEGORIES_LIST]
-    .sort((a, b) => (categoryCounts[b.slug] ?? 0) - (categoryCounts[a.slug] ?? 0))
+  const favCategories = [...TAXONOMY_LIST]
+    .sort((a, b) => (categoryCounts[b.id] ?? 0) - (categoryCounts[a.id] ?? 0))
     .slice(0, 6);
 
   const TRUST_ITEMS = [
@@ -298,8 +298,8 @@ export default async function Home() {
       {/* ── KATEGÓRIE POD HERO ── */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "36px 20px 0" }}>
         <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 6, scrollbarWidth: "none" }}>
-          {CATEGORIES_LIST.map(cat => (
-            <a key={cat.slug} href={`/kategoria/${cat.slug}`} className="cat-tile"
+          {TAXONOMY_LIST.map(cat => (
+            <a key={cat.id} href={`/kategoria/${cat.id}`} className="cat-tile"
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "16px 18px", borderRadius: 14, background: "#fff", border: "1.5px solid #eceff3", textDecoration: "none", flexShrink: 0, minWidth: 104, boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
               <span style={{ width: 44, height: 44, borderRadius: 12, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{cat.emoji}</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: "#1d1d1f", whiteSpace: "nowrap" }}>{cat.label}</span>
@@ -372,9 +372,9 @@ export default async function Home() {
         </div>
         <div className="fav-cat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
           {favCategories.map(cat => {
-            const count = categoryCounts[cat.slug];
+            const count = categoryCounts[cat.id];
             return (
-              <a key={cat.slug} href={`/kategoria/${cat.slug}`} className="fav-cat-card"
+              <a key={cat.id} href={`/kategoria/${cat.id}`} className="fav-cat-card"
                 style={{ display: "flex", alignItems: "center", gap: 14, padding: "18px 20px", borderRadius: 16, background: "#fff", border: "1.5px solid #eceff3", textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
                 <span style={{ width: 52, height: 52, borderRadius: 14, background: cat.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, flexShrink: 0 }}>{cat.emoji}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>

@@ -1,5 +1,5 @@
 import { MetadataRoute } from "next";
-import { CATEGORIES } from "@/lib/categories";
+import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { getAllKnownShops, getStaticKnownShops } from "@/lib/all-shops";
 import { getAllPosts } from "@/lib/blog";
 import { LETAKY } from "@/lib/letaky";
@@ -25,8 +25,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     return urls;
   });
 
-  const categoryUrls: MetadataRoute.Sitemap = Object.keys(CATEGORIES).map(catSlug => ({
-    url: `${BASE}/kategoria/${catSlug}`,
+  const categoryUrls: MetadataRoute.Sitemap = TAXONOMY_LIST.map(c => ({
+    url: `${BASE}/kategoria/${c.id}`,
     lastModified: new Date(),
     changeFrequency: "weekly",
     priority: 0.8,

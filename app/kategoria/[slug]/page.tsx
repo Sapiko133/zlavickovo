@@ -6,8 +6,7 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { normalizeShopSlug } from "@/lib/slug";
 import { getCouponsByCategory } from "@/lib/category-coupons";
-import { isCategoryId } from "@/lib/taxonomy";
-import { CATEGORIES, CATEGORIES_LIST } from "@/lib/categories";
+import { TAXONOMY, TAXONOMY_LIST, isCategoryId, type TaxonomyCategory } from "@/lib/taxonomy";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { notFound } from "next/navigation";
 import { getProductsByHkCategory, toProductSlug, formatPrice } from "@/lib/heureka/query";
@@ -16,14 +15,21 @@ import type { HkProduct } from "@/lib/heureka/types";
 export const revalidate = 3600;
 
 export function generateStaticParams() {
-  return Object.keys(CATEGORIES).map(slug => ({ slug }));
+  return TAXONOMY_LIST.map(c => ({ slug: c.id }));
+}
+
+/** Viditeľná kategória podľa URL slugu, null pre neznáme/skryté ("ine"). */
+function getVisibleCategory(slug: string): TaxonomyCategory | null {
+  if (!isCategoryId(slug)) return null;
+  const cat = TAXONOMY[slug];
+  return cat.hidden ? null : cat;
 }
 
 function getYear() { return new Date().getFullYear(); }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const cat = CATEGORIES[slug];
+  const cat = getVisibleCategory(slug);
   if (!cat) return {};
   return {
     title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
@@ -37,8 +43,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-function getCategoryFAQ(cat: { label: string; shops: { name: string }[] }) {
-  const shopNames = cat.shops.slice(0, 3).map(s => s.name).join(", ");
+function getCategoryFAQ(cat: { label: string; featuredShops: { name: string }[] }) {
+  const shopNames = cat.featuredShops.slice(0, 3).map(s => s.name).join(", ");
   return [
     {
       q: `Kde kúpiť ${cat.label.toLowerCase()} najlacnejšie?`,
@@ -49,7 +55,7 @@ function getCategoryFAQ(cat: { label: string; shops: { name: string }[] }) {
       a: `Použite zľavový kód pri objednávke, sledujte sezónne výpredaje a akcie obchodov. Na Zlavickovo.sk pravidelne aktualizujeme overené kupóny pre všetky kategórie vrátane ${cat.label.toLowerCase()}.`,
     },
     {
-      q: `Má ${cat.shops[0]?.name ?? "váš obchod"} aktuálny kupón?`,
+      q: `Má ${cat.featuredShops[0]?.name ?? "váš obchod"} aktuálny kupón?`,
       a: `Aktuálne kupóny pre všetky obchody v kategórii ${cat.label} nájdete priamo na tejto stránke. Kódy sú overené a pravidelne aktualizované.`,
     },
   ];
@@ -57,23 +63,23 @@ function getCategoryFAQ(cat: { label: string; shops: { name: string }[] }) {
 
 export default async function KategoriaPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const cat = CATEGORIES[slug];
+  const cat = getVisibleCategory(slug);
   if (!cat) notFound();
   const year = getYear();
   const faq = getCategoryFAQ(cat);
 
   // Get Affial shops for this category — .sk → .cz → ostatné, abecedne
   const affialForCat = AFFIAL_SHOPS
-    .filter(s => s.category === slug || s.category === cat.slug)
+    .filter(s => s.category === cat.id)
     .sort(compareShopsByPriority);
-  const catShops = [...cat.shops].sort(compareShopsByPriority);
+  const catShops = [...cat.featuredShops].sort(compareShopsByPriority);
 
   // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
   const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
 
   // Parallelizovane: kupony (podla kategorie obchodu, nie keywords) + produkty (DB)
   const [coupons, hkProducts] = await Promise.all([
-    isCategoryId(slug) ? getCouponsByCategory(slug, 12).catch(() => []) : Promise.resolve([]),
+    getCouponsByCategory(cat.id, 12).catch(() => []),
     PILOT_CATS.has(slug) ? getProductsByHkCategory(slug, 8).catch(() => []) : Promise.resolve<HkProduct[]>([]),
   ]);
 
@@ -134,16 +140,16 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       {/* Other categories quick nav */}
       <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0", overflowX: "auto" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", display: "flex", gap: 6 }}>
-          {CATEGORIES_LIST.map(c => (
+          {TAXONOMY_LIST.map(c => (
             <a
-              key={c.slug}
-              href={`/kategoria/${c.slug}`}
+              key={c.id}
+              href={`/kategoria/${c.id}`}
               className="cat-chip"
               style={{
                 padding: "5px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                 textDecoration: "none", whiteSpace: "nowrap",
-                background: c.slug === slug ? cat.color : "#f5f5f5",
-                color: c.slug === slug ? "#fff" : "#666",
+                background: c.id === slug ? cat.color : "#f5f5f5",
+                color: c.id === slug ? "#fff" : "#666",
               }}
             >
               {c.emoji} {c.label}

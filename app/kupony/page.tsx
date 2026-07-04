@@ -5,7 +5,8 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { getCoupons } from "@/lib/dognet";
 import { getAffialCoupons } from "@/lib/affial";
 import { getEhubCoupons } from "@/lib/ehub";
-import { inferCategory, CATEGORIES_LIST } from "@/lib/categories";
+import { TAXONOMY_LIST } from "@/lib/taxonomy";
+import { resolveCategory } from "@/lib/shop-categories";
 import type { Metadata } from "next";
 import CodeReveal from "./CodeReveal";
 
@@ -86,7 +87,7 @@ async function getAllCoupons(): Promise<UnifiedCoupon[]> {
         source: "dognet",
         discountPct: extractDiscount(text),
         hasFreeShipping: c.type === 5 || text.toLowerCase().includes("doprava"),
-        category: inferCategory(shopName),
+        category: resolveCategory({ name: shopName }) ?? "",
         token: c.code ? Buffer.from(`dognet:${c.code}`).toString("base64") : null,
       });
     }
@@ -107,7 +108,7 @@ async function getAllCoupons(): Promise<UnifiedCoupon[]> {
         source: "affial",
         discountPct: extractDiscount(text),
         hasFreeShipping: text.toLowerCase().includes("doprava"),
-        category: inferCategory(shopName),
+        category: resolveCategory({ name: shopName }) ?? "",
         token: c.code ? Buffer.from(`affial:${c.code}`).toString("base64") : null,
       });
     }
@@ -128,7 +129,7 @@ async function getAllCoupons(): Promise<UnifiedCoupon[]> {
         source: "ehub",
         discountPct: extractDiscount(c.discount || text) || extractDiscount(text),
         hasFreeShipping: text.toLowerCase().includes("doprava"),
-        category: inferCategory(shopName),
+        category: resolveCategory({ name: shopName }) ?? "",
         token: c.code ? Buffer.from(`ehub:${c.code}`).toString("base64") : null,
       });
     }
@@ -301,16 +302,16 @@ export default async function KuponyPage({
           >
             Všetky
           </a>
-          {CATEGORIES_LIST.map(c => (
+          {TAXONOMY_LIST.map(c => (
             <a
-              key={c.slug}
-              href={url({ cat: c.slug, page: "1" })}
+              key={c.id}
+              href={url({ cat: c.id, page: "1" })}
               className="filter-tab"
               style={{
                 padding: "5px 13px", borderRadius: 20, fontSize: 12, fontWeight: 600,
                 textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0,
-                background: cat === c.slug ? "#22C55E" : "#f5f5f5",
-                color: cat === c.slug ? "#fff" : "#555",
+                background: cat === c.id ? "#22C55E" : "#f5f5f5",
+                color: cat === c.id ? "#fff" : "#555",
               }}
             >
               {c.emoji} {c.label}

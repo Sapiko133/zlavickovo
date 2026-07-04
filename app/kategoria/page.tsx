@@ -1,6 +1,6 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
-import { CATEGORIES_LIST } from "@/lib/categories";
+import { TAXONOMY_LIST } from "@/lib/taxonomy";
 
 export const metadata = {
   title: "Kategórie kupónov | Zlavickovo",
@@ -32,10 +32,10 @@ export default function KategoriaPage() {
         </p>
 
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 16 }}>
-          {CATEGORIES_LIST.map((cat) => (
+          {TAXONOMY_LIST.map((cat) => (
             <a
-              key={cat.slug}
-              href={`/kategoria/${cat.slug}`}
+              key={cat.id}
+              href={`/kategoria/${cat.id}`}
               className="kat-card"
               style={{
                 display: "flex", flexDirection: "column", padding: "24px 20px",
@@ -53,7 +53,7 @@ export default function KategoriaPage() {
                 {cat.desc}
               </p>
               <div style={{ fontSize: 12, color: cat.color, fontWeight: 700 }}>
-                {cat.shops.length} obchod{cat.shops.length < 2 ? "" : cat.shops.length < 5 ? "y" : "ov"}
+                {cat.featuredShops.length} obchod{cat.featuredShops.length < 2 ? "" : cat.featuredShops.length < 5 ? "y" : "ov"}
               </div>
             </a>
           ))}
