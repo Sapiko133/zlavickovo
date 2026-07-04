@@ -3,6 +3,7 @@ import { getEhubCoupons } from "@/lib/ehub";
 import { getAffialCoupons } from "@/lib/affial";
 import { getCjCoupons } from "@/lib/cj";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
+import { STATIC_AKCIE } from "@/lib/akcie";
 import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopSlug } from "@/lib/slug";
 import { feedManager } from "@/lib/feeds/FeedManager";
@@ -129,6 +130,9 @@ export async function GET(req: Request) {
     }
     for (const c of AFFIAL_COUPONS) {
       pushCoupon(`${c.discount} zľava`, c.shop);
+    }
+    for (const a of STATIC_AKCIE) {
+      pushCoupon(a.title, a.shopName);
     }
     // Kupóny — najprv podľa priority obchodu (.sk → .cz → ostatné), potom podľa názvu
     coupons.sort((a, b) => {

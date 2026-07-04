@@ -4,6 +4,7 @@ import { getEhubCoupons } from "@/lib/ehub";
 import { getCjCoupons } from "@/lib/cj";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { STATIC_AKCIE } from "@/lib/akcie";
 import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
 import { createHash } from "crypto";
@@ -116,8 +117,16 @@ export async function POST(req: Request) {
       affiliate_link: affialShopMap.get(c.domain) ?? `https://${c.domain}`,
       type: 1,
     }));
+    const staticAkcie = STATIC_AKCIE.map(a => ({
+      id: `akcia-${a.id}`,
+      campaign_name: a.shopName,
+      title: a.title,
+      code: "",
+      affiliate_link: a.affiliateUrl,
+      type: 4,
+    }));
 
-    result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic].filter((c: any) => {
+    result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic, ...staticAkcie].filter((c: any) => {
       const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
       const title = (c.title || c.name || "").toLowerCase();
       return (

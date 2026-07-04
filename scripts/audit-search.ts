@@ -53,14 +53,22 @@ async function main() {
   }
 
   // ── 2. Kupóny v unified autocomplete ─────────────────────────
-  console.log("\n── 2. kupóny vo vyhľadávaní (unified autocomplete) ──");
+  // Parita so shop stránkou: ak /kupony/[slug] zobrazuje kupóny, musí ich
+  // zobrazovať aj vyhľadávanie
+  console.log("\n── 2. kupóny vo vyhľadávaní (unified autocomplete vs shop stránka) ──");
   const unified: Record<string, any> = {};
   for (const q of QUERIES) {
     unified[q] = await getJson(`/api/autocomplete?mode=unified&q=${encodeURIComponent(q)}`);
   }
   for (const q of ["alza", "notino", "gymbeam", "datart"]) {
+    const html = await fetch(`${BASE}/kupony/${q}`, { headers: { "User-Agent": "audit-search" } }).then(r => r.text());
+    const shopCount = parseInt(html.match(/(\d+)(?:<!-- -->)? overených kupónov/)?.[1] ?? "0", 10);
     const n = (unified[q].coupons ?? []).length;
-    check(n > 0, `"${q}" → ${n} kupónov ${n > 0 ? `(napr. "${unified[q].coupons[0].title.slice(0, 40)}")` : ""}`);
+    if (shopCount > 0) {
+      check(n > 0, `"${q}" → shop stránka ${shopCount}, vyhľadávanie ${n} kupónov ${n > 0 ? `(napr. "${unified[q].coupons[0].title.slice(0, 40)}")` : ""}`);
+    } else {
+      console.log(`  ℹ️  "${q}" → shop stránka 0 kupónov, vyhľadávanie ${n} (parita OK)`);
+    }
   }
 
   // ── 3. Klasifikátor — len existujúce obchody ─────────────────
