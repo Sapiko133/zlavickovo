@@ -5,6 +5,32 @@ const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v1";
 const COUPONS_CACHE_TTL = 86400;
 const FETCH_TIMEOUT_MS = 10000;
+// eHub API vracia max 100 poloziek na stranku (perPage limit 1-100, default 50).
+const PER_PAGE = 100;
+const MAX_PAGES = 50;
+
+// Stiahne vsetky stranky daneho endpointu (vouchers/campaigns) po PER_PAGE polozkach.
+async function _fetchAllPages(path: string, listKey: string): Promise<any[]> {
+  const { partnerId, apiKey } = getCredentials();
+  if (!partnerId || !apiKey) return [];
+  const items: any[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await fetch(
+      `${BASE}/publishers/${partnerId}/${path}?apiKey=${apiKey}&page=${page}&perPage=${PER_PAGE}`,
+      {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      }
+    );
+    if (!res.ok) break;
+    const data = await res.json();
+    const batch: any[] = Array.isArray(data?.[listKey]) ? data[listKey] : [];
+    items.push(...batch);
+    const total = Number(data?.totalItems ?? 0);
+    if (batch.length < PER_PAGE || (total > 0 && items.length >= total)) break;
+  }
+  return items;
+}
 
 function getCredentials() {
   return {
@@ -36,18 +62,7 @@ export interface EhubShop {
 }
 
 async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
-  const { partnerId, apiKey } = getCredentials();
-  if (!partnerId || !apiKey) return [];
-  const res = await fetch(
-    `${BASE}/publishers/${partnerId}/vouchers?apiKey=${apiKey}`,
-    {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  const vouchers: any[] = Array.isArray(data?.vouchers) ? data.vouchers : [];
+  const vouchers = await _fetchAllPages("vouchers", "vouchers");
   return vouchers.map((v: any) => ({
     id: String(v.id ?? ""),
     title: String(v.name ?? v.title ?? ""),
@@ -92,18 +107,7 @@ export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon
 }
 
 async function _fetchEhubShops(): Promise<EhubShop[]> {
-  const { partnerId, apiKey } = getCredentials();
-  if (!partnerId || !apiKey) return [];
-  const res = await fetch(
-    `${BASE}/publishers/${partnerId}/campaigns?apiKey=${apiKey}`,
-    {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-    }
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  const campaigns: any[] = Array.isArray(data?.campaigns) ? data.campaigns : [];
+  const campaigns = await _fetchAllPages("campaigns", "campaigns");
   return campaigns.map((c: any) => {
     const commission = c.commissionGroups?.[0]?.commissions?.[0];
     const commissionStr = commission
