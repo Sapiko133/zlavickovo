@@ -48,7 +48,7 @@ export interface KnownShop {
   logoUrl?: string;
 }
 
-const CACHE_KEY = "shops:known:v3"; // v3: categoryId cez resolveCategory (taxonómia)
+const CACHE_KEY = "shops:known:v4"; // v4: eHub market filter SK/CZ (v3: categoryId cez resolveCategory)
 const CACHE_TTL = 86400; // 24 hodín
 
 function webToDomain(web: string): string {

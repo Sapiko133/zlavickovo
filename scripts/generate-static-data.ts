@@ -20,7 +20,7 @@ async function main() {
 
   // Dynamic imports AFTER env loading so Redis/API clients pick up the env vars
   const { getShops, getCoupons } = await import("../lib/dognet");
-  const { getEhubShops } = await import("../lib/ehub");
+  const { getEhubShops, fetchEhubShopsDirect } = await import("../lib/ehub");
 
   console.log("[prebuild] Generujem statické dáta...");
 
@@ -30,7 +30,10 @@ async function main() {
   const [shops, coupons, ehubShops] = await Promise.all([
     getShops().catch((e: any) => { console.warn("[prebuild] getShops:", e?.message); return []; }),
     getCoupons().catch((e: any) => { console.warn("[prebuild] getCoupons:", e?.message); return []; }),
-    getEhubShops().catch((e: any) => { console.warn("[prebuild] getEhubShops:", e?.message); return []; }),
+    // Cache-first, pri prázdnej cache (napr. po bumpe cache kľúča) priamy eHub API fetch
+    getEhubShops()
+      .then((s: any[]) => (s.length > 0 ? s : fetchEhubShopsDirect()))
+      .catch((e: any) => { console.warn("[prebuild] getEhubShops:", e?.message); return []; }),
   ]);
 
   const sales = (coupons as any[]).filter((c: any) => c.type === 3 || c.type === 1);
