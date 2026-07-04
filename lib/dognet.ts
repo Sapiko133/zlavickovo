@@ -8,6 +8,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE, type AkciaType } from "@/lib/akcie";
 import { createShopMatcher } from "@/lib/shop-match";
 import { cleanDognetShopName } from "@/lib/shop-name";
+import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -49,7 +50,7 @@ export async function getToken(): Promise<string> {
   return token;
 }
 
-const COUPONS_CACHE_KEY = "dognet:coupons:v2";
+const COUPONS_CACHE_KEY = "dognet:coupons:v3"; // v3: market filter SK/CZ
 const COUPONS_CACHE_TTL = 86400;
 
 async function _fetchDognetCoupons(): Promise<any[]> {
@@ -70,7 +71,7 @@ async function _fetchDognetCoupons(): Promise<any[]> {
     signal: AbortSignal.timeout(30000),
   });
   const data = await res.json();
-  return (data.data || []).map((c: any) => {
+  return (data.data || []).filter(isAllowedDognetCoupon).map((c: any) => {
     const campaign = c.campaign?.name
       ? { ...c.campaign, name: cleanDognetShopName(c.campaign.name) }
       : c.campaign;
@@ -85,12 +86,20 @@ async function _fetchDognetCoupons(): Promise<any[]> {
 }
 
 // Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
+// Market filter sa aplikuje aj pri čítaní, aby 24h cache nezobrazovala cudzie trhy.
 export async function getCoupons(): Promise<any[]> {
   try {
     const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      return cached.filter(isAllowedDognetCoupon);
+    }
   } catch {}
   return [];
+}
+
+// Priamy fetch z Dognet API (bez cache) — pre prebuild, keď je Redis cache prázdna.
+export async function fetchDognetCouponsDirect(): Promise<any[]> {
+  return _fetchDognetCoupons();
 }
 
 // Called only from the cron endpoint — allowed to be slow.
@@ -252,42 +261,62 @@ export async function getLatestSales(limit = 8) {
 }
 
 
-export async function getShops() {
+// Dognet campaigns/filter má pagination (per-page max 200) — stiahni všetky strany.
+const CAMPAIGNS_PER_PAGE = 200;
+const CAMPAIGNS_MAX_PAGES = 10;
+
+async function _fetchAllCampaigns(t: string): Promise<any[]> {
+  const items: any[] = [];
+  for (let page = 1; page <= CAMPAIGNS_MAX_PAGES; page++) {
+    const res = await fetch(`${API_BASE}/campaigns/filter?page=${page}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
+      body: JSON.stringify({ "per-page": CAMPAIGNS_PER_PAGE }),
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) break;
+    const data = await res.json();
+    const batch: any[] = Array.isArray(data?.data) ? data.data : [];
+    items.push(...batch);
+    const lastPage = Number(data?._meta?.last_page ?? data?.meta?.last_page ?? 0);
+    if (batch.length < CAMPAIGNS_PER_PAGE || (lastPage > 0 && page >= lastPage)) break;
+  }
+  return items;
+}
+
+export async function getShops(prefetchedCoupons?: any[]) {
   try {
     const t = await getToken();
 
     // Use getCoupons() (cached) + campaigns endpoint in parallel — single source of truth
     const [couponsRes, cmpRes] = await Promise.allSettled([
-      getCoupons(),
-      fetch(`${API_BASE}/campaigns/filter`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
-        body: JSON.stringify({ "per-page": 200 }),
-        signal: AbortSignal.timeout(20000),
-      }).then(r => r.json()).catch(() => null),
+      prefetchedCoupons ? Promise.resolve(prefetchedCoupons) : getCoupons(),
+      _fetchAllCampaigns(t).catch(() => [] as any[]),
     ]);
 
     // Build map from shops with active coupons (higher priority, have coupon count)
-    const map = new Map<string, { id: number; name: string; count: number; logoUrl?: string }>();
+    const map = new Map<string, { id: number; name: string; count: number; logoUrl?: string; url?: string }>();
     const coupons = couponsRes.status === "fulfilled" ? couponsRes.value : [];
     for (const c of coupons) {
       const cam = c.campaign;
       if (!cam?.name) continue;
+      if (!isAllowedDognetCoupon(c)) continue;
       const name = cleanDognetShopName(cam.name);
       const key = name.toLowerCase();
       const entry = map.get(key);
       if (entry) { entry.count++; }
-      else { map.set(key, { id: cam.id ?? 0, name, count: 1, logoUrl: cam.logo_url }); }
+      else { map.set(key, { id: cam.id ?? 0, name, count: 1, logoUrl: cam.logo_url, url: cam.url || undefined }); }
     }
 
-    // Add all campaigns without coupons (fill remaining 200 slots)
-    if (cmpRes.status === "fulfilled" && Array.isArray(cmpRes.value?.data)) {
-      for (const c of cmpRes.value.data) {
+    // Add all campaigns without coupons — len SK/CZ trhy (Variant A)
+    if (cmpRes.status === "fulfilled" && Array.isArray(cmpRes.value)) {
+      for (const c of cmpRes.value) {
         if (!c.name) continue;
+        if (!isDognetSkCzMarket(c.name, c.url)) continue;
         const name = cleanDognetShopName(c.name);
         const key = name.toLowerCase();
         if (!map.has(key)) {
-          map.set(key, { id: c.id ?? 0, name, count: 0, logoUrl: c.logo_url });
+          map.set(key, { id: c.id ?? 0, name, count: 0, logoUrl: c.logo_url, url: c.url || undefined });
         }
       }
     }
@@ -318,7 +347,7 @@ const STATIC_CAROUSEL_DEALS: CarouselDeal[] = [
 ];
 
 export async function getCarouselDeals(limit = 7): Promise<CarouselDeal[]> {
-  const CACHE_KEY = "carousel:deals";
+  const CACHE_KEY = "carousel:deals:v2"; // v2: Dognet market filter SK/CZ
 
   try {
     const cached = await redis.get<CarouselDeal[]>(CACHE_KEY);

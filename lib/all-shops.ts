@@ -11,6 +11,7 @@ import { getStaticShops, getStaticEhubShops } from "@/lib/static-data";
 import { compareShopsByPriority, getShopPriority } from "@/lib/shop-priority";
 import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, type CategoryId } from "@/lib/taxonomy";
+import { isDognetSkCzMarket } from "@/lib/dognet-market";
 
 /**
  * Jediný zdroj pravdy pre všetky obchody na webe.
@@ -48,7 +49,7 @@ export interface KnownShop {
   logoUrl?: string;
 }
 
-const CACHE_KEY = "shops:known:v4"; // v4: eHub market filter SK/CZ (v3: categoryId cez resolveCategory)
+const CACHE_KEY = "shops:known:v5"; // v5: Dognet market filter SK/CZ (v4: eHub market filter)
 const CACHE_TTL = 86400; // 24 hodín
 
 function webToDomain(web: string): string {
@@ -165,6 +166,7 @@ interface DognetShopLike {
   name: string;
   count?: number;
   logoUrl?: string;
+  url?: string;
 }
 
 /** Čisté zlúčenie všetkých zdrojov — exportované aj pre audit/testy. */
@@ -180,8 +182,10 @@ export function buildKnownShops(input: {
     c.add({ name: s.name, slug: s.slug, domain: s.domain, category: s.category, source: "top" });
   }
 
-  // 2. Dognet (má počty kupónov)
+  // 2. Dognet (má počty kupónov) — len SK/CZ trhy; getShops() už filtruje,
+  // toto chráni aj staršie statické snapshoty (shops.json) bez filtra
   for (const s of input.dognet) {
+    if (!isDognetSkCzMarket(s.name, s.url)) continue;
     c.add({ name: s.name, source: "dognet", count: s.count, logoUrl: s.logoUrl });
   }
 
@@ -250,6 +254,14 @@ export function getStaticKnownShops(): KnownShop[] {
     ehub: getStaticEhubShops(),
     cj: [],
   });
+}
+
+/**
+ * Invalidácia shops:known cache — volá cron po refreshi zdrojových cache,
+ * aby getAllKnownShops nedržal až 24h staré dáta zo starých zdrojov.
+ */
+export async function invalidateKnownShopsCache(): Promise<void> {
+  try { await redis.del(CACHE_KEY); } catch {}
 }
 
 /**

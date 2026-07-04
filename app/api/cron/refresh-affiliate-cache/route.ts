@@ -1,5 +1,6 @@
 import { refreshDognetCache } from "@/lib/dognet";
 import { refreshEhubCache, refreshEhubShopsCache } from "@/lib/ehub";
+import { invalidateKnownShopsCache } from "@/lib/all-shops";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -18,6 +19,9 @@ export async function GET(req: NextRequest) {
     refreshEhubCache(),
     refreshEhubShopsCache(),
   ]);
+
+  // Zdrojové cache sa zmenili — shops:known nech sa prebuduje z čerstvých dát
+  await invalidateKnownShopsCache();
 
   return Response.json({
     ok: true,

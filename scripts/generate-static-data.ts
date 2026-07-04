@@ -19,7 +19,7 @@ async function main() {
   }
 
   // Dynamic imports AFTER env loading so Redis/API clients pick up the env vars
-  const { getShops, getCoupons } = await import("../lib/dognet");
+  const { getShops, getCoupons, fetchDognetCouponsDirect } = await import("../lib/dognet");
   const { getEhubShops, fetchEhubShopsDirect } = await import("../lib/ehub");
 
   console.log("[prebuild] Generujem statické dáta...");
@@ -27,9 +27,14 @@ async function main() {
   const dataDir = path.join(process.cwd(), "public", "data");
   fs.mkdirSync(dataDir, { recursive: true });
 
-  const [shops, coupons, ehubShops] = await Promise.all([
-    getShops().catch((e: any) => { console.warn("[prebuild] getShops:", e?.message); return []; }),
-    getCoupons().catch((e: any) => { console.warn("[prebuild] getCoupons:", e?.message); return []; }),
+  // Cache-first, pri prázdnej cache (napr. po bumpe cache kľúča) priamy Dognet API fetch.
+  // Kupóny sa fetchujú pred getShops(), aby shops.json mal počty kupónov aj bez cache.
+  const coupons = await getCoupons()
+    .then((c: any[]) => (c.length > 0 ? c : fetchDognetCouponsDirect()))
+    .catch((e: any) => { console.warn("[prebuild] getCoupons:", e?.message); return [] as any[]; });
+
+  const [shops, ehubShops] = await Promise.all([
+    getShops(coupons).catch((e: any) => { console.warn("[prebuild] getShops:", e?.message); return []; }),
     // Cache-first, pri prázdnej cache (napr. po bumpe cache kľúča) priamy eHub API fetch
     getEhubShops()
       .then((s: any[]) => (s.length > 0 ? s : fetchEhubShopsDirect()))
