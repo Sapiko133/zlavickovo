@@ -6,6 +6,7 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { STATIC_AKCIE } from "@/lib/akcie";
 import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopSlug } from "@/lib/slug";
+import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
 import { compareShopsByPriority } from "@/lib/shop-priority";
@@ -46,7 +47,6 @@ export async function GET(req: Request) {
     if (q.trim().length < 2) {
       return Response.json({ products: [], shops: [], coupons: [] });
     }
-    const lq = q.trim().toLowerCase();
     // Normalizovaný dopyt pre slug matching — "SHEIN" → "shein", "shein.sk"/"shein.com" → "shein"
     const sq = normalizeShopSlug(q);
 
@@ -72,25 +72,25 @@ export async function GET(req: Request) {
             .slice(0, 5)
         : [];
 
-    // Obchody — shop cache, max 5. Radenie: exact match → prefix → substring,
+    // Obchody — shop cache, max 5. Radenie: exact → startsWith → word boundary
+    // → substring (normalizované, bez diakritiky — "gym beam" nájde GymBeam),
     // v rámci rovnakej zhody .sk → .cz → ostatné ("mall" → Mall pred BabyMall)
     const matchRank = (s: ShopEntry): number => {
-      const name = s.name.toLowerCase();
-      if (name === lq || (sq.length > 0 && s.slug === sq)) return 0;
-      if (name.startsWith(lq) || (sq.length > 0 && s.slug.startsWith(sq))) return 1;
-      return 2;
+      const ranks = [
+        searchMatchRank(s.name, q),
+        searchMatchRank(s.domain, q),
+        sq.length > 0 ? searchMatchRank(s.slug, sq) : -1,
+      ].filter(r => r >= 0);
+      return ranks.length > 0 ? Math.min(...ranks) : -1;
     };
     const shops =
       shopsResult.status === "fulfilled"
         ? shopsResult.value
-            .filter(s =>
-              s.name.toLowerCase().includes(lq) ||
-              s.domain.toLowerCase().includes(lq) ||
-              (sq.length > 0 && s.slug.includes(sq))
-            )
-            .sort((a, b) => matchRank(a) - matchRank(b) || compareShopsByPriority(a, b))
+            .map(s => ({ shop: s, rank: matchRank(s) }))
+            .filter(x => x.rank >= 0)
+            .sort((a, b) => a.rank - b.rank || compareShopsByPriority(a.shop, b.shop))
             .slice(0, 5)
-            .map(s => ({ name: s.name, slug: s.slug, domain: s.domain }))
+            .map(x => ({ name: x.shop.name, slug: x.shop.slug, domain: x.shop.domain }))
         : [];
 
     // Kupóny — rovnaké zdroje ako shop stránka (Dognet + eHub + Affial XML +
@@ -101,7 +101,8 @@ export async function GET(req: Request) {
 
     const pushCoupon = (title: string, shopName: string) => {
       if (!title || !shopName) return;
-      if (!title.toLowerCase().includes(lq) && !shopName.toLowerCase().includes(lq)) return;
+      // Word-boundary match — "kava" nájde "Káva zadarmo", nie "získavajte"
+      if (!matchesSearchTokens(title, q) && !matchesSearchTokens(shopName, q)) return;
       const key = `${title.toLowerCase()}|${shopName.toLowerCase()}`;
       if (seenCoupons.has(key)) return;
       seenCoupons.add(key);

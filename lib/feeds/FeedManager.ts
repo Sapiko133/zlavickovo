@@ -1,4 +1,5 @@
 import { redis } from "@/lib/redis";
+import { searchMatchRank } from "@/lib/search-normalize";
 import { importDognetFeeds, searchDognetProducts, getDognetProductCount } from "./DognetAutoFeed";
 import { importAffialFeeds, searchAffialProducts, getAffialProductCount } from "./AffialAutoFeed";
 import { importEhubFeeds, searchEhubProducts, getEhubProductCount } from "./EhubAutoFeed";
@@ -29,24 +30,23 @@ export interface UnifiedProduct {
   category: string;
 }
 
-function relevanceScore(product: UnifiedProduct, lq: string): number {
-  const nameLow = product.name.toLowerCase();
-  if (nameLow === lq) return 3;
-  if (nameLow.startsWith(lq)) return 2;
-  if (nameLow.includes(lq)) return 1;
-  return 0;
+// Relevancia: exact (0) → startsWith (1) → word boundary (2) → substring (3),
+// zhoda len v popise = 99 (na koniec). Normalizované bez diakritiky.
+function relevanceRank(product: UnifiedProduct, query: string): number {
+  const r = searchMatchRank(product.name, query);
+  return r < 0 ? 99 : r;
 }
 
 class FeedManager {
   async search(query: string): Promise<UnifiedProduct[]> {
-    const lq = query.toLowerCase().trim();
-    if (!lq) return [];
+    const q = query.trim();
+    if (!q) return [];
 
     const [dognet, affial, ehub, cj] = await Promise.allSettled([
-      searchDognetProducts(lq),
-      searchAffialProducts(lq),
-      searchEhubProducts(lq),
-      searchCjProducts(lq),
+      searchDognetProducts(q),
+      searchAffialProducts(q),
+      searchEhubProducts(q),
+      searchCjProducts(q),
     ]);
 
     const all: UnifiedProduct[] = [
@@ -77,7 +77,7 @@ class FeedManager {
     });
 
     // Sort by relevance (name match priority)
-    deduped.sort((a, b) => relevanceScore(b, lq) - relevanceScore(a, lq));
+    deduped.sort((a, b) => relevanceRank(a, q) - relevanceRank(b, q));
 
     return deduped.slice(0, 20);
   }

@@ -7,6 +7,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE } from "@/lib/akcie";
 import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
+import { normalizeSearchText, matchesSearchTokens, matchesSearch, searchMatchRank } from "@/lib/search-normalize";
 import { createHash } from "crypto";
 
 const CATEGORY_MAP: Record<string, string[]> = {
@@ -55,10 +56,10 @@ const CATEGORY_MAP: Record<string, string[]> = {
 };
 
 function getRelevantShops(query: string): string[] {
-  const q = query.toLowerCase();
+  const q = normalizeSearchText(query);
   const shops = new Set<string>();
   for (const [keyword, list] of Object.entries(CATEGORY_MAP)) {
-    if (q.includes(keyword)) list.forEach(s => shops.add(s));
+    if (q.includes(normalizeSearchText(keyword))) list.forEach(s => shops.add(s));
   }
   return [...shops];
 }
@@ -72,9 +73,11 @@ export async function POST(req: Request) {
   if (!q?.trim()) return Response.json({ error: "Chýba dotaz" }, { status: 400 });
 
   const query = q.trim();
-  const hash = createHash("md5").update(query.toLowerCase()).digest("hex");
-  // v2: pridané CJ + statické Affial kupóny — nový prefix invaliduje starú cache
-  const cacheKey = `search_cache:v2:${hash}`;
+  // Hash z normalizovaného dopytu — "káva" a "kava" zdieľajú cache záznam
+  const hash = createHash("md5").update(normalizeSearchText(query)).digest("hex");
+  // v3: normalizované vyhľadávanie (diakritika + word boundary) — nový prefix
+  // invaliduje starú cache
+  const cacheKey = `search_cache:v3:${hash}`;
 
   // Redis cache
   try {
@@ -97,7 +100,6 @@ export async function POST(req: Request) {
       getCjCoupons().catch(() => []),
     ]);
     const relevantShops = getRelevantShops(query);
-    const qLow = query.toLowerCase();
 
     // CJ a statické Affial kupóny namapované na spoločný tvar (campaign_name/title/code/affiliate_link)
     const cjMapped = cjAll.map((c) => ({
@@ -126,15 +128,25 @@ export async function POST(req: Request) {
       type: 4,
     }));
 
-    result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic, ...staticAkcie].filter((c: any) => {
-      const name = (c.campaign?.name || c.campaign_name || "").toLowerCase();
-      const title = (c.title || c.name || "").toLowerCase();
-      return (
-        name.includes(qLow) ||
-        title.includes(qLow) ||
-        relevantShops.some(s => name.includes(s))
-      );
-    }).slice(0, 8).map((c: any) => ({
+    // Word-boundary match bez diakritiky ("kava" → "Káva", nie "získavajte") +
+    // relevancia: exact → startsWith → word boundary → substring podľa názvu obchodu
+    const couponRank = (c: any): number => {
+      const name = c.campaign?.name || c.campaign_name || "";
+      const title = c.title || c.name || "";
+      // Názov obchodu: substring povolený (krátke názvy, "mall" → BabyMall)
+      const r = searchMatchRank(name, query);
+      if (r >= 0) return r;
+      // Titulok kupónu: len word boundary (dlhý text → false positives)
+      if (matchesSearchTokens(title, query)) return 4;
+      if (relevantShops.some(s => matchesSearch(name, s))) return 5;
+      return -1;
+    };
+    result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic, ...staticAkcie]
+      .map((c: any) => ({ c, rank: couponRank(c) }))
+      .filter(x => x.rank >= 0)
+      .sort((a, b) => a.rank - b.rank)
+      .map(x => x.c)
+      .slice(0, 8).map((c: any) => ({
       id: c.id,
       shopName: c.campaign?.name || c.campaign_name || "Obchod",
       title: c.title || c.name,

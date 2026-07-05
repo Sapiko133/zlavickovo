@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
 
 // Slug = {normalized-name}-{id}  →  /produkt/nike-air-max-90-12345
@@ -107,6 +108,13 @@ export async function getRelatedProducts(product: HkProduct, limit = 4): Promise
   }
 }
 
+// Diakritika na strane DB bez zmeny schémy/importu: search_vec obsahuje
+// diakritické lexémy ('káva'), preto dopyt bez diakritiky ('kava') dorovnáme
+// translate() fallbackom priamo v SELECTe. \m = začiatok slova (žiadne
+// false positives typu "získavajte").
+const SK_ACCENTED = "áäčďéěíĺľňóôöřŕšśťúůüýžź";
+const SK_PLAIN = "aacdeeillnooorrsstuuuyzz";
+
 export async function searchHkProducts(query: string, limit = 20): Promise<HkProduct[]> {
   if (!query.trim()) return [];
   try {
@@ -117,8 +125,40 @@ export async function searchHkProducts(query: string, limit = 20): Promise<HkPro
       WHERE search_vec @@ plainto_tsquery('simple', ${query})
       ORDER BY rank DESC
       LIMIT ${limit}
-    `;
-    return rows as HkProduct[];
+    ` as HkProduct[];
+
+    let merged: HkProduct[] = [...rows];
+    if (merged.length < limit) {
+      // Len [a-z0-9 ] — bezpečné pre regex (žiadne metaznaky z dopytu)
+      const nq = normalizeSearchText(query).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+      const cq = nq.replace(/ /g, "");
+      if (nq) {
+        try {
+          const pattern = `\\m(${nq === cq ? nq : `${nq}|${cq}`})`;
+          const extra = await sql`
+            SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+            FROM hk_products
+            WHERE translate(lower(name), ${SK_ACCENTED}, ${SK_PLAIN}) ~ ${pattern}
+            LIMIT ${limit}
+          ` as HkProduct[];
+          const seen = new Set(merged.map(r => r.id));
+          for (const r of extra) {
+            if (!seen.has(r.id)) { merged.push(r); seen.add(r.id); }
+          }
+        } catch (err) {
+          // Fallback nesmie zhodiť primárne tsquery výsledky
+          console.error("[heureka:db] searchHkProducts fallback:", err);
+        }
+      }
+    }
+
+    // Relevancia: exact → startsWith → word boundary → substring (podľa názvu)
+    merged.sort((a, b) => {
+      const ra = searchMatchRank(a.name, query);
+      const rb = searchMatchRank(b.name, query);
+      return (ra < 0 ? 99 : ra) - (rb < 0 ? 99 : rb);
+    });
+    return merged.slice(0, limit);
   } catch (err) {
     console.error("[heureka:db] searchHkProducts:", err);
     return [];

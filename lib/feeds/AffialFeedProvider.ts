@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { redis } from "@/lib/redis";
+import { matchesSearchTokens } from "@/lib/search-normalize";
 
 const CACHE_TTL = 21600;
 
@@ -209,7 +210,7 @@ export async function getAffialProductCount(): Promise<number> {
 }
 
 export async function searchProducts(query: string): Promise<FeedProduct[]> {
-  const lq = query.toLowerCase().trim();
+  const lq = query.trim();
   if (!lq) return [];
 
   const allFeeds = [...FEEDS];
@@ -224,8 +225,8 @@ export async function searchProducts(query: string): Promise<FeedProduct[]> {
         products
           .filter(
             (p) =>
-              p.name.toLowerCase().includes(lq) ||
-              p.description.toLowerCase().includes(lq)
+              matchesSearchTokens(p.name, lq) ||
+              matchesSearchTokens(p.description, lq)
           )
           .slice(0, 3)
       )

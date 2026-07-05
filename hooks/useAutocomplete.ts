@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { TOP_SHOPS } from "@/lib/top-shops";
+import { searchMatchRank } from "@/lib/search-normalize";
 
 export interface Suggestion {
   name: string;
@@ -54,17 +55,13 @@ function mergeUnique(base: Suggestion[], extra: Suggestion[]): Suggestion[] {
 }
 
 function filterSuggestions(list: Suggestion[], query: string, max = 8): Suggestion[] {
-  const lq = query.toLowerCase();
-  const matches = list.filter(s => s.name.toLowerCase().includes(lq));
-  // Relevancia: exact match → prefix → substring ("mall" → Mall pred BabyMall)
-  const rankOf = (s: Suggestion) => {
-    const n = s.name.toLowerCase();
-    if (n === lq) return 0;
-    if (n.startsWith(lq)) return 1;
-    return 2;
-  };
-  matches.sort((a, b) => rankOf(a) - rankOf(b));
-  return matches.slice(0, max);
+  // Relevancia (normalizovaná, bez diakritiky): exact → startsWith →
+  // word boundary → substring ("mall" → Mall pred BabyMall)
+  const ranked = list
+    .map(s => ({ s, rank: searchMatchRank(s.name, query) }))
+    .filter(x => x.rank >= 0);
+  ranked.sort((a, b) => a.rank - b.rank);
+  return ranked.slice(0, max).map(x => x.s);
 }
 
 // ── Unified autocomplete (Nav) — products + shops + coupons ──

@@ -7,6 +7,7 @@ import { getAffialCoupons } from "@/lib/affial";
 import { getEhubCoupons } from "@/lib/ehub";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { resolveCategory } from "@/lib/shop-categories";
+import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import type { Metadata } from "next";
 import CodeReveal from "./CodeReveal";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
@@ -239,9 +240,10 @@ export default async function KuponyPage({
     all = await getAllCoupons();
   } catch {}
 
-  // Filter
+  // Filter — normalizovane (bez diakritiky): názov obchodu vrátane substringu,
+  // titulok len word boundary ("kava" → "Káva", nie "získavajte")
   let filtered = all.filter(c => {
-    if (q && !c.shopName.toLowerCase().includes(q) && !c.title.toLowerCase().includes(q)) return false;
+    if (q && searchMatchRank(c.shopName, q) < 0 && !matchesSearchTokens(c.title, q)) return false;
     if (cat && c.category !== cat) return false;
     return true;
   });

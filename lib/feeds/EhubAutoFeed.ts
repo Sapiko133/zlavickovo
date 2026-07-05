@@ -1,4 +1,5 @@
 import { redis } from "@/lib/redis";
+import { matchesSearchTokens } from "@/lib/search-normalize";
 import { XMLParser } from "fast-xml-parser";
 
 const CACHE_TTL = 21600;
@@ -99,7 +100,7 @@ export async function importEhubFeeds(): Promise<{ count: number; feeds: number 
 }
 
 export async function searchEhubProducts(query: string): Promise<EhubFeedProduct[]> {
-  const lq = query.toLowerCase().trim();
+  const lq = query.trim();
   if (!lq) return [];
 
   let feedIds: string[] = [];
@@ -114,7 +115,7 @@ export async function searchEhubProducts(query: string): Promise<EhubFeedProduct
       try {
         const products = await redis.get<EhubFeedProduct[]>(`ehub_products:${id}`);
         return (products ?? [])
-          .filter((p) => p.name.toLowerCase().includes(lq) || p.description.toLowerCase().includes(lq))
+          .filter((p) => matchesSearchTokens(p.name, lq) || matchesSearchTokens(p.description, lq))
           .slice(0, 3);
       } catch {
         return [];

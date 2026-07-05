@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
+import { matchesSearch } from "@/lib/search-normalize";
 
 export interface ShopItem {
   name: string;
@@ -36,7 +37,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
   const navRef = useRef<HTMLDivElement>(null);
 
   const filtered = query
-    ? shops.filter(s => s.name.toLowerCase().includes(query.toLowerCase()))
+    ? shops.filter(s => matchesSearch(s.name, query))
     : shops;
 
   const grouped = groupByLetter(filtered);
