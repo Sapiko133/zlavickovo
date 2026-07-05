@@ -135,10 +135,12 @@ export async function searchHkProducts(query: string, limit = 20): Promise<HkPro
       if (nq) {
         try {
           const pattern = `\\m(${nq === cq ? nq : `${nq}|${cq}`})`;
+          // Aj popis — tsquery vektor pokrýva name + description, fallback musí tiež
           const extra = await sql`
-            SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+            SELECT id, name, description, price, url, img_url, domain, category, affiliate_url, updated_at
             FROM hk_products
             WHERE translate(lower(name), ${SK_ACCENTED}, ${SK_PLAIN}) ~ ${pattern}
+               OR translate(lower(coalesce(description, '')), ${SK_ACCENTED}, ${SK_PLAIN}) ~ ${pattern}
             LIMIT ${limit}
           ` as HkProduct[];
           const seen = new Set(merged.map(r => r.id));
