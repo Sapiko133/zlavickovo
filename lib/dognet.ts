@@ -13,6 +13,29 @@ import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
 
+// Dognet click redirect. `chid` je konštanta nášho ad_channelu (33415) — rovnaká
+// vo všetkých tracking urls, ktoré Dognet generuje. Zisťujeme ju z existujúcich
+// voucher urls (self-healing), DEFAULT_CHID je fallback.
+const DOGNET_REDIRECT_BASE = "https://go.dognet.com/";
+const DEFAULT_CHID = "cl69TA2C";
+
+/** Zostrojí Dognet tracking link z cieľovej URL — rovnaký formát, aký Dognet vracia v poli `url`. */
+export function buildDognetTrackingUrl(chid: string, destUrl?: string | null): string | null {
+  const dest = String(destUrl ?? "").trim();
+  if (!chid || !dest.startsWith("http")) return null;
+  return `${DOGNET_REDIRECT_BASE}?chid=${chid}&url=${encodeURIComponent(dest)}`;
+}
+
+/** chid z prvej voucher url, ktorá už tracking link má (fallback DEFAULT_CHID). */
+function extractDognetChid(coupons: any[]): string {
+  for (const c of coupons) {
+    const u = typeof c?.url === "string" ? c.url : "";
+    const m = u.match(/[?&]chid=([^&]+)/);
+    if (m) return decodeURIComponent(m[1]);
+  }
+  return DEFAULT_CHID;
+}
+
 const TOKEN_CACHE_KEY = "dognet:token";
 const TOKEN_CACHE_TTL = 82800; // 23 hodín
 
@@ -71,14 +94,22 @@ async function _fetchDognetCoupons(): Promise<any[]> {
     signal: AbortSignal.timeout(30000),
   });
   const data = await res.json();
-  return (data.data || []).filter(isAllowedDognetCoupon).map((c: any) => {
+  const raw: any[] = data.data || [];
+  const chid = extractDognetChid(raw);
+  return raw.filter(isAllowedDognetCoupon).map((c: any) => {
     const campaign = c.campaign?.name
       ? { ...c.campaign, name: cleanDognetShopName(c.campaign.name) }
       : c.campaign;
+    // c.url = Dognet tracking redirect. Welcome/klub/newsletter vouchery bez cieľovej URL
+    // ho nemajú (url_error "Unable to generate URL without destination URL") — napr. Bonprix.
+    // Filter je from_joined_campaigns, takže kampaň je joined → tracking link zostrojíme
+    // z homepage kampane a nikdy nevrátime "#".
+    const resolvedUrl = c.url || buildDognetTrackingUrl(chid, c.campaign?.url);
     return {
       ...c,
       campaign,
-      affiliate_link: c.url || c.affiliate_link || "#",
+      url: resolvedUrl || c.url,
+      affiliate_link: resolvedUrl || c.affiliate_link || "#",
       title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (campaign?.name || "Kupón")),
       name: c.name || c.title || c.description || "",
     };
@@ -115,6 +146,72 @@ export async function refreshDognetCache(): Promise<{ count: number; error?: str
     console.error("[dognet] refreshDognetCache zlyhalo:", msg);
     return { count: 0, error: msg };
   }
+}
+
+// ── Joined kampane (aj bez voucherov) ───────────────────────────────────────
+// Shop stránka obchodu, ktorý je joined (ad_channel status 1) ale nemá aktívny
+// voucher, dostane affiliate link zostrojený z homepage kampane. Status 2/3
+// (pending / nie joined) vynechávame — tam by tracking nekreditoval.
+const CAMPAIGNS_CACHE_KEY = "dognet:joined-campaigns:v1";
+const CAMPAIGNS_CACHE_TTL = 86400;
+
+export interface DognetJoinedCampaign {
+  name: string;
+  url: string;
+}
+
+async function _fetchJoinedDognetCampaigns(t: string): Promise<DognetJoinedCampaign[]> {
+  const all = await _fetchAllCampaigns(t);
+  const out: DognetJoinedCampaign[] = [];
+  for (const c of all) {
+    const ch = (c.ad_channels_in_campaign || []).find((a: any) => a.ad_channel_id === AD_CHANNEL_ID);
+    if (!ch || ch.status !== 1) continue; // len joined/approved
+    if (!c.url || !String(c.url).startsWith("http")) continue;
+    if (!isDognetSkCzMarket(c.name, c.url)) continue; // len SK/CZ trh
+    out.push({ name: cleanDognetShopName(c.name), url: c.url });
+  }
+  return out;
+}
+
+export async function getJoinedDognetCampaigns(): Promise<DognetJoinedCampaign[]> {
+  try {
+    const cached = await redis.get<DognetJoinedCampaign[]>(CAMPAIGNS_CACHE_KEY);
+    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+  } catch {}
+  return [];
+}
+
+export async function refreshDognetCampaignsCache(): Promise<{ count: number; error?: string }> {
+  try {
+    const t = await getToken();
+    const camps = await _fetchJoinedDognetCampaigns(t);
+    if (camps.length > 0) {
+      await redis.set(CAMPAIGNS_CACHE_KEY, camps, { ex: CAMPAIGNS_CACHE_TTL });
+    }
+    return { count: camps.length };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[dognet] refreshDognetCampaignsCache zlyhalo:", msg);
+    return { count: 0, error: msg };
+  }
+}
+
+/** chid nášho ad_channelu (z cached voucher urls). */
+export async function getDognetChid(): Promise<string> {
+  const coupons = await getCoupons().catch(() => []);
+  return extractDognetChid(coupons);
+}
+
+/**
+ * Affiliate URL obchodu z joined Dognet kampane — funguje aj pre kampane bez
+ * voucherov. null keď obchod nie je joined (status 1) na SK/CZ trhu.
+ */
+export async function getShopDognetUrl(shopName: string): Promise<string | null> {
+  const [campaigns, chid] = await Promise.all([getJoinedDognetCampaigns(), getDognetChid()]);
+  if (campaigns.length === 0) return null;
+  const matches = createShopMatcher(shopName);
+  const hit = campaigns.find((c) => matches(c.name, c.url));
+  return hit ? buildDognetTrackingUrl(chid, hit.url) : null;
 }
 
 // Akcia type → Dognet coupon type (labels in ShopTabs: 1=Zľava, 2=Darček, 3=Výpredaj, 4=Iné, 5=Doprava zadarmo)

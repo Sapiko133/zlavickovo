@@ -1,6 +1,13 @@
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { getEhubShops } from "@/lib/ehub";
-import { getCoupons as getDognetCoupons } from "@/lib/dognet";
+import { getCjShopUrl } from "@/lib/cj";
+import {
+  getCoupons as getDognetCoupons,
+  getShopDognetUrl,
+  getJoinedDognetCampaigns,
+  getDognetChid,
+  buildDognetTrackingUrl,
+} from "@/lib/dognet";
 import { createShopMatcher } from "@/lib/shop-match";
 import { getShopPriority } from "@/lib/shop-priority";
 
@@ -16,10 +23,13 @@ function couponLink(c: any): string {
   return "";
 }
 
-/** Affiliate URL obchodu z už načítaných kupónov (getCouponsByShop). Priorita: Dognet → eHub → Affial. */
+/** Affiliate URL obchodu z už načítaných kupónov (getCouponsByShop). Priorita: Dognet → CJ → eHub → Affial. */
 export function affiliateUrlFromCoupons(coupons: any[]): string | null {
   const dognet = coupons.find((c: any) => couponLink(c).includes("go.dognet.com"));
   if (dognet) return couponLink(dognet);
+  // CJ tracking (napr. Answear) — clickUrl cez tkqlhce.com/dpbolvw.net/… redirect.
+  const cj = coupons.find((c: any) => c?.source === "cj" && couponLink(c));
+  if (cj) return couponLink(cj);
   const ehub = coupons.find((c: any) => c?.source === "ehub" && couponLink(c));
   if (ehub) return couponLink(ehub);
   const affial = coupons.find((c: any) => couponLink(c).includes("affial.com"));
@@ -59,16 +69,27 @@ export async function getShopAffiliateUrl(shopName: string): Promise<string | nu
     .sort((a, b) => ehubCountryPriority(a) - ehubCountryPriority(b))[0];
   if (ehub) return ehub.affiliateLink;
 
+  // CJ joined advertiser bez coupon-type promo (napr. Answear.sk) — shop-level clickUrl.
+  const cjUrl = await getCjShopUrl(shopName).catch(() => null);
+  if (cjUrl) return cjUrl;
+
+  // Joined Dognet kampaň bez voucherov (napr. obchod s aktívnym programom, ale
+  // bez kupónov) — zostrojený tracking link z homepage kampane.
+  const dognetUrl = await getShopDognetUrl(shopName).catch(() => null);
+  if (dognetUrl) return dognetUrl;
+
   return null;
 }
 
-/** Pre statické akcie doplní affiliate URL (Dognet kupón → Affial partner → eHub kampaň), ak existuje. */
+/** Pre statické akcie doplní affiliate URL (Dognet kupón → joined Dognet kampaň → Affial partner → eHub kampaň), ak existuje. */
 export async function resolveAkciaAffiliateUrls<
   T extends { shopName: string; domain: string; affiliateUrl: string }
 >(akcie: T[]): Promise<T[]> {
-  const [dognetCoupons, ehubShops] = await Promise.all([
+  const [dognetCoupons, ehubShops, dognetCampaigns, chid] = await Promise.all([
     getDognetCoupons().catch(() => []),
     getEhubShops().catch(() => []),
+    getJoinedDognetCampaigns().catch(() => []),
+    getDognetChid().catch(() => ""),
   ]);
 
   return akcie.map(a => {
@@ -78,11 +99,14 @@ export async function resolveAkciaAffiliateUrls<
       matches(c.campaign?.name, c.campaign?.url ?? c.campaign?.website_url) &&
       couponLink(c).includes("go.dognet.com")
     );
+    // Joined kampaň bez voucherov → tracking link z homepage kampane.
+    const dognetCampaign = dognet ? null : dognetCampaigns.find(c => matches(c.name, c.url));
     const affial = AFFIAL_SHOPS.find(s => matches(s.name, s.domain));
     const ehub = ehubShops.find(s => matches(s.name, s.web));
 
     const affiliateUrl =
       (dognet ? couponLink(dognet) : null) ??
+      (dognetCampaign ? buildDognetTrackingUrl(chid, dognetCampaign.url) : null) ??
       (affial?.affiliateUrl?.startsWith("http") ? affial.affiliateUrl : null) ??
       (ehub?.affiliateLink?.startsWith("http") ? ehub.affiliateLink : null);
 

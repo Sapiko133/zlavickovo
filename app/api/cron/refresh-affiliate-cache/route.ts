@@ -1,4 +1,4 @@
-import { refreshDognetCache } from "@/lib/dognet";
+import { refreshDognetCache, refreshDognetCampaignsCache } from "@/lib/dognet";
 import { refreshEhubCache, refreshEhubShopsCache } from "@/lib/ehub";
 import { invalidateKnownShopsCache } from "@/lib/all-shops";
 import { NextRequest } from "next/server";
@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [dognet, ehubCoupons, ehubShops] = await Promise.allSettled([
+  const [dognet, dognetCampaigns, ehubCoupons, ehubShops] = await Promise.allSettled([
     refreshDognetCache(),
+    refreshDognetCampaignsCache(),
     refreshEhubCache(),
     refreshEhubShopsCache(),
   ]);
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
   return Response.json({
     ok: true,
     dognet: dognet.status === "fulfilled" ? dognet.value : { count: 0, error: String(dognet.reason) },
+    dognetCampaigns: dognetCampaigns.status === "fulfilled" ? dognetCampaigns.value : { count: 0, error: String(dognetCampaigns.reason) },
     ehubCoupons: ehubCoupons.status === "fulfilled" ? ehubCoupons.value : { count: 0, error: String(ehubCoupons.reason) },
     ehubShops: ehubShops.status === "fulfilled" ? ehubShops.value : { count: 0, error: String(ehubShops.reason) },
   });

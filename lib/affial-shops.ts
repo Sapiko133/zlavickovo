@@ -2,6 +2,16 @@ import { normalizeShopSlug } from "@/lib/slug";
 
 const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
+/**
+ * Account-level PAP (Post Affiliate Pro) click tracker. `desturl` vedie na cieľový
+ * obchod, klik sa zaznamená a komisia sa pripisuje na `a_aid` — `a_bid` (banner)
+ * je len metadáta o kreatíve, nie je povinný. Použité pre obchody, ku ktorým
+ * nemáme konkrétny a_bid z Affial dashboardu (napr. z verejného kupón feedu).
+ */
+export function buildAffialTrackingUrl(destUrl: string): string {
+  return `https://login.affial.com/scripts/click.php?a_aid=${AFFIAL_AID}&desturl=${encodeURIComponent(destUrl)}`;
+}
+
 export interface AffialShop {
   name: string;
   domain: string;
@@ -47,6 +57,13 @@ const _SHOPS: AffialShop[] = [
   { name: "Primulus.cz", domain: "primulus.cz", affiliateUrl: "https://www.primulus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=07eafc2d", commission: "25%", category: "zdravie" },
   { name: "Kloubus.cz", domain: "kloubus.cz", affiliateUrl: "https://www.kloubus.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=e66f632e", commission: "20%", category: "zdravie" },
   { name: "Apollo Store", domain: "apollostore.com", affiliateUrl: "https://ehub.cz/system/scripts/click.php?a_aid=85c7b80f&a_bid=a883bbdd", commission: "12%", category: "byvanie" },
+  // Doplnené obchody — account-level PAP tracker (a_bid nedostupný vo feede, komisia ide na a_aid).
+  { name: "Namaximum.sk", domain: "namaximum.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fnamaximum.sk%2F", commission: "", category: "zdravie" },
+  { name: "Remoska.sk", domain: "remoska.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fwww.remoska.sk%2F", commission: "", category: "byvanie" },
+  { name: "Mebik.sk", domain: "mebik.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fwww.mebik.sk%2F", commission: "", category: "sport" },
+  { name: "Matchaday.sk", domain: "matchaday.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fmatchaday.sk%2F", commission: "", category: "zdravie" },
+  { name: "Hairburst.sk", domain: "hairburst.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fwww.hairburst.sk%2F", commission: "", category: "krasa" },
+  { name: "Neohack.sk", domain: "neohack.sk", affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fwww.neohack.sk%2F", commission: "", category: "zdravie" },
 ];
 
 export const AFFIAL_SHOPS: AffialShop[] = _SHOPS.map((s) => ({

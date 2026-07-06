@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { unstable_cache } from "next/cache";
-import { AFFIAL_SHOPS } from "@/lib/affial-shops";
+import { AFFIAL_SHOPS, buildAffialTrackingUrl } from "@/lib/affial-shops";
 
 const affialShopByDomain = new Map(AFFIAL_SHOPS.map(s => [s.domain.toLowerCase(), s.affiliateUrl]));
 
@@ -27,8 +27,12 @@ async function fetchAffialCoupons() {
       .filter((item: any) => item && typeof item === "object")
       .map((item: any, i: number) => {
         const offerDomain = (item.offerName ?? "").toLowerCase();
+        // Feed url je holá URL obchodu bez trackingu → obalíme ju account-level PAP
+        // trackerom, aby KAŽDÝ Affial kupón bol monetizovaný (nie len tie v AFFIAL_SHOPS).
+        const feedUrl = typeof item.url === "string" ? item.url : "";
         const trackingUrl =
           affialShopByDomain.get(offerDomain) ??
+          (feedUrl.startsWith("http") ? buildAffialTrackingUrl(feedUrl) : null) ??
           item.affiliate_url ??
           item.link ??
           item.url ??

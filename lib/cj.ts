@@ -1,4 +1,5 @@
 import { redis } from "@/lib/redis";
+import { createShopMatcher } from "@/lib/shop-match";
 
 export interface CjCoupon {
   id: string;
@@ -173,6 +174,17 @@ export async function getCjCouponsByShop(shopName: string): Promise<CjCoupon[]> 
   const all = await getCjCoupons();
   const lq = shopName.toLowerCase();
   return all.filter((c) => c.advertiserName.toLowerCase().includes(lq));
+}
+
+/**
+ * Shop-level CJ affiliate link (napr. Answear.sk) — pre obchod, ktorý má v CJ
+ * joined advertisera, ale žiadne coupon-type promo. Vráti CJ clickUrl (tracking).
+ */
+export async function getCjShopUrl(shopName: string): Promise<string | null> {
+  const shops = await getCjShops().catch(() => [] as CjShop[]);
+  const matches = createShopMatcher(shopName);
+  const hit = shops.find((s) => matches(s.advertiserName, s.advertiserName) && s.affiliateLink?.startsWith("http"));
+  return hit ? hit.affiliateLink : null;
 }
 
 export async function importAndCacheCjCoupons(): Promise<number> {
