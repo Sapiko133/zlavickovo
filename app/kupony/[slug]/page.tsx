@@ -1,8 +1,9 @@
 import { Suspense } from "react";
+import { notFound } from "next/navigation";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop } from "@/lib/affial-shops";
-import { getStaticKnownShops } from "@/lib/all-shops";
+import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
 import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
@@ -51,6 +52,25 @@ export async function generateStaticParams() {
   return params;
 }
 
+/**
+ * Soft 404 guard — stránka existuje len pre slug známeho obchodu.
+ * Validné tvary: kanonický slug z getAllKnownShops(), kurátorské TOP_SLUGS
+ * a SHOP_NAME_OVERRIDES, Affial partneri, plus "-cz" mutácia každého z nich
+ * (generateMetadata inzeruje cs hreflang `${slug}-cz` pre každú SK stránku).
+ */
+async function isValidShopSlug(slug: string): Promise<boolean> {
+  const baseSlug = slug.endsWith("-cz") ? slug.slice(0, -3) : slug;
+  if (!baseSlug) return false;
+
+  if (TOP_SLUGS.includes(baseSlug)) return true;
+  if (SHOP_NAME_OVERRIDES[baseSlug]) return true;
+  if (findAffialShop(slug) || findAffialShop(baseSlug)) return true;
+
+  let shops: KnownShop[];
+  try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
+  return shops.some(s => s.slug === baseSlug || s.slug === slug);
+}
+
 function currentMonthYear() {
   const now = new Date();
   const month = new Intl.DateTimeFormat("sk-SK", { month: "long" }).format(now);
@@ -88,6 +108,7 @@ function getRelatedShops(currentSlug: string, count = 4) {
 
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
+  if (!(await isValidShopSlug(slug))) notFound();
   const isCz = slug.endsWith("-cz");
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const name = baseSlug.replace(/-/g, " ");
@@ -112,6 +133,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function ShopPage({ params }: Props) {
   const { slug } = await params;
+  if (!(await isValidShopSlug(slug))) notFound();
   const isCz = slug.endsWith("-cz");
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const shopName = baseSlug.replace(/-/g, " ");

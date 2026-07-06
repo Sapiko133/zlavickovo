@@ -5,7 +5,7 @@ import { getCjCoupons } from "@/lib/cj";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { STATIC_AKCIE } from "@/lib/akcie";
 import { getAllKnownShops } from "@/lib/all-shops";
-import { normalizeShopSlug } from "@/lib/slug";
+import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
@@ -99,14 +99,36 @@ export async function GET(req: Request) {
     const coupons: CouponEntry[] = [];
     const seenCoupons = new Set<string>();
 
+    // Kanonický slug obchodu — /kupony/[slug] po soft-404 oprave pustí len
+    // slugy známych obchodov, takže kupón musí linkovať cez getAllKnownShops
+    // slug (názov kampane sa môže líšiť od kanonického mena, napr. dedupe
+    // krajinských variantov). Kupón bez známeho obchodu sa nezobrazí.
+    const slugByNorm = new Map<string, string>();
+    if (shopsResult.status === "fulfilled") {
+      for (const s of shopsResult.value) {
+        const norm = normalizeShopName(s.name);
+        if (norm && !slugByNorm.has(norm)) slugByNorm.set(norm, s.slug);
+      }
+    }
+    const knownSlugs = new Set(
+      shopsResult.status === "fulfilled" ? shopsResult.value.map(s => s.slug) : []
+    );
+
     const pushCoupon = (title: string, shopName: string) => {
       if (!title || !shopName) return;
       // Word-boundary match — "kava" nájde "Káva zadarmo", nie "získavajte"
       if (!matchesSearchTokens(title, q) && !matchesSearchTokens(shopName, q)) return;
+      const fallbackSlug = normalizeShopSlug(shopName);
+      // Ak sa zoznam obchodov nepodarilo načítať, nefiltrovať (staré správanie)
+      const shopSlug = slugByNorm.size === 0
+        ? fallbackSlug
+        : slugByNorm.get(normalizeShopName(shopName)) ??
+          (knownSlugs.has(fallbackSlug) ? fallbackSlug : undefined);
+      if (!shopSlug) return;
       const key = `${title.toLowerCase()}|${shopName.toLowerCase()}`;
       if (seenCoupons.has(key)) return;
       seenCoupons.add(key);
-      coupons.push({ title, shopName, shopSlug: normalizeShopSlug(shopName) });
+      coupons.push({ title, shopName, shopSlug });
     };
 
     if (dognetCouponsResult.status === "fulfilled") {
