@@ -22,8 +22,8 @@ export interface CjShop {
   source: "cj";
 }
 
-const COUPON_CACHE_KEY = "cj:coupons:v2";
-const SHOP_CACHE_KEY = "cj:shops:v2";
+const COUPON_CACHE_KEY = "cj:coupons:v3";
+const SHOP_CACHE_KEY = "cj:shops:v3";
 const CACHE_TTL = 3600;
 
 function xmlField(xml: string, tag: string): string {
@@ -32,6 +32,11 @@ function xmlField(xml: string, tag: string): string {
 
 function parseLinks(xml: string): any[] {
   return [...xml.matchAll(/<link>([\s\S]*?)<\/link>/g)].map(m => m[1]);
+}
+
+// clickUrl = CJ tracking link (monetizovaný), destination = cieľová URL bez trackingu
+function affiliateUrl(link: string): string {
+  return xmlField(link, "clickUrl") || xmlField(link, "destination");
 }
 
 async function fetchFromCj(params: Record<string, string>): Promise<string | null> {
@@ -85,7 +90,7 @@ async function fetchCjCoupons(): Promise<CjCoupon[]> {
       description: xmlField(link, "link-name") || xmlField(link, "description"),
       startDate: xmlField(link, "promotion-start-date"),
       endDate: endDateStr,
-      link: xmlField(link, "destination"),
+      link: affiliateUrl(link),
       discount: xmlField(link, "sale-commission"),
       discountType: "percent",
       source: "cj",
@@ -109,7 +114,7 @@ async function fetchCjShops(): Promise<CjShop[]> {
     shops.push({
       advertiserId: id,
       advertiserName: xmlField(link, "advertiser-name"),
-      affiliateLink: xmlField(link, "destination"),
+      affiliateLink: affiliateUrl(link),
       commission: xmlField(link, "sale-commission"),
       source: "cj",
     });
@@ -117,30 +122,51 @@ async function fetchCjShops(): Promise<CjShop[]> {
   return shops;
 }
 
-export async function getCjCoupons(): Promise<CjCoupon[]> {
-  try {
-    const cached = await redis.get<CjCoupon[]>(COUPON_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
-  } catch {}
+// In-process memo — pri cache miss v Redis (napr. read-only token počas buildu)
+// zdieľa jeden fetch medzi všetkými volaniami v rámci procesu
+let couponsMemo: { at: number; data: Promise<CjCoupon[]> } | null = null;
+let shopsMemo: { at: number; data: Promise<CjShop[]> } | null = null;
 
-  const coupons = await fetchCjCoupons();
-  if (coupons.length > 0) {
-    try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: CACHE_TTL }); } catch {}
+export async function getCjCoupons(): Promise<CjCoupon[]> {
+  if (couponsMemo && Date.now() - couponsMemo.at < CACHE_TTL * 1000) {
+    return couponsMemo.data;
   }
-  return coupons;
+  const promise = (async () => {
+    try {
+      const cached = await redis.get<CjCoupon[]>(COUPON_CACHE_KEY);
+      if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+    } catch {}
+
+    const coupons = await fetchCjCoupons();
+    if (coupons.length > 0) {
+      try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: CACHE_TTL }); } catch {}
+    }
+    return coupons;
+  })();
+  couponsMemo = { at: Date.now(), data: promise };
+  promise.catch(() => { couponsMemo = null; });
+  return promise;
 }
 
 export async function getCjShops(): Promise<CjShop[]> {
-  try {
-    const cached = await redis.get<CjShop[]>(SHOP_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) return cached;
-  } catch {}
-
-  const shops = await fetchCjShops();
-  if (shops.length > 0) {
-    try { await redis.set(SHOP_CACHE_KEY, shops, { ex: CACHE_TTL }); } catch {}
+  if (shopsMemo && Date.now() - shopsMemo.at < CACHE_TTL * 1000) {
+    return shopsMemo.data;
   }
-  return shops;
+  const promise = (async () => {
+    try {
+      const cached = await redis.get<CjShop[]>(SHOP_CACHE_KEY);
+      if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+    } catch {}
+
+    const shops = await fetchCjShops();
+    if (shops.length > 0) {
+      try { await redis.set(SHOP_CACHE_KEY, shops, { ex: CACHE_TTL }); } catch {}
+    }
+    return shops;
+  })();
+  shopsMemo = { at: Date.now(), data: promise };
+  promise.catch(() => { shopsMemo = null; });
+  return promise;
 }
 
 export async function getCjCouponsByShop(shopName: string): Promise<CjCoupon[]> {
