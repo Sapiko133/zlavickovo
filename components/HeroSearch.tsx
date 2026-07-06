@@ -15,7 +15,13 @@ const POPULAR = [
   { label: "Martinus",  href: "/kupony/martinus" },
 ];
 
-export default function HeroSearch() {
+export default function HeroSearch({
+  placeholder = "Hľadaj obchod alebo kupón...",
+  ctaLabel = "Hľadať",
+}: {
+  placeholder?: string;
+  ctaLabel?: string;
+} = {}) {
   const router = useRouter();
 
   const [query, setQuery]         = useState("");
@@ -109,7 +115,7 @@ export default function HeroSearch() {
               onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
               onFocus={() => { setFocused(true); if (hasResults) setDropOpen(true); }}
               onKeyDown={handleKeyDown}
-              placeholder="Hľadaj obchod alebo kupón..."
+              placeholder={placeholder}
               autoComplete="off"
               style={{
                 flex: 1, padding: "16px 20px",
@@ -131,7 +137,7 @@ export default function HeroSearch() {
                 transition: "background .15s",
               }}
             >
-              Hľadať
+              {ctaLabel}
             </button>
           </div>
         </form>
