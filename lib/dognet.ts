@@ -365,13 +365,20 @@ const CAMPAIGNS_MAX_PAGES = 10;
 async function _fetchAllCampaigns(t: string): Promise<any[]> {
   const items: any[] = [];
   for (let page = 1; page <= CAMPAIGNS_MAX_PAGES; page++) {
-    const res = await fetch(`${API_BASE}/campaigns/filter?page=${page}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
-      body: JSON.stringify({ "per-page": CAMPAIGNS_PER_PAGE }),
-      signal: AbortSignal.timeout(20000),
-    });
-    if (!res.ok) break;
+    // Retry na 429/5xx — pri paralelnom cron refreshi Dognet občas rate-limituje
+    // a bez retry by pagination skončila predčasne (neúplný campaigns cache).
+    let res: Response | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetch(`${API_BASE}/campaigns/filter?page=${page}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
+        body: JSON.stringify({ "per-page": CAMPAIGNS_PER_PAGE }),
+        signal: AbortSignal.timeout(20000),
+      }).catch(() => null);
+      if (res?.ok) break;
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+    }
+    if (!res?.ok) break;
     const data = await res.json();
     const batch: any[] = Array.isArray(data?.data) ? data.data : [];
     items.push(...batch);

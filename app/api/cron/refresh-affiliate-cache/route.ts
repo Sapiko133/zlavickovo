@@ -14,20 +14,28 @@ export async function GET(req: NextRequest) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const [dognet, dognetCampaigns, ehubCoupons, ehubShops] = await Promise.allSettled([
-    refreshDognetCache(),
-    refreshDognetCampaignsCache(),
+  // Dognet coupons + campaigns bežia SEKVENČNE v jednom bloku (paralelne by dvojnásobná
+  // záťaž na Dognet API rate-limitovala pagination kampaní → neúplný cache).
+  // eHub (iné API) ide paralelne popri Dognet bloku.
+  const [dognetPair, ehubCoupons, ehubShops] = await Promise.allSettled([
+    (async () => {
+      const coupons = await refreshDognetCache();
+      const campaigns = await refreshDognetCampaignsCache();
+      return { coupons, campaigns };
+    })(),
     refreshEhubCache(),
     refreshEhubShopsCache(),
   ]);
+  const dognet = dognetPair.status === "fulfilled" ? dognetPair.value.coupons : { count: 0, error: String((dognetPair as PromiseRejectedResult).reason) };
+  const dognetCampaigns = dognetPair.status === "fulfilled" ? dognetPair.value.campaigns : { count: 0, error: String((dognetPair as PromiseRejectedResult).reason) };
 
   // Zdrojové cache sa zmenili — shops:known nech sa prebuduje z čerstvých dát
   await invalidateKnownShopsCache();
 
   return Response.json({
     ok: true,
-    dognet: dognet.status === "fulfilled" ? dognet.value : { count: 0, error: String(dognet.reason) },
-    dognetCampaigns: dognetCampaigns.status === "fulfilled" ? dognetCampaigns.value : { count: 0, error: String(dognetCampaigns.reason) },
+    dognet,
+    dognetCampaigns,
     ehubCoupons: ehubCoupons.status === "fulfilled" ? ehubCoupons.value : { count: 0, error: String(ehubCoupons.reason) },
     ehubShops: ehubShops.status === "fulfilled" ? ehubShops.value : { count: 0, error: String(ehubShops.reason) },
   });
