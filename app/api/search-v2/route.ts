@@ -7,6 +7,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE } from "@/lib/akcie";
 import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
+import { logSearchQuery } from "@/lib/search-log";
 import { normalizeSearchText, matchesSearchTokens, matchesSearch, searchMatchRank } from "@/lib/search-normalize";
 import { createHash } from "crypto";
 
@@ -73,6 +74,10 @@ export async function POST(req: Request) {
   if (!q?.trim()) return Response.json({ error: "Chýba dotaz" }, { status: 400 });
 
   const query = q.trim();
+  // Zaloguj dopyt do Redis (fire-and-forget) — pred cache checkom, aby sa
+  // počítali aj cache-hity. Nikdy nezhodí vyhľadávanie.
+  void logSearchQuery(query);
+
   // Hash z normalizovaného dopytu — "káva" a "kava" zdieľajú cache záznam
   const hash = createHash("md5").update(normalizeSearchText(query)).digest("hex");
   // v3: normalizované vyhľadávanie (diakritika + word boundary) — nový prefix
