@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { HEUREKA_MAX_ITEMS } from "./config";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -61,7 +62,7 @@ export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduc
 
   return items
     .filter((item: any) => item && typeof item === "object")
-    .slice(0, 500)
+    .slice(0, HEUREKA_MAX_ITEMS)
     .map((item: any): ParsedProduct => {
       const rawCategory = String(
         item.CATEGORY_FULL ?? item.CATEGORYTEXT ?? item.categorytext ?? ""

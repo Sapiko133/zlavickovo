@@ -1,10 +1,11 @@
 import { getDb } from "@/lib/db";
 import { parseHeurekaXml } from "./parser";
 import { HEUREKA_FEEDS } from "./feeds";
+import { HEUREKA_MAX_ITEMS, HEUREKA_MAX_BYTES } from "./config";
 import type { HkFeedDef, ImportFeedResult, PruneResult } from "./types";
 
-const MAX_ITEMS = 500; // rovnaký limit ako v parseri
-const MAX_BYTES = 20 * 1024 * 1024; // núdzová brzda pre feedy s obrími položkami
+const MAX_ITEMS = HEUREKA_MAX_ITEMS;   // zdieľaný limit (rovnaký ako v parseri)
+const MAX_BYTES = HEUREKA_MAX_BYTES;   // núdzová brzda pre feedy s obrími položkami
 
 // Nájde koniec ďalšieho </SHOPITEM> (uppercase aj lowercase variant) od pozície `from`, -1 ak nie je
 function nextShopitemEnd(xml: string, from: number): number {
@@ -120,38 +121,57 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
       return { feedId: feed.id, domain: feed.domain, count: 0, error: "Žiadne produkty", durationMs: Date.now() - start };
     }
 
-    // Upsert v batchoch po 50
-    const BATCH = 50;
-    for (let i = 0; i < products.length; i += BATCH) {
-      const chunk = products.slice(i, i + BATCH);
-      await Promise.all(
-        chunk.map((p) =>
-          sql`
-            INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
-            VALUES (${feed.id}, ${p.name}, ${p.description}, ${p.price}, ${p.url}, ${p.imgUrl}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl}, ${p.ean}, ${p.itemId}, ${p.manufacturer}, ${p.productno})
-            ON CONFLICT (url) DO UPDATE SET
-              name          = EXCLUDED.name,
-              description   = EXCLUDED.description,
-              price         = EXCLUDED.price,
-              img_url       = EXCLUDED.img_url,
-              affiliate_url = EXCLUDED.affiliate_url,
-              ean           = EXCLUDED.ean,
-              item_id       = EXCLUDED.item_id,
-              manufacturer  = EXCLUDED.manufacturer,
-              productno     = EXCLUDED.productno,
-              updated_at    = now()
-          `
+    // Deduplikácia podľa URL (kľúč ON CONFLICT) — jeden multi-row INSERT nesmie
+    // obsahovať tú istú URL 2× (Postgres: "cannot affect row a second time").
+    // Map zachová posledný výskyt = rovnaká sémantika ako pôvodný per-row upsert.
+    const unique = Array.from(new Map(products.map((p) => [p.url, p])).values());
+
+    // Bulk upsert cez UNNEST — 1 DB round-trip na dávku namiesto N single INSERT-ov.
+    const BATCH = 200;
+    for (let i = 0; i < unique.length; i += BATCH) {
+      const chunk = unique.slice(i, i + BATCH);
+      const feedIds      = chunk.map(() => feed.id);
+      const names        = chunk.map((p) => p.name);
+      const descriptions = chunk.map((p) => p.description);
+      const prices       = chunk.map((p) => p.price);
+      const urls         = chunk.map((p) => p.url);
+      const imgs         = chunk.map((p) => p.imgUrl);
+      const domains      = chunk.map(() => feed.domain);
+      const cats         = chunk.map(() => feed.category);
+      const affs         = chunk.map(() => feed.affiliateUrl);
+      const eans         = chunk.map((p) => p.ean);
+      const itemIds      = chunk.map((p) => p.itemId);
+      const manus        = chunk.map((p) => p.manufacturer);
+      const productnos   = chunk.map((p) => p.productno);
+
+      await sql`
+        INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
+        SELECT * FROM UNNEST(
+          ${feedIds}::text[], ${names}::text[], ${descriptions}::text[], ${prices}::text[], ${urls}::text[],
+          ${imgs}::text[], ${domains}::text[], ${cats}::text[], ${affs}::text[], ${eans}::text[],
+          ${itemIds}::text[], ${manus}::text[], ${productnos}::text[]
         )
-      );
+        ON CONFLICT (url) DO UPDATE SET
+          name          = EXCLUDED.name,
+          description   = EXCLUDED.description,
+          price         = EXCLUDED.price,
+          img_url       = EXCLUDED.img_url,
+          affiliate_url = EXCLUDED.affiliate_url,
+          ean           = EXCLUDED.ean,
+          item_id       = EXCLUDED.item_id,
+          manufacturer  = EXCLUDED.manufacturer,
+          productno     = EXCLUDED.productno,
+          updated_at    = now()
+      `;
     }
 
     await sql`
       UPDATE hk_feeds
-      SET last_fetched_at = now(), last_error = null, error_count = 0, product_count = ${products.length}
+      SET last_fetched_at = now(), last_error = null, error_count = 0, product_count = ${unique.length}
       WHERE id = ${feed.id}
     `;
 
-    return { feedId: feed.id, domain: feed.domain, count: products.length, durationMs: Date.now() - start };
+    return { feedId: feed.id, domain: feed.domain, count: unique.length, durationMs: Date.now() - start };
   } catch (err: any) {
     const msg = String(err?.message ?? err).slice(0, 500);
     try {
