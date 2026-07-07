@@ -9,23 +9,27 @@ import {
   idFromSlug,
   getTopProductIds,
   formatPrice,
-  formatAmount,
   currencyForDomain,
 } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
+import { normalizeShopSlug } from "@/lib/slug";
 
-/** Najvyššia percentuálna zľava z kupónov obchodu (1–90 %), inak null. */
-function bestCouponPercent(coupons: any[]): number | null {
-  let best: number | null = null;
+/** Prvý dostupný kupón (s kódom) a prvá akcia (bez kódu) obchodu — bez výpočtu ceny. */
+function pickShopOffers(coupons: any[]): {
+  coupon: { title: string } | null;
+  deal: { title: string } | null;
+} {
+  let coupon: { title: string } | null = null;
+  let deal: { title: string } | null = null;
   for (const c of coupons) {
-    const text = `${c?.title ?? ""} ${c?.name ?? ""}`;
-    for (const m of text.matchAll(/(\d{1,2})\s*%/g)) {
-      const p = parseInt(m[1], 10);
-      if (p >= 1 && p <= 90 && (best === null || p > best)) best = p;
-    }
+    const hasCode = c?.code && String(c.code).trim() !== "";
+    const title = c?.title || c?.name || c?.description || "";
+    if (hasCode && !coupon) coupon = { title };
+    else if (!hasCode && !deal && (c?.affiliate_link || c?.url)) deal = { title };
+    if (coupon && deal) break;
   }
-  return best;
+  return { coupon, deal };
 }
 
 export const revalidate = 3600;
@@ -72,19 +76,18 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
 
   const priceNum = parseFloat(String(product.price ?? "").replace(/[^\d.,]/g, "").replace(",", "."));
 
-  // Možná cena po kupóne — najvyššia % zľava z kupónov obchodu, len orientačný odhad
-  let couponPercent: number | null = null;
-  if (!isNaN(priceNum) && priceNum > 0) {
-    try {
-      couponPercent = bestCouponPercent(await getCouponsByShop(product.domain));
-    } catch (error) {
-      console.error("[product-coupon-estimate]", error);
-    }
+  // Dostupné kupóny/akcie obchodu (bez výpočtu efektívnej ceny)
+  let shopOffers: { coupon: { title: string } | null; deal: { title: string } | null } = {
+    coupon: null,
+    deal: null,
+  };
+  try {
+    shopOffers = pickShopOffers(await getCouponsByShop(product.domain));
+  } catch (error) {
+    console.error("[product-shop-offers]", error);
   }
-  const couponPrice =
-    couponPercent !== null
-      ? formatAmount(priceNum * (1 - couponPercent / 100), product.domain)
-      : null;
+  const shopSlug = normalizeShopSlug(product.domain);
+  const hasOffers = Boolean(shopOffers.coupon || shopOffers.deal);
 
   // Feedy bez affiliate programu majú affiliate_url null — tlačidlo vedie priamo na produkt
   const buyUrl = product.affiliate_url || product.url;
@@ -216,20 +219,36 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
 
-            {/* Možná cena po kupóne */}
-            {couponPercent !== null && couponPrice && (
+            {/* Dostupné kupóny a akcie obchodu */}
+            {hasOffers && (
               <div style={{
                 background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 14,
                 padding: "14px 18px", marginBottom: 24, maxWidth: 560,
               }}>
-                <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d", marginBottom: 4 }}>
-                  Možná cena po kupóne
+                <div style={{ fontSize: 13, fontWeight: 800, color: "#15803d", marginBottom: 8 }}>
+                  Dostupné kupóny a akcie v {product.domain}
                 </div>
-                <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
-                  Pri uplatnení kupónu <strong>-{couponPercent} %</strong> môže byť cena približne{" "}
-                  <strong style={{ color: "#15803d" }}>{couponPrice}</strong>.
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
+                  {shopOffers.coupon && (
+                    <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
+                      🏷️ <strong>Kupón:</strong> {shopOffers.coupon.title || "Zľavový kód dostupný"}
+                    </div>
+                  )}
+                  {shopOffers.deal && (
+                    <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
+                      🔥 <strong>Akcia:</strong> {shopOffers.deal.title || "Prebiehajúca akcia"}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 6 }}>
+                {shopSlug && (
+                  <a
+                    href={`/kupony/${shopSlug}`}
+                    style={{ fontSize: 13, color: "#16A34A", fontWeight: 700, textDecoration: "none" }}
+                  >
+                    Zobraziť kupóny obchodu →
+                  </a>
+                )}
+                <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 8 }}>
                   Kupón nemusí platiť na tento konkrétny produkt.
                 </div>
               </div>

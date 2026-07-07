@@ -15,18 +15,18 @@ import { getCategoryProductCounts } from "@/lib/heureka/query";
 export const revalidate = 3600;
 
 export const metadata = {
-  title: "Zlavickovo ✂️ Nájdi lepšiu cenu a skontroluj kupóny pred nákupom",
-  description: "Vyhľadaj produkt alebo obchod. Zlavickovo ti ukáže dostupné ponuky, kupóny a možnú cenu po uplatnení zľavy. Zadarmo pre 100+ slovenských obchodov.",
+  title: "Zlavickovo ✂️ Nájdi najvýhodnejší nákup — ceny, kupóny a akcie",
+  description: "Vyhľadaj produkt a porovnaj ceny v našich feedoch. Zlavickovo ti ukáže ponuky zoradené podľa ceny a dostupné kupóny a akcie pred nákupom.",
   alternates: { canonical: "https://www.zlavickovo.sk" },
   openGraph: {
-    title: "Zlavickovo – Nájdi lepšiu cenu a skontroluj kupóny",
-    description: "Vyhľadaj produkt alebo obchod a zisti, či vieš ušetriť pomocou kupónu.",
+    title: "Zlavickovo – Nájdi najvýhodnejší nákup",
+    description: "Porovnaj ceny v našich feedoch a nájdi dostupné kupóny pred nákupom.",
     url: "https://www.zlavickovo.sk", type: "website", locale: "sk_SK",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zlavickovo ✂️ Nájdi lepšiu cenu a skontroluj kupóny",
-    description: "Vyhľadaj produkt alebo obchod a zisti, či vieš ušetriť pomocou kupónu.",
+    title: "Zlavickovo ✂️ Nájdi najvýhodnejší nákup",
+    description: "Porovnaj ceny v našich feedoch a nájdi dostupné kupóny pred nákupom.",
   },
 };
 
@@ -54,9 +54,9 @@ const POPULAR_CATEGORY_IDS: CategoryId[] = [
 ];
 
 const HOW_STEPS = [
-  { emoji: "🔎", title: "Nájdeme produkt alebo obchod", desc: "Zadáš, čo hľadáš, a my prehľadáme produktové feedy aj obchody." },
-  { emoji: "🎟️", title: "Skontrolujeme dostupné kupóny", desc: "Zistíme, či má obchod aktívny zľavový kód alebo prebiehajúcu akciu." },
-  { emoji: "🧮", title: "Ukážeme možnú cenu po zľave", desc: "Ak existuje percentuálny kupón, pri produkte zobrazíme orientačnú cenu po zľave." },
+  { emoji: "🔎", title: "Nájdeme produkt", desc: "Zadáš, čo hľadáš, a my prehľadáme produktové feedy aj obchody." },
+  { emoji: "💶", title: "Zoradíme ponuky podľa ceny", desc: "Výsledky zobrazíme od najnižšej ceny a zvýrazníme najvýhodnejšiu ponuku." },
+  { emoji: "🎟️", title: "Ukážeme dostupné kupóny a akcie", desc: "Pri obchodoch zobrazíme aktívne zľavové kódy a prebiehajúce akcie pred nákupom." },
 ];
 
 function domainOf(c: any): string {
@@ -224,15 +224,15 @@ export default async function Home() {
       <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1E293B 60%, #27364a 100%)`, padding: "56px 20px 44px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontSize: "clamp(28px, 5vw, 46px)", fontWeight: 800, color: "#fff", letterSpacing: "-1.2px", lineHeight: 1.14, margin: "0 0 16px" }}>
-            Nájdi lepšiu cenu a skontroluj kupóny pred nákupom
+            Nájdi najvýhodnejší nákup
           </h1>
           <p style={{ fontSize: "clamp(15px, 2vw, 19px)", color: "#cbd5e1", margin: "0 auto 28px", lineHeight: 1.55, maxWidth: 640 }}>
-            Vyhľadaj produkt alebo obchod. Zlavickovo ti ukáže dostupné ponuky, kupóny a možnú cenu po uplatnení zľavy.
+            Porovnaj ceny v našich feedoch a nájdi dostupné kupóny pred nákupom.
           </p>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
             <HeroSearch
-              placeholder="Zadaj produkt alebo obchod, napr. iPhone, matrac, Alza, Notino…"
-              ctaLabel="Hľadať zľavu"
+              placeholder="Zadaj produkt, napr. iPhone, matrac, proteín, tenisky…"
+              ctaLabel="Hľadať"
             />
           </div>
         </div>
@@ -242,9 +242,9 @@ export default async function Home() {
       <section style={{ maxWidth: 1000, margin: "0 auto", padding: "36px 20px 8px" }}>
         <div className="explain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {[
-            { n: "1", t: "Nájdeme produkt alebo obchod" },
-            { n: "2", t: "Skontrolujeme dostupné kupóny" },
-            { n: "3", t: "Ukážeme možnú cenu po zľave, ak kupón existuje" },
+            { n: "1", t: "Nájdeme produkt vo feedoch a obchodoch" },
+            { n: "2", t: "Zoradíme ponuky podľa ceny" },
+            { n: "3", t: "Ukážeme dostupné kupóny a akcie" },
           ].map((s) => (
             <div key={s.n} style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 18px", borderRadius: 14, background: "#f8f9fa", border: "1px solid #eceff3" }}>
               <span style={{ width: 34, height: 34, borderRadius: 10, background: ORANGE, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 15, flexShrink: 0 }}>{s.n}</span>
@@ -253,7 +253,7 @@ export default async function Home() {
           ))}
         </div>
         <div style={{ marginTop: 14, padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: `1px solid ${ORANGE}33`, fontSize: 13, color: "#9a3412", textAlign: "center" }}>
-          ℹ️ Výsledná cena je orientačná. Kupón nemusí platiť na každý produkt.
+          ℹ️ Ceny sú z posledného importu feedov a môžu sa líšiť. Kupón nemusí platiť na každý produkt.
         </div>
       </section>
 
@@ -304,7 +304,7 @@ export default async function Home() {
         <div style={{ marginBottom: 20 }}>
           <h2 className="sec-title">💡 Ako to funguje</h2>
           <p className="sec-sub" style={{ maxWidth: 720 }}>
-            Zlavickovo kombinuje produktové feedy, kupóny a affiliate ponuky. Pri produktoch vie zobraziť možnú cenu po kupóne, ak má obchod dostupný percentuálny kupón.
+            Zlavickovo kombinuje produktové feedy, kupóny a affiliate ponuky. Výsledky zoradíme podľa ceny a pri obchodoch ukážeme dostupné kupóny a akcie, aby si nakúpil výhodnejšie.
           </p>
         </div>
         <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>

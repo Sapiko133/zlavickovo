@@ -80,6 +80,44 @@ function RevealCode({ code, link }: { code: string; link?: string }) {
   );
 }
 
+// Pod týmto počtom produktov ukážeme aj CTA „Nenašli sme dostatok ponúk"
+const MIN_ENOUGH = 4;
+
+function heurekaSearchUrl(q: string): string {
+  return `https://www.heureka.sk/?h%5Bfrm%5D%5Bq%5D=${encodeURIComponent(q)}&utm_source=zlavickovo&utm_medium=referral&positionid=71010`;
+}
+
+function HeurekaCTA({ q, title, subtitle }: { q: string; title: string; subtitle: string }) {
+  return (
+    <div
+      style={{
+        background: "linear-gradient(135deg, #F0FDF4 0%, #ecfdf5 100%)",
+        border: "1.5px solid #bbf7d0", borderRadius: 16,
+        padding: "32px 28px", textAlign: "center",
+      }}
+    >
+      <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+      <div style={{ fontSize: 19, fontWeight: 800, color: "#1d1d1f", marginBottom: 8 }}>{title}</div>
+      <p style={{ fontSize: 14, color: "#555", lineHeight: 1.6, margin: "0 auto 20px", maxWidth: 440 }}>
+        {subtitle}
+      </p>
+      <a
+        href={heurekaSearchUrl(q)}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{
+          display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+          padding: "14px 28px", borderRadius: 12,
+          background: "#22C55E", color: "#fff", fontWeight: 800, fontSize: 15, textDecoration: "none",
+          boxShadow: "0 4px 18px rgba(34,197,94,0.30)",
+        }}
+      >
+        Zobraziť ďalšie ponuky na Heureke ↗
+      </a>
+    </div>
+  );
+}
+
 function SearchResults() {
   const params = useSearchParams();
   const router = useRouter();
@@ -95,6 +133,10 @@ function SearchResults() {
   // Kupón = má kód, akcia = bez kódu (musí mať aspoň odkaz)
   const codeCoupons = coupons.filter((c: any) => c.code && String(c.code).trim() !== "");
   const dealCoupons = coupons.filter((c: any) => (!c.code || String(c.code).trim() === "") && (c.affiliate_link || c.url));
+
+  // Najnižšia cena naprieč výsledkami — na zvýraznenie (produkty prídu zo servera zoradené)
+  const priceNums = products.map((p: any) => p.priceNum).filter((n: any) => typeof n === "number");
+  const cheapestNum = priceNums.length > 0 ? Math.min(...priceNums) : null;
 
   // Dopyt = existujúci obchod (getAllKnownShops) → redirect na /kupony/[slug]
   useEffect(() => {
@@ -157,15 +199,12 @@ function SearchResults() {
           <div style={{ marginBottom: 24 }}>
             <h1 style={{ fontSize: 22, fontWeight: 700, margin: "0 0 6px", color: "#1d1d1f" }}>
               {categoryLabel
-                ? <>{categoryLabel} <span style={{ color: "#22C55E" }}>v akcii</span></>
+                ? <>{categoryLabel} <span style={{ color: "#22C55E" }}>za najlepšiu cenu</span></>
                 : <>Výsledky pre: <span style={{ color: "#22C55E" }}>{q}</span></>
               }
             </h1>
             <div style={{ fontSize: 13, color: "#888" }}>
-              {categoryLabel
-                ? `Produkty z partnerských obchodov — kategória: ${categoryLabel}`
-                : "Produkty z partnerských obchodov"
-              }
+              Produkty z feedov a obchodov — zoradené podľa ceny, s dostupnými kupónmi a akciami
             </div>
           </div>
 
@@ -179,12 +218,15 @@ function SearchResults() {
             </div>
           )}
 
-          {!loadingProducts && products.length > 0 && products.map((p: any, i: number) => (
+          {!loadingProducts && products.length > 0 && products.map((p: any, i: number) => {
+            const isCheapest = cheapestNum !== null && p.priceNum === cheapestNum;
+            return (
             <div
               key={i}
               className="product-card"
               style={{
-                background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb",
+                background: "#fff", borderRadius: 12,
+                border: isCheapest ? "1.5px solid #22C55E" : "1px solid #e5e7eb",
                 padding: "16px 18px", marginBottom: 10,
                 display: "flex", gap: 16, alignItems: "flex-start",
                 transition: "border-color 0.15s, box-shadow 0.15s",
@@ -200,12 +242,30 @@ function SearchResults() {
                 >
                   {p.name}
                 </a>
-                <div style={{ fontSize: 12, color: "#aaa", marginBottom: 6 }}>{p.domain}</div>
-                {p.description && (
-                  <div className="line-clamp" style={{ fontSize: 13, color: "#555", lineHeight: 1.5, marginBottom: 10 }}>
-                    {p.description}
+                <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8 }}>{p.domain}</div>
+
+                {/* Dostupný kupón / akcia obchodu */}
+                {(p.coupon || p.deal) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                    {p.coupon && (
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: "#16A34A" }}>🏷️ Kupón:</span>
+                        <RevealCode code={p.coupon.code} link={p.coupon.link} />
+                      </span>
+                    )}
+                    {p.deal && (
+                      <a
+                        href={p.deal.link}
+                        target="_blank"
+                        rel="nofollow noopener noreferrer"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#EA580C", textDecoration: "none", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 6, padding: "4px 8px" }}
+                      >
+                        🔥 Akcia ↗
+                      </a>
+                    )}
                   </div>
                 )}
+
                 <a
                   href={p.affiliateUrl || p.url}
                   target="_blank"
@@ -220,19 +280,36 @@ function SearchResults() {
                 </a>
               </div>
               {p.price && (
-                <div style={{ flexShrink: 0, fontWeight: 700, fontSize: 15, color: "#1d1d1f", paddingTop: 2, whiteSpace: "nowrap" }}>
-                  {p.price}
+                <div style={{ flexShrink: 0, textAlign: "right", paddingTop: 2 }}>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: isCheapest ? "#16A34A" : "#1d1d1f", whiteSpace: "nowrap" }}>
+                    {p.price}
+                  </div>
+                  {isCheapest && (
+                    <div style={{ fontSize: 10, fontWeight: 800, color: "#16A34A", marginTop: 3, whiteSpace: "nowrap" }}>
+                      NAJNIŽŠIA CENA
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          ))}
+          );})}
 
+          {/* Nedostatok ponúk — máme nejaké produkty, ale málo → CTA na Heureku */}
+          {!loadingProducts && products.length > 0 && products.length < MIN_ENOUGH && (
+            <HeurekaCTA
+              q={q}
+              title="Nenašli sme dostatok ponúk"
+              subtitle="V našich feedoch máme len pár výsledkov. Pozri širšiu ponuku a porovnaj ceny na Heureke."
+            />
+          )}
+
+          {/* Žiadny produkt — nezobraz prázdnu stránku, ukáž veľké Heureka CTA */}
           {!loadingProducts && products.length === 0 && q && (
-            <div style={{ padding: "48px 0", textAlign: "center", color: "#888" }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
-              <div style={{ fontSize: 16, fontWeight: 600 }}>Žiadne produkty pre „{q}"</div>
-              <div style={{ fontSize: 14, marginTop: 6 }}>Skúste iný dotaz alebo porovnajte cenu na Heureke.</div>
-            </div>
+            <HeurekaCTA
+              q={q}
+              title={`Pre „${q}" sme nenašli produkt v našich feedoch`}
+              subtitle="Nevadí — na Heureke nájdeš ponuky od stoviek overených predajcov a porovnáš ceny."
+            />
           )}
         </div>
 
