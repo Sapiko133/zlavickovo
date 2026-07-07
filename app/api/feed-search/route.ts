@@ -2,6 +2,7 @@ import { searchHkProducts, toProductSlug, formatPrice, formatAmount } from "@/li
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { buildShopOffersIndex } from "@/lib/shop-offers";
 import { normalizeSearchText } from "@/lib/search-normalize";
+import { logSearchQuery } from "@/lib/search-log";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,10 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get("q") ?? "";
   if (!q.trim()) return Response.json([]);
+
+  // Zaloguj dopyt (fire-and-forget). Dedup v logSearchQuery zabráni dvojitému
+  // započítaniu — /hladat volá feed-search aj search-v2 pre ten istý dopyt naraz.
+  void logSearchQuery(q);
 
   try {
     const [hkRes, feedRes] = await Promise.allSettled([

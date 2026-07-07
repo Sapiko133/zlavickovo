@@ -10,15 +10,22 @@
  *
  * Ukladá sa VŽDY normalizovaný dopyt (lib/search-normalize.ts), takže "Káva",
  * "kava" a "  KAVA " zdieľajú jeden záznam. Žiadna analytika tretích strán.
+ *
+ * Deduplikácia: jeden používateľský search spustí naraz viacero API volaní
+ * (stránka /hladat volá súčasne search-v2 aj feed-search pre ten istý dopyt,
+ * plus React môže effect spustiť dvakrát). Krátke dedup okno (SET NX) zaručí,
+ * že sa taký dopyt započíta iba raz — nie 2×/3× podľa počtu API volaní.
  */
 import { redis } from "@/lib/redis";
 import { normalizeSearchText } from "@/lib/search-normalize";
 
 const HOUR_MS = 60 * 60 * 1000;
 const BUCKET_TTL_S = 32 * 24 * 60 * 60; // 32 dní — kryje 30-dňové okno s rezervou
+const DEDUP_WINDOW_S = 10; // to isté vyhľadanie v tomto okne = jeden započítaný dopyt
 
 const ALL_KEY = "search:log:all";
 const LASTSEEN_KEY = "search:log:lastseen";
+const DEDUP_PREFIX = "search:log:dedup:";
 
 /** Hodinový UTC bucket: `search:log:h:2026-07-07-14`. */
 function bucketKey(d: Date): string {
@@ -43,6 +50,20 @@ function windowKeys(hours: number, now = Date.now()): string[] {
 export async function logSearchQuery(rawQuery: string): Promise<void> {
   const query = normalizeSearchText(rawQuery);
   if (!query) return;
+
+  // Dedup: prvé volanie pre dopyt v okne nastaví kľúč (NX) a započíta sa;
+  // ďalšie volania (súbežné search-v2 + feed-search, re-render, dvojklik) NX
+  // neprejde → return bez započítania. Pri chybe/read-only Redis radšej
+  // pokračujeme a započítame, než by sme dopyt stratili.
+  try {
+    const fresh = await redis.set(`${DEDUP_PREFIX}${query}`, 1, {
+      nx: true,
+      ex: DEDUP_WINDOW_S,
+    });
+    if (fresh === null) return; // v okne už zalogované
+  } catch {
+    // ticho — pokračuj na započítanie
+  }
 
   const now = Date.now();
   const bucket = bucketKey(new Date(now));
