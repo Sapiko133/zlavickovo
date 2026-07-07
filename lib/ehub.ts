@@ -2,7 +2,7 @@ import { redis } from "@/lib/redis";
 import { createShopMatcher } from "@/lib/shop-match";
 
 const BASE = "https://api.ehub.cz/v3";
-const COUPONS_CACHE_KEY = "ehub:coupons:v2"; // v2: market filter SK/CZ
+const COUPONS_CACHE_KEY = "ehub:coupons:v3"; // v3: + approval filter (len schválené kampane)
 const COUPONS_CACHE_TTL = 86400;
 const FETCH_TIMEOUT_MS = 10000;
 // eHub API vracia max 100 poloziek na stranku (perPage limit 1-100, default 50).
@@ -75,6 +75,19 @@ export function isAllowedMarket(market: string | undefined): boolean {
   return market ? ALLOWED_MARKETS.has(market) : false;
 }
 
+/**
+ * Schválenie publishera v kampani je v `commissionGroups[].status`.
+ * Povolené = aspoň jedna skupina "approved"/"active"/"accepted".
+ * Ostatné stavy (approval_required, pending, declined, bez statusu) znamenajú,
+ * že publisher NIE je schválený → click.php?a_aid=… vráti 400
+ * ("Publisher nie je povolený v kampani"). Preto takéto kampane nesmieme
+ * zobrazovať ani z nich generovať affiliate linky.
+ */
+export function isApprovedCampaign(c: { commissionGroups?: unknown }): boolean {
+  const groups = Array.isArray((c as any)?.commissionGroups) ? (c as any).commissionGroups : [];
+  return groups.some((g: any) => /^(approved|active|accepted)$/i.test(String(g?.status ?? "")));
+}
+
 // Datumy su YYYY-MM-DD, staci string porovnanie.
 function isDateRangeActive(validFrom: string | null | undefined, validTill: string | null | undefined): boolean {
   const today = new Date().toISOString().slice(0, 10);
@@ -92,6 +105,7 @@ export interface EhubShop {
   commission: string;
   category: string;
   market: string;
+  approved: boolean;
 }
 
 async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
@@ -100,12 +114,16 @@ async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
     _fetchAllPages("campaigns", "campaigns"),
   ]);
   const marketByCampaignId = new Map<string, string>();
+  const approvedCampaignIds = new Set<string>();
   for (const c of campaigns) {
     marketByCampaignId.set(String(c.id ?? ""), getCampaignMarket(c));
+    if (isApprovedCampaign(c)) approvedCampaignIds.add(String(c.id ?? ""));
   }
   return vouchers
     .filter((v: any) => v.isValid === true && isDateRangeActive(v.validFrom, v.validTill))
     .filter((v: any) => isAllowedMarket(marketByCampaignId.get(String(v.campaignId ?? ""))))
+    // len vouchery na kampaniach, kde je publisher schválený (inak by odkaz 400-oval)
+    .filter((v: any) => approvedCampaignIds.has(String(v.campaignId ?? "")))
     .map((v: any) => ({
       id: String(v.id ?? ""),
       title: String(v.name ?? v.title ?? ""),
@@ -158,7 +176,9 @@ export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon
 async function _fetchEhubShops(): Promise<EhubShop[]> {
   const campaigns = await _fetchAllPages("campaigns", "campaigns");
   return campaigns
-    .filter((c: any) => isAllowedMarket(getCampaignMarket(c)))
+    // len SK/CZ trh a len kampane, kde je publisher schválený — inak shop-level
+    // defaultLink (click.php) vráti 400 "Publisher nie je povolený v kampani".
+    .filter((c: any) => isAllowedMarket(getCampaignMarket(c)) && isApprovedCampaign(c))
     .map((c: any) => {
       const commission = c.commissionGroups?.[0]?.commissions?.[0];
       const commissionStr = commission
@@ -173,6 +193,7 @@ async function _fetchEhubShops(): Promise<EhubShop[]> {
         commission: commissionStr,
         category: String(c.categories?.[0]?.name ?? ""),
         market: getCampaignMarket(c),
+        approved: true, // po filtri vyššie sú tu už len schválené kampane
       };
     });
 }
@@ -182,7 +203,7 @@ export async function fetchEhubShopsDirect(): Promise<EhubShop[]> {
   return _fetchEhubShops();
 }
 
-const SHOPS_CACHE_KEY = "ehub:shops:v2"; // v2: market filter SK/CZ
+const SHOPS_CACHE_KEY = "ehub:shops:v3"; // v3: + approval filter (len schválené kampane)
 const SHOPS_CACHE_TTL = 86400;
 
 // Read-only: returns cached shops or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
@@ -191,7 +212,8 @@ export async function getEhubShops(): Promise<EhubShop[]> {
   try {
     const cached = await redis.get<EhubShop[]>(SHOPS_CACHE_KEY);
     if (cached && Array.isArray(cached) && cached.length > 0) {
-      return cached.filter(s => isAllowedMarket(s.market));
+      // approved !== false = belt-and-suspenders proti starým/nechecknutým záznamom
+      return cached.filter(s => isAllowedMarket(s.market) && s.approved !== false);
     }
   } catch {}
   return [];
