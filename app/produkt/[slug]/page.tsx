@@ -14,6 +14,7 @@ import {
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
 import { normalizeShopSlug } from "@/lib/slug";
+import TrackedLink from "@/components/TrackedLink";
 
 /** Prvý dostupný kupón (s kódom) a prvá akcia (bez kódu) obchodu — bez výpočtu ceny. */
 function pickShopOffers(coupons: any[]): {
@@ -255,10 +256,14 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             )}
 
             {/* CTA */}
-            <a
+            <TrackedLink
               href={buyUrl}
               target="_blank"
               rel="nofollow noopener noreferrer"
+              type="product_outbound"
+              shopSlug={shopSlug}
+              productSlug={slug}
+              destinationDomain={product.domain}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 10,
                 padding: "16px 32px", borderRadius: 14,
@@ -268,7 +273,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
               }}
             >
               Kúpiť na {product.domain} →
-            </a>
+            </TrackedLink>
 
             <p style={{ fontSize: 11, color: "#bbb", marginTop: 10, margin: "10px 0 0" }}>
               {isAffiliate ? "Partnerský odkaz · " : ""}Cena overená pri poslednom importe XML feeda

@@ -6,6 +6,8 @@ import ShopFavicon from "@/components/ShopFavicon";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { getShopDomain } from "@/lib/shop-domains";
 import { T } from "@/lib/design-tokens";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 const TYPE_LABELS: Record<number, string> = {
   1: "Zľava", 2: "Darček", 3: "Výpredaj", 4: "Iné", 5: "Doprava zadarmo",
@@ -37,6 +39,14 @@ export default function CouponCard({ coupon, token, sponsored }: {
     if (link) {
       window.open(link, "_blank", "noopener,noreferrer")
     }
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: normalizeShopSlug(storeName),
+      couponId: coupon.id ? String(coupon.id) : null,
+      couponCode: code || null,
+      destination: link || null,
+      destinationDomain: domain || null,
+    })
     setRevealed(true)
   }
 
@@ -186,7 +196,16 @@ export default function CouponCard({ coupon, token, sponsored }: {
         ) : (
           <a
             href={link || "#"} target="_blank" rel="noopener noreferrer nofollow"
-            onClick={() => { if (link) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: storeName }) }).catch(() => {}); }}
+            onClick={() => {
+              if (link) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: storeName }) }).catch(() => {});
+              trackClick({
+                type: "coupon_outbound",
+                shopSlug: normalizeShopSlug(storeName),
+                couponId: coupon.id ? String(coupon.id) : null,
+                destination: link || null,
+                destinationDomain: domain || null,
+              });
+            }}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               padding: "12px", minHeight: 44, borderRadius: T.rMd,

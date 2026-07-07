@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 interface Props {
   code: any;
@@ -21,6 +23,12 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
     e.stopPropagation();
     if (link) window.open(link, "_blank", "noopener,noreferrer");
     setRevealed(true);
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: normalizeShopSlug(shopName),
+      couponCode: codeStr || null,
+      destination: link || null,
+    });
     if (codeStr) {
       navigator.clipboard.writeText(codeStr).catch(() => {});
       fetch("/api/track", {
@@ -103,6 +111,11 @@ export default function AiCouponCard({ code, shopName, type }: Props) {
             href={link || "#"}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => trackClick({
+              type: "action_outbound",
+              shopSlug: normalizeShopSlug(shopName),
+              destination: link || null,
+            })}
             style={{
               display: "block", padding: "10px", borderRadius: 9,
               background: "#1d1d1f", color: "#fff", fontWeight: 700,

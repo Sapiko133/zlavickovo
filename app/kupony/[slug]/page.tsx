@@ -16,6 +16,7 @@ import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/l
 // ShopLogo removed — using ShopFavicon throughout
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
+import TrackedLink from "@/components/TrackedLink";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -247,10 +248,13 @@ export default async function ShopPage({ params }: Props) {
                   {shopDesc.length > 220 ? shopDesc.slice(0, 220) + "…" : shopDesc}
                 </p>
               )}
-              <a
+              <TrackedLink
                 href={shopVisitUrl}
                 target="_blank"
                 rel="nofollow noopener noreferrer"
+                type="shop_outbound"
+                shopSlug={baseSlug}
+                destinationDomain={shopDomain}
                 style={{
                   display: "inline-flex", alignItems: "center", gap: 8,
                   marginTop: 16, padding: "12px 24px", borderRadius: 12,
@@ -261,7 +265,7 @@ export default async function ShopPage({ params }: Props) {
                 }}
               >
                 Prejsť do {capitalized} →
-              </a>
+              </TrackedLink>
             </div>
           </div>
         </div>
@@ -330,7 +334,8 @@ export default async function ShopPage({ params }: Props) {
                   Partnerský obchod
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 16 }}>{affialShop.name}</div>
-                <a href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
+                <TrackedLink href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"
+                  type="shop_outbound" shopSlug={baseSlug} destinationDomain={shopDomain}
                   style={{
                     display: "block", padding: "12px", borderRadius: 12,
                     background: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
@@ -340,7 +345,7 @@ export default async function ShopPage({ params }: Props) {
                   }}
                 >
                   Prejsť do obchodu ↗
-                </a>
+                </TrackedLink>
               </div>
             )}
             <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>

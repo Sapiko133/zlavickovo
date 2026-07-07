@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import HeroSearch from "@/components/HeroSearch";
 import TodayDeals, { type DealItem } from "@/components/TodayDeals";
+import TrackedLink from "@/components/TrackedLink";
 import { getStaticSales } from "@/lib/static-data";
 import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_SHOPS, buildAffialTrackingUrl } from "@/lib/affial-shops";
@@ -282,14 +283,15 @@ export default async function Home() {
         </div>
         <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
           {FAVOURITE_SHOPS.map((shop) => (
-            <a key={shop.slug} href={`/kupony/${shop.slug}`} className="shop-card-hp"
+            <TrackedLink key={shop.slug} href={`/kupony/${shop.slug}`} className="shop-card-hp"
+              type="shop_outbound" shopSlug={shop.slug} destinationDomain={shop.domain}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px 10px 16px", borderRadius: 16, background: "#fff", border: "1.5px solid #eceff3", textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
               <ShopFavicon domain={shop.domain} name={shop.name} size={44} />
               <div style={{ textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.3 }}>{shop.name}</div>
                 <div style={{ fontSize: 12, color: ORANGE_DARK, fontWeight: 600, marginTop: 4 }}>Zobraziť ponuky →</div>
               </div>
-            </a>
+            </TrackedLink>
           ))}
         </div>
       </section>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 interface Props {
   token: string;
@@ -24,6 +26,12 @@ export default function RevealCode({ token, affiliateLink, shop }: Props) {
     if (hasLink) {
       window.open(affiliateLink, "_blank", "noopener,noreferrer");
     }
+
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: shop ? normalizeShopSlug(shop) : null,
+      destination: hasLink ? affiliateLink : null,
+    });
 
     try {
       const res = await fetch("/api/reveal", {

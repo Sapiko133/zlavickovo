@@ -1,6 +1,8 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
+import TrackedLink from "@/components/TrackedLink";
+import { normalizeShopSlug } from "@/lib/slug";
 import { STATIC_AKCIE, dognetCouponToAkcia, type Akcia, type AkciaType } from "@/lib/akcie";
 import { getSalesCoupons } from "@/lib/dognet";
 import { resolveAkciaAffiliateUrls } from "@/lib/shop-affiliate";
@@ -39,11 +41,14 @@ const FILTER_TABS: { key: AkciaType | "all"; label: string }[] = [
 function AkciaCard({ akcia }: { akcia: Akcia }) {
   const cfg = TYPE_CONFIG[akcia.type];
   return (
-    <a
+    <TrackedLink
       href={akcia.affiliateUrl}
       target="_blank"
       rel="nofollow noopener noreferrer"
       className="akcia-card"
+      type="action_outbound"
+      shopSlug={normalizeShopSlug(akcia.shopName || akcia.domain || "")}
+      destinationDomain={akcia.domain || null}
       style={{
         display: "flex", flexDirection: "column",
         background: "#fff", borderRadius: 14, border: "1.5px solid #e8e8e8",
@@ -93,7 +98,7 @@ function AkciaCard({ akcia }: { akcia: Akcia }) {
           Využiť →
         </span>
       </div>
-    </a>
+    </TrackedLink>
   );
 }
 

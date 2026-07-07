@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import { T } from "@/lib/design-tokens";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 type Tab = "kupony" | "akcie";
 
@@ -36,6 +38,13 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
     } else if (link) {
       fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ shop: capitalized, affiliate_link: link }) }).catch(() => {});
     }
+    trackClick({
+      type: code ? "coupon_reveal" : "coupon_outbound",
+      shopSlug: normalizeShopSlug(capitalized),
+      couponId: coupon.id ? String(coupon.id) : null,
+      couponCode: code || null,
+      destination: link || null,
+    });
     setRevealed(true);
   }
 
@@ -154,7 +163,15 @@ function CouponRow({ coupon, capitalized }: { coupon: any; capitalized: string }
         ) : (
           <a
             href={link || "#"} target="_blank" rel="noopener noreferrer nofollow"
-            onClick={() => link && fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: capitalized }) }).catch(() => {})}
+            onClick={() => {
+              if (link) fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code: "", shop: capitalized }) }).catch(() => {});
+              trackClick({
+                type: "action_outbound",
+                shopSlug: normalizeShopSlug(capitalized),
+                couponId: coupon.id ? String(coupon.id) : null,
+                destination: link || null,
+              });
+            }}
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               padding: "13px 24px", borderRadius: T.rMd,
@@ -254,6 +271,11 @@ export default function ShopTabs({ capitalized, codeCoupons, dealCoupons, shopUr
             href={shopUrl}
             target="_blank"
             rel="noopener noreferrer nofollow"
+            onClick={() => trackClick({
+              type: "shop_outbound",
+              shopSlug: normalizeShopSlug(capitalized),
+              destination: shopUrl || null,
+            })}
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
               padding: "14px 28px", borderRadius: T.rMd,

@@ -8,6 +8,7 @@ import ShopFavicon from "@/components/ShopFavicon";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { findShop, getCategoryLabel } from "@/lib/search/queryClassifier";
 import { normalizeShopSlug } from "@/lib/slug";
+import { trackClick } from "@/lib/track-click";
 
 function CopyCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -38,6 +39,7 @@ function RevealCode({ code, link }: { code: string; link?: string }) {
 
   function handleReveal() {
     if (link) window.open(link, "_blank", "noopener,noreferrer");
+    trackClick({ type: "coupon_reveal", couponCode: code || null, destination: link || null });
     setRevealed(true);
     navigator.clipboard.writeText(code).catch(() => {});
   }
@@ -105,6 +107,7 @@ function HeurekaCTA({ q, title, subtitle }: { q: string; title: string; subtitle
         href={heurekaSearchUrl(q)}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={() => trackClick({ type: "heureka_fallback", destination: heurekaSearchUrl(q), destinationDomain: "heureka.sk", query: q || null })}
         style={{
           display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
           padding: "14px 28px", borderRadius: 12,
@@ -258,6 +261,13 @@ function SearchResults() {
                         href={p.deal.link}
                         target="_blank"
                         rel="nofollow noopener noreferrer"
+                        onClick={() => trackClick({
+                          type: "action_outbound",
+                          shopSlug: p.domain ? normalizeShopSlug(p.domain) : null,
+                          destination: p.deal.link || null,
+                          destinationDomain: p.domain || null,
+                          query: q || null,
+                        })}
                         style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, color: "#EA580C", textDecoration: "none", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 6, padding: "4px 8px" }}
                       >
                         🔥 Akcia ↗
@@ -270,6 +280,14 @@ function SearchResults() {
                   href={p.affiliateUrl || p.url}
                   target="_blank"
                   rel="nofollow noopener noreferrer"
+                  onClick={() => trackClick({
+                    type: "product_outbound",
+                    shopSlug: p.domain ? normalizeShopSlug(p.domain) : null,
+                    productSlug: typeof p.url === "string" && p.url.startsWith("/produkt/") ? p.url.slice("/produkt/".length) : null,
+                    destination: p.affiliateUrl || p.url || null,
+                    destinationDomain: p.domain || null,
+                    query: q || null,
+                  })}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     padding: "8px 18px", borderRadius: 8,
@@ -369,7 +387,14 @@ function SearchResults() {
                     </div>
                   </div>
                   <div style={{ fontSize: 11, color: "#aaa" }}>{c.shopName ?? c.campaign_name}</div>
-                  <a href={c.affiliate_link || c.url} target="_blank" rel="nofollow noopener noreferrer" style={{ fontSize: 12, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
+                  <a href={c.affiliate_link || c.url} target="_blank" rel="nofollow noopener noreferrer"
+                    onClick={() => trackClick({
+                      type: "action_outbound",
+                      shopSlug: normalizeShopSlug(c.shopName ?? c.campaign_name ?? ""),
+                      destination: c.affiliate_link || c.url || null,
+                      query: q || null,
+                    })}
+                    style={{ fontSize: 12, color: "#22C55E", textDecoration: "none", fontWeight: 600 }}>
                     Prejsť na ponuku ↗
                   </a>
                 </div>
@@ -412,6 +437,7 @@ function SearchResults() {
               href={`https://www.heureka.sk/?h%5Bfrm%5D%5Bq%5D=${encodeURIComponent(q)}&utm_source=zlavickovo&utm_medium=referral&positionid=71010`}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => trackClick({ type: "heureka_fallback", destinationDomain: "heureka.sk", query: q || null })}
               style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "12px 16px", borderRadius: 10, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 14, textDecoration: "none" }}
             >
               🔍 Porovnať na Heureke ↗

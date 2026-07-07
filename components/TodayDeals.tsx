@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 export interface DealItem {
   kind: "kupon" | "akcia";
@@ -37,6 +39,13 @@ function KuponCard({ deal }: { deal: DealItem }) {
     if (deal.affiliateLink && deal.affiliateLink !== "#") {
       window.open(deal.affiliateLink, "_blank", "noopener,noreferrer");
     }
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: normalizeShopSlug(deal.shopName),
+      couponCode: deal.code || null,
+      destination: deal.affiliateLink || null,
+      destinationDomain: deal.domain || null,
+    });
     if (deal.code) navigator.clipboard.writeText(deal.code).catch(() => {});
     setRevealed(true);
   }
@@ -72,7 +81,14 @@ function KuponCard({ deal }: { deal: DealItem }) {
 /** AKCIA karta — bez kódu; celá karta je trackovaný affiliate odkaz. */
 function AkciaCard({ deal }: { deal: DealItem }) {
   return (
-    <a href={deal.affiliateLink} target="_blank" rel="nofollow noopener noreferrer" className="deal-card" style={{ ...cardStyle, textDecoration: "none", color: "#1d1d1f" }}>
+    <a href={deal.affiliateLink} target="_blank" rel="nofollow noopener noreferrer" className="deal-card"
+      onClick={() => trackClick({
+        type: "action_outbound",
+        shopSlug: normalizeShopSlug(deal.shopName),
+        destination: deal.affiliateLink || null,
+        destinationDomain: deal.domain || null,
+      })}
+      style={{ ...cardStyle, textDecoration: "none", color: "#1d1d1f" }}>
       <CardHead deal={deal} />
       <div style={titleStyle}>{deal.title}</div>
       <div style={{ marginTop: "auto", paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>

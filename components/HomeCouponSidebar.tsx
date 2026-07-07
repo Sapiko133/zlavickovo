@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import ShopFavicon from "@/components/ShopFavicon";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
 import { T } from "@/lib/design-tokens";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 export interface SidebarCoupon {
   shopName: string;
@@ -24,6 +26,13 @@ function CouponRow({ coupon, isLast }: { coupon: SidebarCoupon; isLast: boolean 
     if (coupon.affiliateLink && coupon.affiliateLink !== "#") {
       window.open(coupon.affiliateLink, "_blank", "noopener,noreferrer");
     }
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: normalizeShopSlug(coupon.shopName),
+      couponCode: coupon.code || null,
+      destination: coupon.affiliateLink || null,
+      destinationDomain: coupon.domain || null,
+    });
     navigator.clipboard.writeText(coupon.code).catch(() => {});
     setRevealed(true);
   }

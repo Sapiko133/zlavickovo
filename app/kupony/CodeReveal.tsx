@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { trackClick } from "@/lib/track-click";
+import { normalizeShopSlug } from "@/lib/slug";
 
 function decodeToken(token: string): string {
   try {
@@ -27,6 +29,12 @@ export default function CodeReveal({
 
   function handleReveal() {
     if (link) window.open(link, "_blank", "noopener,noreferrer");
+    trackClick({
+      type: "coupon_reveal",
+      shopSlug: shopName ? normalizeShopSlug(shopName) : null,
+      couponCode: code || null,
+      destination: link || null,
+    });
     setRevealed(true);
     if (code) {
       navigator.clipboard.writeText(code).catch(() => {});
@@ -59,6 +67,11 @@ export default function CodeReveal({
         href={link || "#"}
         target="_blank"
         rel="nofollow noopener noreferrer"
+        onClick={() => trackClick({
+          type: "coupon_outbound",
+          shopSlug: shopName ? normalizeShopSlug(shopName) : null,
+          destination: link || null,
+        })}
         style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "12px 10px", minHeight: 44, borderRadius: 9,
