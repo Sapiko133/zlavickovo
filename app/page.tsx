@@ -11,7 +11,12 @@ import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_SHOPS, buildAffialTrackingUrl } from "@/lib/affial-shops";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { TAXONOMY, type CategoryId } from "@/lib/taxonomy";
-import { getCategoryProductCounts } from "@/lib/heureka/query";
+import { getCategoryProductCounts, getProducts, toProductSlug, formatPrice } from "@/lib/heureka/query";
+import type { HkProduct } from "@/lib/heureka/types";
+import { buildShopOffersIndex, type ShopOffer } from "@/lib/shop-offers";
+import { getSearchStats } from "@/lib/search-log";
+import { getClickStats } from "@/lib/click-log";
+import { getShopDomain } from "@/lib/shop-domains";
 
 export const revalidate = 3600;
 
@@ -35,7 +40,9 @@ const ORANGE = "#F97316";
 const ORANGE_DARK = "#EA580C";
 const DARK = "#0F172A";
 
-// ── Obľúbené obchody (fixný zoznam podľa zadania) ──
+const HEUREKA_HOME = "https://www.heureka.sk/?utm_source=zlavickovo&utm_medium=referral&positionid=71010";
+
+// ── Obľúbené obchody — fallback pre "Top obchody" kým nemáme dosť klik dát ──
 const FAVOURITE_SHOPS: { name: string; slug: string; domain: string }[] = [
   { name: "Alza", slug: "alza", domain: "alza.sk" },
   { name: "Notino", slug: "notino", domain: "notino.sk" },
@@ -47,6 +54,8 @@ const FAVOURITE_SHOPS: { name: string; slug: string; domain: string }[] = [
   { name: "Dr. Max", slug: "dr-max", domain: "drmax.sk" },
   { name: "GymBeam", slug: "gymbeam", domain: "gymbeam.sk" },
   { name: "Decathlon", slug: "decathlon", domain: "decathlon.sk" },
+  { name: "Sportisimo", slug: "sportisimo", domain: "sportisimo.sk" },
+  { name: "Dedoles", slug: "dedoles", domain: "dedoles.sk" },
 ];
 
 // ── Populárne kategórie (fixné poradie podľa zadania) ──
@@ -76,12 +85,17 @@ function parseAffialExpiry(e: string): string | null {
   return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
 }
 
+// ClickRow.key (shopSlug) → zobraziteľný obchod
+function shopFromSlug(slug: string): { slug: string; name: string; domain: string } {
+  const name = slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { slug, name, domain: getShopDomain(name) || `${slug}.sk` };
+}
+
 export default async function Home() {
   const sales = getStaticSales();
   const latestPosts = getLatestPosts(3);
   const categoryCounts = await getCategoryProductCounts().catch(() => ({} as Record<string, number>));
 
-  // ── "Najlepšie zľavy dnes" — mix KUPÓN + AKCIA, len trackované affiliate odkazy, bez expirovaných ──
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const notExpired = (v?: string | null) => {
@@ -90,7 +104,7 @@ export default async function Home() {
     return isNaN(d.getTime()) || d >= today;
   };
 
-  // Kupóny z Dognet (majú kód + trackovaný go.dognet odkaz)
+  // ── 5. NAJNOVŠIE KUPÓNY — Dognet + Affial kupóny s kódom, jeden obchod raz, max 12 ──
   const dognetKupony: DealItem[] = sales
     .filter((c: any) => c.code?.trim() && (c.affiliate_link || c.url) && notExpired(c.valid_to))
     .map((c: any) => ({
@@ -104,7 +118,6 @@ export default async function Home() {
       validTo: c.valid_to,
     }));
 
-  // Kupóny z Affial (account-level tracker → vždy trackované, nikdy direct URL)
   const affialShopMap = new Map(AFFIAL_SHOPS.map((s) => [s.domain, s]));
   const affialKupony: DealItem[] = AFFIAL_COUPONS
     .map((c) => ({ ...c, validTo: parseAffialExpiry(c.expires) }))
@@ -123,48 +136,49 @@ export default async function Home() {
       };
     });
 
-  // Akcie z Dognet (bez kódu, trackovaný go.dognet odkaz)
-  const dognetAkcie: DealItem[] = sales
-    .filter((c: any) => !c.code?.trim() && c.url && notExpired(c.valid_to))
-    .map((c: any) => ({
-      kind: "akcia" as const,
-      shopName: c.campaign?.name || "Obchod",
-      domain: domainOf(c),
-      title: c.title || c.description || `Akcia v ${c.campaign?.name || "obchode"}`,
-      discount: pctOf(c.title || c.description || ""),
-      affiliateLink: c.url,
-      validTo: c.valid_to,
-    }));
-
   const byPrio = (arr: DealItem[]) =>
     [...arr].sort((a, b) =>
       compareShopsByPriority({ name: a.shopName, domain: a.domain }, { name: b.shopName, domain: b.domain })
     );
-  const kupony = byPrio([...dognetKupony, ...affialKupony]);
-  const akcie = byPrio(dognetAkcie);
-
-  // Interleave kupón/akcia, jeden obchod max raz → pestrý mix, cap 12
-  const deals: DealItem[] = [];
-  const seenShop = new Set<string>();
-  const MAX_DEALS = 12;
-  let ki = 0, ai = 0;
-  const pushUnique = (d?: DealItem) => {
-    if (!d) return;
-    const key = d.shopName.toLowerCase().trim();
-    if (seenShop.has(key)) return;
-    seenShop.add(key);
-    deals.push(d);
-  };
-  while (deals.length < MAX_DEALS && (ki < kupony.length || ai < akcie.length)) {
-    const before = deals.length;
-    while (ki < kupony.length && deals.length === before) pushUnique(kupony[ki++]);
-    if (deals.length >= MAX_DEALS) break;
-    const before2 = deals.length;
-    while (ai < akcie.length && deals.length === before2) pushUnique(akcie[ai++]);
-    if (before === deals.length && ki >= kupony.length && ai >= akcie.length) break;
+  const newestCoupons: DealItem[] = [];
+  const seenCouponShop = new Set<string>();
+  for (const c of byPrio([...dognetKupony, ...affialKupony])) {
+    const key = c.shopName.toLowerCase().trim();
+    if (seenCouponShop.has(key)) continue;
+    seenCouponShop.add(key);
+    newestCoupons.push(c);
+    if (newestCoupons.length >= 12) break;
   }
 
-  // Obľúbené kategórie s doplnkovým textom podľa počtu produktov
+  // ── 2. TRENDUJÚCE VYHĽADÁVANIA — search logy, top 10 za 7 dní ──
+  let trending: { query: string; count: number }[] = [];
+  try {
+    const s = await getSearchStats(50);
+    trending = s.windows.last7d.slice(0, 10).map((r) => ({ query: r.query, count: r.count }));
+  } catch {}
+
+  // ── 4. TOP OBCHODY — click tracking, top 12 podľa outbound klikov (fallback: obľúbené) ──
+  let topShops: { slug: string; name: string; domain: string }[] = [];
+  try {
+    const c = await getClickStats();
+    topShops = c.windows.last30d.topShops.slice(0, 12).map((r) => shopFromSlug(r.key));
+  } catch {}
+  if (topShops.length === 0) {
+    topShops = FAVOURITE_SHOPS.map((s) => ({ slug: s.slug, name: s.name, domain: s.domain }));
+  }
+
+  // ── 3. PRODUKTY S KUPÓNOM — feed-search logika: produkt + kupón/akcia obchodu, max 12 ──
+  let productsWithCoupon: { product: HkProduct; offer: ShopOffer }[] = [];
+  try {
+    const { products } = await getProducts(60, 0);
+    const offers = await buildShopOffersIndex(products.map((p) => p.domain));
+    for (const p of products) {
+      const o = offers.get((p.domain || "").toLowerCase());
+      if (o) productsWithCoupon.push({ product: p, offer: o });
+      if (productsWithCoupon.length >= 12) break;
+    }
+  } catch {}
+
   const popularCategories = POPULAR_CATEGORY_IDS.map((id) => TAXONOMY[id]);
 
   return (
@@ -206,6 +220,10 @@ export default async function Home() {
         .how-card { transition: transform .15s ease, box-shadow .15s ease; }
         .blog-card-link { transition: transform .18s ease, box-shadow .18s ease; }
         .blog-card-link:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,0,0,0.08) !important; }
+        .trend-pill { transition: transform .12s ease, box-shadow .12s ease, border-color .12s; }
+        .trend-pill:hover { transform: translateY(-1px); border-color: ${ORANGE} !important; box-shadow: 0 4px 12px rgba(249,115,22,0.14) !important; color: ${ORANGE_DARK} !important; }
+        .prod-coupon-card { transition: transform .15s, box-shadow .15s, border-color .15s; }
+        .prod-coupon-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.09) !important; border-color: #22C55E !important; }
         @media(max-width: 960px) {
           .shops-grid-hp { grid-template-columns: repeat(4, 1fr) !important; }
           .cats-grid { grid-template-columns: repeat(3, 1fr) !important; }
@@ -221,14 +239,14 @@ export default async function Home() {
 
       <Nav />
 
-      {/* ── 1. HERO — vyhľadávanie produktu alebo obchodu ── */}
+      {/* ── 1. HERO — vyhľadávanie úplne hore ── */}
       <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1E293B 60%, #27364a 100%)`, padding: "56px 20px 44px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontSize: "clamp(28px, 5vw, 46px)", fontWeight: 800, color: "#fff", letterSpacing: "-1.2px", lineHeight: 1.14, margin: "0 0 16px" }}>
             Nájdi najvýhodnejší nákup
           </h1>
           <p style={{ fontSize: "clamp(15px, 2vw, 19px)", color: "#cbd5e1", margin: "0 auto 28px", lineHeight: 1.55, maxWidth: 640 }}>
-            Porovnaj ceny v našich feedoch a nájdi dostupné kupóny pred nákupom.
+            Vyhľadaj produkt v našich feedoch a skontroluj dostupné kupóny pred nákupom.
           </p>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
             <HeroSearch
@@ -239,7 +257,7 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* ── 2. Vysvetlenie pod searchom ── */}
+      {/* ── Vysvetlenie pod searchom ── */}
       <section style={{ maxWidth: 1000, margin: "0 auto", padding: "36px 20px 8px" }}>
         <div className="explain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 }}>
           {[
@@ -253,36 +271,66 @@ export default async function Home() {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 14, padding: "12px 16px", borderRadius: 10, background: "#fff7ed", border: `1px solid ${ORANGE}33`, fontSize: 13, color: "#9a3412", textAlign: "center" }}>
-          ℹ️ Ceny sú z posledného importu feedov a môžu sa líšiť. Kupón nemusí platiť na každý produkt.
-        </div>
       </section>
 
-      {/* ── 3. NAJLEPŠIE ZĽAVY DNES ── */}
-      {deals.length > 0 && (
-        <section style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-            <div>
-              <h2 className="sec-title">🔥 Najlepšie zľavy dnes</h2>
-              <p className="sec-sub">Aktuálne kupóny a akcie z obchodov — bez expirovaných ponúk</p>
-            </div>
-            <a href="/kupony" className="see-all">Všetky kupóny →</a>
+      {/* ── 2. TRENDUJÚCE VYHĽADÁVANIA ── */}
+      {trending.length > 0 && (
+        <section style={{ maxWidth: 1200, margin: "0 auto", padding: "36px 20px 0" }}>
+          <div style={{ marginBottom: 16 }}>
+            <h2 className="sec-title">🔥 Trendujúce vyhľadávania</h2>
+            <p className="sec-sub">Najhľadanejšie výrazy za posledných 7 dní — klikni a pozri ponuky</p>
           </div>
-          <TodayDeals deals={deals} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {trending.map((t, i) => (
+              <a
+                key={t.query}
+                href={`/hladat?q=${encodeURIComponent(t.query)}`}
+                className="trend-pill"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 8,
+                  padding: "10px 16px", borderRadius: 100,
+                  background: "#fff", border: "1.5px solid #eceff3",
+                  color: "#1d1d1f", fontSize: 14, fontWeight: 700, textDecoration: "none",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 800, color: i < 3 ? ORANGE_DARK : "#9ca3af" }}>{i + 1}.</span>
+                {t.query}
+              </a>
+            ))}
+          </div>
         </section>
       )}
 
-      {/* ── 4. OBĽÚBENÉ OBCHODY ── */}
+      {/* ── 3. PRODUKTY S KUPÓNOM ── */}
+      {productsWithCoupon.length > 0 && (
+        <section style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            <div>
+              <h2 className="sec-title">🛒 Produkty s kupónom</h2>
+              <p className="sec-sub">Produkty, kde má obchod dostupný kupón alebo akciu</p>
+            </div>
+            <a href="/produkty" className="see-all">Všetky produkty →</a>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16 }}>
+            {productsWithCoupon.map(({ product, offer }) => (
+              <ProductCouponCard key={product.id} product={product} offer={offer} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── 4. TOP OBCHODY ── */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 20px 0" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <div>
-            <h2 className="sec-title">🏪 Obľúbené obchody</h2>
-            <p className="sec-sub">Známe slovenské a české e-shopy — pozri dostupné ponuky</p>
+            <h2 className="sec-title">🏪 Top obchody</h2>
+            <p className="sec-sub">Najklikanejšie obchody — pozri dostupné ponuky</p>
           </div>
           <a href="/obchody" className="see-all">Všetky obchody →</a>
         </div>
-        <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-          {FAVOURITE_SHOPS.map((shop) => (
+        <div className="shops-grid-hp" style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12 }}>
+          {topShops.map((shop) => (
             <TrackedLink key={shop.slug} href={`/kupony/${shop.slug}`} className="shop-card-hp"
               type="shop_outbound" shopSlug={shop.slug} destinationDomain={shop.domain}
               style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px 10px 16px", borderRadius: 16, background: "#fff", border: "1.5px solid #eceff3", textDecoration: "none", boxShadow: "0 2px 6px rgba(0,0,0,0.04)" }}>
@@ -296,12 +344,26 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* ── 5. NAJNOVŠIE KUPÓNY ── */}
+      {newestCoupons.length > 0 && (
+        <section style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 20px 0" }}>
+          <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            <div>
+              <h2 className="sec-title">🏷️ Najnovšie kupóny</h2>
+              <p className="sec-sub">Aktuálne zľavové kódy z obchodov — bez expirovaných ponúk</p>
+            </div>
+            <a href="/kupony" className="see-all">Všetky kupóny →</a>
+          </div>
+          <TodayDeals deals={newestCoupons} />
+        </section>
+      )}
+
       {/* ── AD BANNER ── */}
       <div style={{ padding: "40px 20px 0", maxWidth: 1200, margin: "0 auto" }}>
         <AdBanner slot="between-coupons" />
       </div>
 
-      {/* ── 5. AKO TO FUNGUJE ── */}
+      {/* ── AKO TO FUNGUJE ── */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 20px 0" }}>
         <div style={{ marginBottom: 20 }}>
           <h2 className="sec-title">💡 Ako to funguje</h2>
@@ -320,7 +382,7 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── 6. POPULÁRNE KATEGÓRIE ── */}
+      {/* ── POPULÁRNE KATEGÓRIE ── */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "48px 20px 0" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
           <div>
@@ -381,8 +443,105 @@ export default async function Home() {
         )}
       </section>
 
+      {/* ── 6. HEUREKA FALLBACK BOX — na konci homepage ── */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "56px 20px 0" }}>
+        <div style={{
+          background: "linear-gradient(135deg, #F0FDF4 0%, #ecfdf5 100%)",
+          border: "1.5px solid #bbf7d0", borderRadius: 20,
+          padding: "40px 28px", textAlign: "center",
+        }}>
+          <div style={{ fontSize: 44, marginBottom: 12 }}>🔍</div>
+          <h2 style={{ fontSize: "clamp(20px, 3vw, 26px)", fontWeight: 800, color: "#1d1d1f", margin: "0 0 8px", letterSpacing: "-0.4px" }}>
+            Nenašli ste produkt?
+          </h2>
+          <p style={{ fontSize: 15, color: "#4b5563", lineHeight: 1.6, margin: "0 auto 22px", maxWidth: 480 }}>
+            Na Heureke nájdete ponuky od stoviek overených predajcov a porovnáte ceny.
+          </p>
+          <TrackedLink
+            href={HEUREKA_HOME}
+            target="_blank"
+            rel="noopener noreferrer"
+            type="heureka_fallback"
+            destinationDomain="heureka.sk"
+            style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "15px 32px", borderRadius: 14,
+              background: "#22C55E", color: "#fff", fontWeight: 800, fontSize: 16, textDecoration: "none",
+              boxShadow: "0 4px 18px rgba(34,197,94,0.30)",
+            }}
+          >
+            Hľadať na Heureke ↗
+          </TrackedLink>
+        </div>
+      </section>
+
       <div style={{ height: 80 }} />
       <Footer />
     </div>
+  );
+}
+
+// Produkt s indikáciou dostupného kupónu/akcie obchodu — vedie na detail produktu
+function ProductCouponCard({ product, offer }: { product: HkProduct; offer: ShopOffer }) {
+  const slug = toProductSlug(product.name, product.id);
+  const price = formatPrice(product.price, product.domain);
+  const badge = offer.coupon
+    ? { label: "🏷️ Kupón", color: "#16A34A", bg: "#F0FDF4", border: "#bbf7d0" }
+    : { label: "🔥 Akcia", color: "#EA580C", bg: "#fff7ed", border: "#fed7aa" };
+
+  return (
+    <a
+      href={`/produkt/${slug}`}
+      className="prod-coupon-card"
+      style={{
+        display: "flex", flexDirection: "column",
+        background: "#fff", borderRadius: 14, border: "1.5px solid #e8e8e8",
+        textDecoration: "none", color: "#1d1d1f", overflow: "hidden",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)", position: "relative",
+      }}
+    >
+      {/* Badge kupón/akcia */}
+      <span style={{
+        position: "absolute", top: 10, left: 10, zIndex: 1,
+        fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 100,
+        color: badge.color, background: badge.bg, border: `1px solid ${badge.border}`,
+      }}>
+        {badge.label}
+      </span>
+
+      {/* Obrázok */}
+      <div style={{ aspectRatio: "1", background: "#f8f9fa", overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {product.img_url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={product.img_url}
+            alt={product.name}
+            loading="lazy"
+            style={{ width: "100%", height: "100%", objectFit: "contain", padding: 10 }}
+          />
+        ) : (
+          <ShopFavicon domain={product.domain} name={product.domain} size={48} />
+        )}
+      </div>
+
+      {/* Info */}
+      <div style={{ padding: "12px 14px 14px", flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{
+          fontSize: 13, fontWeight: 600, lineHeight: 1.4, color: "#1d1d1f",
+          display: "-webkit-box", WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+        }}>
+          {product.name}
+        </div>
+        <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          {price ? (
+            <span style={{ fontSize: 15, fontWeight: 800, color: "#22C55E" }}>{price}</span>
+          ) : (
+            <span style={{ fontSize: 12, color: "#aaa" }}>Cena na webe</span>
+          )}
+          <span style={{ fontSize: 10, color: "#bbb" }}>{product.domain}</span>
+        </div>
+      </div>
+    </a>
   );
 }
