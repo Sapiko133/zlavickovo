@@ -243,14 +243,14 @@ export default async function Home() {
       <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1E293B 60%, #27364a 100%)`, padding: "56px 20px 44px" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
           <h1 style={{ fontSize: "clamp(28px, 5vw, 46px)", fontWeight: 800, color: "#fff", letterSpacing: "-1.2px", lineHeight: 1.14, margin: "0 0 16px" }}>
-            Nájdi najvýhodnejší nákup
+            Nájdite produkt alebo obchod
           </h1>
           <p style={{ fontSize: "clamp(15px, 2vw, 19px)", color: "#cbd5e1", margin: "0 auto 28px", lineHeight: 1.55, maxWidth: 640 }}>
             Vyhľadaj produkt v našich feedoch a skontroluj dostupné kupóny pred nákupom.
           </p>
           <div style={{ maxWidth: 640, margin: "0 auto" }}>
             <HeroSearch
-              placeholder="Zadaj produkt, napr. iPhone, matrac, proteín, tenisky…"
+              placeholder="iPhone 16, Dyson, Alza, GymBeam..."
               ctaLabel="Hľadať"
             />
           </div>
