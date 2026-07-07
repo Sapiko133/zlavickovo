@@ -127,14 +127,18 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
       await Promise.all(
         chunk.map((p) =>
           sql`
-            INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url)
-            VALUES (${feed.id}, ${p.name}, ${p.description}, ${p.price}, ${p.url}, ${p.imgUrl}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl})
+            INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
+            VALUES (${feed.id}, ${p.name}, ${p.description}, ${p.price}, ${p.url}, ${p.imgUrl}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl}, ${p.ean}, ${p.itemId}, ${p.manufacturer}, ${p.productno})
             ON CONFLICT (url) DO UPDATE SET
               name          = EXCLUDED.name,
               description   = EXCLUDED.description,
               price         = EXCLUDED.price,
               img_url       = EXCLUDED.img_url,
               affiliate_url = EXCLUDED.affiliate_url,
+              ean           = EXCLUDED.ean,
+              item_id       = EXCLUDED.item_id,
+              manufacturer  = EXCLUDED.manufacturer,
+              productno     = EXCLUDED.productno,
               updated_at    = now()
           `
         )

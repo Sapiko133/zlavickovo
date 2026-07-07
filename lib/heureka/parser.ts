@@ -11,6 +11,18 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]+>/g, "").trim();
 }
 
+// Bezpečné čítanie skalárneho poľa — vráti "" ak je hodnota objekt (napr. nested XML)
+function pickStr(item: any, ...keys: string[]): string {
+  for (const k of keys) {
+    const v = item[k];
+    if (v == null) continue;
+    if (typeof v === "object") return "";
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return "";
+}
+
 export interface ParsedProduct {
   name: string;
   description: string;
@@ -18,6 +30,10 @@ export interface ParsedProduct {
   url: string;
   imgUrl: string;
   category: string;
+  ean: string;
+  itemId: string;
+  manufacturer: string;
+  productno: string;
 }
 
 export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduct[] {
@@ -62,6 +78,11 @@ export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduc
         ).trim(),
         // Preferuj kategóriu z feeda, fallback na feedCategory
         category: rawCategory || feedCategory,
+        ean: pickStr(item, "EAN", "ean"),
+        itemId: pickStr(item, "ITEM_ID", "item_id"),
+        manufacturer: pickStr(item, "MANUFACTURER", "manufacturer"),
+        // PRODUCTNO s fallbackom na ISBN (knižné feedy)
+        productno: pickStr(item, "PRODUCTNO", "productno", "ISBN", "isbn"),
       };
     })
     .filter((p) => p.name && p.url);

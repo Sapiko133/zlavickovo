@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
         domain       TEXT DEFAULT '',
         category     TEXT DEFAULT '',
         affiliate_url TEXT DEFAULT '',
+        ean          TEXT DEFAULT '',
+        item_id      TEXT DEFAULT '',
+        manufacturer TEXT DEFAULT '',
+        productno    TEXT DEFAULT '',
         search_vec   TSVECTOR GENERATED ALWAYS AS (
           to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(description, ''))
         ) STORED,
@@ -49,7 +53,15 @@ export async function POST(req: NextRequest) {
       )
     `;
 
+    // Identifikátory produktov — pridaj do existujúcich tabuliek (fresh install ich má už z CREATE TABLE)
+    await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS ean          TEXT DEFAULT ''`;
+    await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS item_id      TEXT DEFAULT ''`;
+    await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS manufacturer TEXT DEFAULT ''`;
+    await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS productno    TEXT DEFAULT ''`;
+
     await sql`CREATE INDEX IF NOT EXISTS hk_products_search_idx  ON hk_products USING GIN(search_vec)`;
+    await sql`CREATE INDEX IF NOT EXISTS hk_products_ean_idx     ON hk_products(ean)`;
+    await sql`CREATE INDEX IF NOT EXISTS hk_products_manuf_idx   ON hk_products(manufacturer)`;
     await sql`CREATE INDEX IF NOT EXISTS hk_products_domain_idx  ON hk_products(domain)`;
     await sql`CREATE INDEX IF NOT EXISTS hk_products_cat_idx     ON hk_products(category)`;
     await sql`CREATE INDEX IF NOT EXISTS hk_products_updated_idx ON hk_products(updated_at DESC)`;

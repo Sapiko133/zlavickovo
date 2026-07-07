@@ -20,6 +20,10 @@ export interface HkProduct {
   domain: string;
   category: string;
   affiliate_url: string | null;
+  ean: string;
+  item_id: string;
+  manufacturer: string;
+  productno: string;
   updated_at: string;
 }
 
