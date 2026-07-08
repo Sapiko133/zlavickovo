@@ -152,15 +152,24 @@ export default function Nav() {
         .nav-drop-item:hover { background:#F0FDF4 !important; }
         @media(max-width:900px){.nav-row2{display:none!important}.nav-hamburger{display:flex!important}.nav-lang-d{display:none!important}}
         @media(min-width:901px){.nav-hamburger{display:none!important}}
+        /* Mobil (<768px): Riadok 1 = [Logo] [☰ Menu], Riadok 2 = [Vyhľadávanie] */
+        .nav-menu-btn{display:none}
+        @media(max-width:768px){
+          .nav-row1{flex-wrap:wrap!important;height:auto!important;padding-top:10px!important;padding-bottom:10px!important;row-gap:10px!important}
+          .nav-logo{order:1;flex:1 1 auto!important;min-width:0!important}
+          .nav-menu-btn{order:2;display:inline-flex!important}
+          .nav-right{display:none!important}
+          .nav-search{order:3;flex:1 1 100%!important;max-width:100%!important}
+        }
       `}</style>
 
       <nav style={{ position: "sticky", top: 0, zIndex: 300, background: "#fff", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", fontFamily: "system-ui,-apple-system,sans-serif" }}>
 
-        {/* ── ROW 1: Logo 20% | Search 60% | Lang 20% ── */}
-        <div style={{ display: "flex", alignItems: "center", height: 60, padding: "0 20px", gap: 12, borderBottom: "1px solid #f0f0f0" }}>
+        {/* ── ROW 1: Logo 20% | Search 60% | Lang 20% (desktop) — na mobile: Logo + ☰ Menu, search do 2. riadku ── */}
+        <div className="nav-row1" style={{ display: "flex", alignItems: "center", height: 60, padding: "0 20px", gap: 12, borderBottom: "1px solid #f0f0f0" }}>
 
           {/* Logo */}
-          <div style={{ flex: "0 0 20%", minWidth: 140 }}>
+          <div className="nav-logo" style={{ flex: "0 0 20%", minWidth: 140 }}>
             <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900, flexShrink: 0 }}>Z</div>
               <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
@@ -169,8 +178,8 @@ export default function Nav() {
             </a>
           </div>
 
-          {/* Search — center 60% */}
-          <div ref={searchRef} style={{ flex: "1 1 60%", maxWidth: 560, position: "relative" }}>
+          {/* Search — center 60% (na mobile plný 2. riadok) */}
+          <div ref={searchRef} className="nav-search" style={{ flex: "1 1 60%", maxWidth: 560, position: "relative" }}>
             <div style={{
               display: "flex", border: `1.5px solid ${focused ? "#22C55E" : "#e0e0e0"}`,
               borderRadius: 10, background: "#f9fafb",
@@ -255,8 +264,8 @@ export default function Nav() {
             )}
           </div>
 
-          {/* Right — 20% */}
-          <div style={{ flex: "0 0 20%", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
+          {/* Right — 20% (desktop: lang; 768–900px: malý hamburger) */}
+          <div className="nav-right" style={{ flex: "0 0 20%", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 10 }}>
             <span className="nav-lang-d"><LanguageSwitcher /></span>
             <button className="nav-hamburger"
               onClick={() => setMenuOpen(o => !o)}
@@ -265,6 +274,20 @@ export default function Nav() {
               {menuOpen ? "✕" : "☰"}
             </button>
           </div>
+
+          {/* Veľké MENU tlačidlo — len na mobile (<768px), otvára existujúce mobilné menu */}
+          <button className="nav-menu-btn"
+            onClick={() => setMenuOpen(o => !o)}
+            aria-label="Menu" aria-expanded={menuOpen}
+            style={{
+              alignItems: "center", justifyContent: "center", gap: 8,
+              minWidth: 44, minHeight: 44, padding: "10px 18px",
+              borderRadius: 10, border: "none", background: "#22C55E", color: "#fff",
+              fontSize: 16, fontWeight: 800, cursor: "pointer", fontFamily: "inherit",
+              flexShrink: 0, boxShadow: "0 2px 8px rgba(34,197,94,0.25)",
+            }}>
+            <span style={{ fontSize: 20, lineHeight: 1 }}>☰</span> Menu
+          </button>
         </div>
 
         {/* ── ROW 2: Nav links (desktop only) ── */}
