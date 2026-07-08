@@ -14,7 +14,7 @@ import ShopProducts from "@/components/ShopProducts";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
-import { getShopProducts } from "@/lib/heureka/query";
+import { getShopProducts, getProductsByCategory } from "@/lib/heureka/query";
 import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
@@ -223,14 +223,20 @@ export default async function ShopPage({ params }: Props) {
   let priceDrops: Awaited<ReturnType<typeof getBiggestPriceDropsByDomain>> = [];
   try { priceDrops = await getBiggestPriceDropsByDomain(shopDomain, 6); } catch {}
 
-  // Produkty obchodu (hk_products) — len feed obchody; inak sa sekcia nezobrazí.
-  let shopProducts: Awaited<ReturnType<typeof getShopProducts>> = [];
-  try { shopProducts = await getShopProducts(shopDomain, 12); } catch {}
   const hasCodeCoupon = codeCoupons.length > 0;
 
-  // Kategória obchodu (existujúce dáta, bez siete) — pre SEO blok, related shops a podobné kategórie
+  // Kategória obchodu (existujúce dáta, bez siete) — pre SEO blok, produkty, related shops a podobné kategórie
   const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
   const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
+
+  // Produkty: 1. vlastné (podľa domény). 2. fallback podľa kategórie (odporúčané z podobných obchodov).
+  // "ine"/null kategória → žiadny fallback (grab-bag). Prázdne → sekcia sa nezobrazí.
+  let shopProducts: Awaited<ReturnType<typeof getShopProducts>> = [];
+  try { shopProducts = await getShopProducts(shopDomain, 12); } catch {}
+  let fallbackProducts: Awaited<ReturnType<typeof getProductsByCategory>> = [];
+  if (shopProducts.length === 0 && categoryId && categoryId !== "ine") {
+    try { fallbackProducts = await getProductsByCategory(categoryId, 12); } catch {}
+  }
   const productTypes = [...new Set(shopProducts.map(p => p.category).filter(Boolean))].slice(0, 4);
   const relatedShops = await getRelatedShops(baseSlug, categoryId, 4);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
@@ -397,8 +403,12 @@ export default async function ShopPage({ params }: Props) {
             {/* Sekcia 4 — Najväčší pokles ceny (zobrazí sa len ak existuje história) */}
             <ShopPriceDrops drops={priceDrops} capitalized={capitalized} shopSlug={baseSlug} />
 
-            {/* Nakupované produkty z obchodu (zobrazí sa len ak existujú produkty) */}
-            <ShopProducts products={shopProducts} capitalized={capitalized} shopSlug={baseSlug} hasCoupon={hasCodeCoupon} />
+            {/* Produkty z obchodu (vlastné) alebo fallback odporúčaných z podobných obchodov */}
+            {shopProducts.length > 0 ? (
+              <ShopProducts products={shopProducts} capitalized={capitalized} shopSlug={baseSlug} variant="own" hasCoupon={hasCodeCoupon} />
+            ) : (
+              <ShopProducts products={fallbackProducts} capitalized={capitalized} shopSlug={baseSlug} variant="fallback" />
+            )}
 
             {/* AI Coupons */}
             <div className="card-section">

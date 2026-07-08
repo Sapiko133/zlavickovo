@@ -10,26 +10,36 @@ interface ShopProductsProps {
   products: HkProduct[];
   capitalized: string;
   shopSlug: string;
-  /** Obchod má aktuálne kupón s kódom — len shop-level badge, NIE tvrdenie o produkte. */
-  hasCoupon: boolean;
+  /**
+   * "own" = produkty daného obchodu (podľa domény).
+   * "fallback" = odporúčané produkty z podobných obchodov (podľa kategórie) —
+   * NIKDY netvrdíme, že sú z daného obchodu.
+   */
+  variant?: "own" | "fallback";
+  /** Obchod má aktuálne kupón s kódom — len shop-level badge, NIE tvrdenie o produkte. Len pri "own". */
+  hasCoupon?: boolean;
 }
 
 /**
- * Sekcia „Nakupované produkty z obchodu".
- * Zobrazí sa LEN ak existujú produkty (products.length > 0).
- * Názov + obrázok → interne /produkt/[slug] (SEO), tlačidlo → outbound do obchodu.
- * Coupon badge je shop-level informácia, nepredstiera platnosť na konkrétny produkt.
+ * Produktová sekcia stránky obchodu.
+ * "own" → „Produkty z obchodu {shop}"; "fallback" → „Odporúčané produkty z podobných obchodov".
+ * Zobrazí sa LEN ak existujú produkty. Karta: obrázok, názov (→ /produkt/[slug]),
+ * cena, obchod/doména, tlačidlo do obchodu (outbound). Fallback nemá coupon badge.
  */
-export default function ShopProducts({ products, capitalized, shopSlug, hasCoupon }: ShopProductsProps) {
+export default function ShopProducts({ products, capitalized, shopSlug, variant = "own", hasCoupon = false }: ShopProductsProps) {
   if (!products.length) return null;
+  const isFallback = variant === "fallback";
+  const title = isFallback
+    ? "🛍️ Odporúčané produkty z podobných obchodov"
+    : `🛍️ Produkty z obchodu ${capitalized}`;
 
   return (
     <div className="card-section">
       <div className="section-title" style={{ justifyContent: "space-between" }}>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          🛍️ Nakupované produkty z obchodu {capitalized}
+          {title}
         </span>
-        {hasCoupon && (
+        {!isFallback && hasCoupon && (
           <span style={{
             fontSize: 11, fontWeight: 700, color: T.greenDeep,
             background: T.greenMid, padding: "4px 10px", borderRadius: T.rFull,
@@ -75,6 +85,12 @@ export default function ShopProducts({ products, capitalized, shopSlug, hasCoupo
               {priceStr && (
                 <div style={{ fontSize: 16, fontWeight: 800, color: T.greenDark }}>
                   {priceStr}
+                </div>
+              )}
+              {p.domain && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: T.textMuted }}>
+                  <ShopFavicon domain={p.domain} name={p.domain} size={14} />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.domain}</span>
                 </div>
               )}
               <TrackedLink

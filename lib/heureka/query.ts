@@ -84,6 +84,31 @@ export async function getShopProducts(domain: string, limit = 12): Promise<HkPro
   }
 }
 
+/**
+ * Fallback produkty podľa kategórie obchodu — pre obchody bez vlastných produktov.
+ * Radenie: najnižšia cena → najnovšie (rovnaký bezpečný price parse ako getShopProducts).
+ * Kategórie bez feedu (elektronika, cestovanie) vrátia [] → sekcia sa nezobrazí.
+ */
+export async function getProductsByCategory(category: string, limit = 12): Promise<HkProduct[]> {
+  if (!category) return [];
+  try {
+    const sql = getDb();
+    const rows = await sql`
+      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      FROM hk_products
+      WHERE category = ${category}
+      ORDER BY
+        NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric ASC NULLS LAST,
+        updated_at DESC
+      LIMIT ${limit}
+    `;
+    return rows as HkProduct[];
+  } catch (err) {
+    console.error("[heureka:db] getProductsByCategory:", err);
+    return [];
+  }
+}
+
 export async function getProductsByDomain(domain: string, limit = 12): Promise<HkProduct[]> {
   try {
     const sql = getDb();
