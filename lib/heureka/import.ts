@@ -2,7 +2,7 @@ import { getDb } from "@/lib/db";
 import { parseHeurekaXml } from "./parser";
 import { HEUREKA_FEEDS } from "./feeds";
 import { HEUREKA_MAX_ITEMS, HEUREKA_MAX_BYTES } from "./config";
-import type { HkFeedDef, ImportFeedResult, PruneResult } from "./types";
+import type { HkFeedDef, HkFeedErrorType, ImportFeedResult, PruneResult } from "./types";
 
 const MAX_ITEMS = HEUREKA_MAX_ITEMS;   // zdieľaný limit (rovnaký ako v parseri)
 const MAX_BYTES = HEUREKA_MAX_BYTES;   // núdzová brzda pre feedy s obrími položkami
@@ -104,6 +104,14 @@ export async function pruneRemovedProducts(): Promise<PruneResult> {
   };
 }
 
+// Klasifikácia chyby feedu pre observabilitu importu.
+export function classifyFeedError(msg: string): HkFeedErrorType {
+  if (/timeout|aborted|The operation was aborted/i.test(msg)) return "timeout";
+  if (/^HTTP\s+\d/i.test(msg) || /HTTP\s+\d{3}/i.test(msg)) return "http_error";
+  if (/parse|xml|unexpected|malformed|invalid/i.test(msg)) return "parse_error";
+  return "unknown_error";
+}
+
 async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
   const sql = getDb();
   const start = Date.now();
@@ -113,12 +121,13 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
     const products = parseHeurekaXml(xml, feed.category).filter((p) => !isExcluded(p.name, feed.exclude));
 
     if (products.length === 0) {
+      const durationMs = Date.now() - start;
       await sql`
         UPDATE hk_feeds
-        SET last_fetched_at = now(), last_error = 'Žiadne produkty v XML', error_count = error_count + 1
+        SET last_fetched_at = now(), last_error = 'Žiadne produkty v XML', error_count = error_count + 1, last_duration_ms = ${durationMs}
         WHERE id = ${feed.id}
       `;
-      return { feedId: feed.id, domain: feed.domain, count: 0, error: "Žiadne produkty", durationMs: Date.now() - start };
+      return { feedId: feed.id, domain: feed.domain, count: 0, error: "Žiadne produkty", empty: true, durationMs };
     }
 
     // Deduplikácia podľa URL (kľúč ON CONFLICT) — jeden multi-row INSERT nesmie
@@ -165,23 +174,26 @@ async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
       `;
     }
 
+    const durationMs = Date.now() - start;
     await sql`
       UPDATE hk_feeds
-      SET last_fetched_at = now(), last_error = null, error_count = 0, product_count = ${unique.length}
+      SET last_fetched_at = now(), last_error = null, error_count = 0, product_count = ${unique.length}, last_duration_ms = ${durationMs}
       WHERE id = ${feed.id}
     `;
 
-    return { feedId: feed.id, domain: feed.domain, count: unique.length, durationMs: Date.now() - start };
+    return { feedId: feed.id, domain: feed.domain, count: unique.length, durationMs };
   } catch (err: any) {
+    const durationMs = Date.now() - start;
     const msg = String(err?.message ?? err).slice(0, 500);
+    const errorType = classifyFeedError(msg);
     try {
       await sql`
         UPDATE hk_feeds
-        SET last_fetched_at = now(), last_error = ${msg}, error_count = error_count + 1
+        SET last_fetched_at = now(), last_error = ${msg}, error_count = error_count + 1, last_duration_ms = ${durationMs}
         WHERE id = ${feed.id}
       `;
     } catch {}
-    return { feedId: feed.id, domain: feed.domain, count: 0, error: msg, durationMs: Date.now() - start };
+    return { feedId: feed.id, domain: feed.domain, count: 0, error: msg, errorType, durationMs };
   }
 }
 
@@ -204,6 +216,7 @@ export async function importAllHeurekaFeeds(): Promise<{ results: ImportFeedResu
               domain: batch[j].domain,
               count: 0,
               error: String((r as PromiseRejectedResult).reason),
+              errorType: classifyFeedError(String((r as PromiseRejectedResult).reason)),
               durationMs: 0,
             }
       )

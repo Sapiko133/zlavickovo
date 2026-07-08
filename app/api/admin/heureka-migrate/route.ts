@@ -25,9 +25,13 @@ export async function POST(req: NextRequest) {
         last_fetched_at TIMESTAMPTZ,
         last_error    TEXT,
         error_count   INT DEFAULT 0,
-        product_count INT DEFAULT 0
+        product_count INT DEFAULT 0,
+        last_duration_ms INT DEFAULT 0
       )
     `;
+
+    // Observabilita importu — trvanie posledného fetchu+upsertu daného feedu (idempotentne)
+    await sql`ALTER TABLE hk_feeds ADD COLUMN IF NOT EXISTS last_duration_ms INT DEFAULT 0`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS hk_products (

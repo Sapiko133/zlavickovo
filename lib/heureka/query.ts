@@ -195,7 +195,7 @@ export async function getFeedStats(): Promise<HkFeedRow[]> {
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, domain, category, product_count, last_fetched_at, last_error, error_count
+      SELECT id, domain, category, product_count, last_fetched_at, last_error, error_count, last_duration_ms
       FROM hk_feeds ORDER BY domain
     `;
     return rows as HkFeedRow[];

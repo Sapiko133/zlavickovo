@@ -38,13 +38,18 @@ export interface HkFeedRow {
   last_error: string | null;
   error_count: number;
   product_count: number;
+  last_duration_ms: number;
 }
+
+export type HkFeedErrorType = "timeout" | "http_error" | "parse_error" | "unknown_error";
 
 export interface ImportFeedResult {
   feedId: string;
   domain: string;
   count: number;
   error?: string;
+  errorType?: HkFeedErrorType; // klasifikácia chyby (len ak feed zlyhal)
+  empty?: boolean;             // feed prešiel, ale XML neobsahovalo produkty
   durationMs: number;
 }
 

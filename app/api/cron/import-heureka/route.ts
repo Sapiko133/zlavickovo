@@ -1,6 +1,7 @@
 import { importAllHeurekaFeeds } from "@/lib/heureka/import";
 import { HEUREKA_MAX_ITEMS } from "@/lib/heureka/config";
 import { getDb } from "@/lib/db";
+import { redis } from "@/lib/redis";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -17,17 +18,37 @@ export async function GET(req: NextRequest) {
   try {
     const startedAt = Date.now();
     const { results, prune } = await importAllHeurekaFeeds();
-    const durationMs = Date.now() - startedAt;
+    const totalDurationMs = Date.now() - startedAt;
 
-    const total = results.reduce((s, r) => s + r.count, 0);
-    const errors = results.filter((r) => r.error);
+    const importedProducts = results.reduce((s, r) => s + r.count, 0);
 
-    // Top pomalé feedy (ak už existujú dáta o trvaní)
-    const topSlow = [...results]
-      .filter((r) => r.durationMs > 0)
+    // Kategorizácia feedov (vzájomne výlučné): success | empty | timeout | failed
+    const successful = results.filter((r) => r.count > 0);
+    const empty = results.filter((r) => r.empty);
+    const timeout = results.filter((r) => r.errorType === "timeout");
+    const failed = results.filter((r) => r.errorType && r.errorType !== "timeout");
+
+    // Per-feed trvanie (zoradené od najpomalších)
+    const perFeedDurationMs = [...results]
       .sort((a, b) => b.durationMs - a.durationMs)
-      .slice(0, 5)
-      .map((r) => ({ feedId: r.feedId, domain: r.domain, count: r.count, durationMs: r.durationMs }));
+      .map((r) => ({
+        feedId: r.feedId,
+        domain: r.domain,
+        count: r.count,
+        durationMs: r.durationMs,
+        errorType: r.errorType,
+        empty: r.empty,
+      }));
+
+    const topSlow = perFeedDurationMs.filter((r) => r.durationMs > 0).slice(0, 10);
+
+    const slim = (r: (typeof results)[number]) => ({
+      feedId: r.feedId,
+      domain: r.domain,
+      durationMs: r.durationMs,
+      error: r.error,
+      errorType: r.errorType,
+    });
 
     let dbTotal: number | null = null;
     try {
@@ -35,19 +56,35 @@ export async function GET(req: NextRequest) {
       dbTotal = (rows[0] as { total: number }).total;
     } catch {}
 
-    return Response.json({
+    // ── Perzistentný report do Redis: heureka:import:full:{YYYY-MM-DD} ──
+    const dateKey = new Date().toISOString().slice(0, 10);
+    const report = {
       ok: true,
-      // ── bezpečný report ──
-      usedLimit: HEUREKA_MAX_ITEMS, // aktuálny limit produktov/feed (env HEUREKA_MAX_ITEMS)
-      feeds: results.length,        // počet feedov
-      total,                        // importovaných produktov (súčet cez feedy)
-      dbTotal,                      // celkový počet v DB
-      errors: errors.length,        // počet chýb
-      durationMs,                   // trvanie importu (ms)
-      topSlow,                      // najpomalšie feedy
+      startedAt: new Date(startedAt).toISOString(),
+      usedLimit: HEUREKA_MAX_ITEMS,
+      feeds: results.length,
+      totalDurationMs,
+      importedProducts,
+      dbTotal,
+      counts: {
+        successful: successful.length,
+        empty: empty.length,
+        timeout: timeout.length,
+        failed: failed.length,
+      },
+      successfulFeeds: successful.map((r) => r.feedId),
+      emptyFeeds: empty.map(slim),
+      timeoutFeeds: timeout.map(slim),
+      failedFeeds: failed.map(slim),
+      perFeedDurationMs,
+      topSlow,
       prune,
-      results,
-    });
+    };
+    try {
+      await redis.set(`heureka:import:full:${dateKey}`, report, { ex: 60 * 60 * 24 * 30 });
+    } catch {}
+
+    return Response.json({ ...report, results });
   } catch (err: any) {
     return Response.json({ ok: false, error: err?.message ?? "Unknown" }, { status: 500 });
   }
