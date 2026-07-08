@@ -58,6 +58,32 @@ export async function getProducts(
   }
 }
 
+/**
+ * Produkty obchodu pre sekciu „Nakupované produkty z obchodu".
+ * Radenie: najnižšia cena → najnovšie. Cena je TEXT (PRICE_VAT), preto ju
+ * bezpečne parsujeme cez regex (prvé číslo, čiarka→bodka); nečíselné/prázdne
+ * ceny idú NULLS LAST (na koniec), nikdy nezhodia dopyt.
+ */
+export async function getShopProducts(domain: string, limit = 12): Promise<HkProduct[]> {
+  if (!domain) return [];
+  try {
+    const sql = getDb();
+    const rows = await sql`
+      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      FROM hk_products
+      WHERE domain = ${domain}
+      ORDER BY
+        NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric ASC NULLS LAST,
+        updated_at DESC
+      LIMIT ${limit}
+    `;
+    return rows as HkProduct[];
+  } catch (err) {
+    console.error("[heureka:db] getShopProducts:", err);
+    return [];
+  }
+}
+
 export async function getProductsByDomain(domain: string, limit = 12): Promise<HkProduct[]> {
   try {
     const sql = getDb();

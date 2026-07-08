@@ -88,6 +88,23 @@ export async function POST(req: NextRequest) {
     await sql`CREATE INDEX IF NOT EXISTS product_price_history_product_url_recorded_at_idx ON product_price_history(product_url, recorded_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS product_price_history_recorded_at_idx ON product_price_history(recorded_at)`;
 
+    // ── Popisy obchodov (AI generované offline, čítané na /kupony/[slug]) ──
+    await sql`
+      CREATE TABLE IF NOT EXISTS shop_descriptions (
+        slug              TEXT PRIMARY KEY,
+        shop_name         TEXT NOT NULL,
+        short_description TEXT NOT NULL DEFAULT '',
+        long_description  TEXT NOT NULL DEFAULT '',
+        category          TEXT DEFAULT '',
+        source            TEXT NOT NULL DEFAULT 'ai',
+        ai_generated      BOOLEAN NOT NULL DEFAULT true,
+        model             TEXT DEFAULT '',
+        generated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS shop_descriptions_updated_idx ON shop_descriptions(updated_at DESC)`;
+
     // Seed feedov
     for (const f of HEUREKA_FEEDS) {
       await sql`
@@ -104,7 +121,7 @@ export async function POST(req: NextRequest) {
     return Response.json({
       ok: true,
       message: "Migrácia dokončená",
-      tables: ["hk_feeds", "hk_products", "product_price_history"],
+      tables: ["hk_feeds", "hk_products", "product_price_history", "shop_descriptions"],
       feeds: HEUREKA_FEEDS.map((f) => f.id),
     });
   } catch (err: any) {
