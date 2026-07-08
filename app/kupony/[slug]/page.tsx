@@ -43,20 +43,16 @@ const TOP_SLUGS = [
 ];
 
 export async function generateStaticParams() {
-  // Jediný zdroj pravdy — lib/all-shops.ts (statická varianta bez siete)
-  const knownShops = getStaticKnownShops();
-  const seen = new Set<string>(TOP_SLUGS);
-  const params = TOP_SLUGS.map(s => ({ slug: s }));
-
-  for (const shop of knownShops) {
-    if (params.length >= 50) break;
-    if (shop.slug && !seen.has(shop.slug)) {
-      seen.add(shop.slug);
-      params.push({ slug: shop.slug });
-    }
-  }
-
-  return params;
+  // ZÁMERNE prázdne — shop stránky sa negenerujú pri builde, ale on-demand cez ISR
+  // (revalidate = 3600, dynamicParams default true).
+  //
+  // Dôvod: v build prostredí Vercelu nie je dostupný Redis (Error: ENVIRONMENT_FALLBACK),
+  // takže prerender každej shop stránky ide naživo (AI search, CJ, joined-campaigns)
+  // a prekračuje 60 s limit → build padal. Za behu Redis funguje, ISR vygeneruje
+  // a nacachuje stránku pri prvom requeste (rovnako indexovateľné pre SEO).
+  //
+  // Sitemap (app/sitemap.ts) naďalej vymenúva všetky shop URL — indexácia zostáva.
+  return [];
 }
 
 /**
