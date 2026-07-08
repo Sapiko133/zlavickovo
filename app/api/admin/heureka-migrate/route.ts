@@ -67,6 +67,23 @@ export async function POST(req: NextRequest) {
     await sql`CREATE INDEX IF NOT EXISTS hk_products_updated_idx ON hk_products(updated_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS hk_products_feed_idx ON hk_products(feed_id)`;
 
+    // ── História cien (Fáza 1: LEN tabuľka + indexy; žiadny zápis/čítanie/výpočty) ──
+    await sql`
+      CREATE TABLE IF NOT EXISTS product_price_history (
+        id           BIGSERIAL PRIMARY KEY,
+        product_url  TEXT NOT NULL,
+        product_id   BIGINT REFERENCES hk_products(id) ON DELETE SET NULL,
+        domain       TEXT NOT NULL,
+        feed_slug    TEXT,
+        price        NUMERIC(12,2) NOT NULL,
+        currency     TEXT NOT NULL DEFAULT 'EUR',
+        source       TEXT NOT NULL DEFAULT 'heureka',
+        recorded_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS product_price_history_product_url_recorded_at_idx ON product_price_history(product_url, recorded_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS product_price_history_recorded_at_idx ON product_price_history(recorded_at)`;
+
     // Seed feedov
     for (const f of HEUREKA_FEEDS) {
       await sql`
@@ -83,7 +100,7 @@ export async function POST(req: NextRequest) {
     return Response.json({
       ok: true,
       message: "Migrácia dokončená",
-      tables: ["hk_feeds", "hk_products"],
+      tables: ["hk_feeds", "hk_products", "product_price_history"],
       feeds: HEUREKA_FEEDS.map((f) => f.id),
     });
   } catch (err: any) {
