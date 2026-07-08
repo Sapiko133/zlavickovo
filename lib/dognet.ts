@@ -214,7 +214,7 @@ export async function getShopDognetUrl(shopName: string): Promise<string | null>
   return hit ? buildDognetTrackingUrl(chid, hit.url) : null;
 }
 
-// Akcia type → Dognet coupon type (labels in ShopTabs: 1=Zľava, 2=Darček, 3=Výpredaj, 4=Iné, 5=Doprava zadarmo)
+// Akcia type → Dognet coupon type (labels in ShopCouponList: 1=Zľava, 2=Darček, 3=Výpredaj, 4=Iné, 5=Doprava zadarmo)
 const AKCIA_TYPE_TO_COUPON_TYPE: Record<AkciaType, number> = {
   doprava: 5, vypredaj: 3, welcome: 1, gift: 2, event: 4,
 };

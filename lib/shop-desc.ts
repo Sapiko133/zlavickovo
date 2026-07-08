@@ -1,4 +1,11 @@
 import { redis } from "@/lib/redis";
+import { getDb } from "@/lib/db";
+
+export interface ShopDescription {
+  short: string;   // ~100–150 slov — hero + meta
+  long: string;    // ~300–600 slov — sekcia „O obchode"
+  source: "db" | "curated" | "cache" | "ai" | "fallback";
+}
 
 const GENERIC: Record<string, string> = {
   alza: "Alza.sk je najväčší slovenský e-shop s elektronikou, spotrebičmi, mobilmi a tisíckami ďalších produktov. Ponúka rýchle doručenie, vernostný program Alza Body a pravidelné akcie s veľkými zľavami. Ide-álne miesto pre nákup elektroniky za konkurenčné ceny.",
@@ -22,20 +29,48 @@ function genericDesc(shopName: string): string {
   return `${shopName} je populárny online obchod ponúkajúci širokú škálu produktov pre slovenských zákazníkov. Pravidelne vydáva zľavové kódy a akcie, vďaka ktorým môžete ušetriť na svojich nákupoch. Nájdite aktuálne kupóny práve tu na Zlavickovo.sk.`;
 }
 
-export async function getShopDescription(shopName: string, slug: string): Promise<string> {
-  // Kurátorský text má prednosť pred cache aj AI — deterministický popis
-  // a zároveň oprava zlých cachovaných textov (napr. "Czc je populárny...")
-  if (GENERIC[slug]) return GENERIC[slug];
+/** Načíta uložený popis z tabuľky shop_descriptions (generátor ju napĺňa offline). */
+async function fromDb(slug: string): Promise<ShopDescription | null> {
+  try {
+    const sql = getDb();
+    const rows = (await sql`
+      SELECT short_description, long_description FROM shop_descriptions WHERE slug = ${slug} LIMIT 1
+    `) as { short_description: string; long_description: string }[];
+    const row = rows[0];
+    if (row && (row.short_description || row.long_description)) {
+      const short = row.short_description || row.long_description;
+      const long = row.long_description || row.short_description;
+      return { short, long, source: "db" };
+    }
+  } catch {
+    // Tabuľka nemusí ešte existovať / DB nedostupná — pokračuj na ďalší zdroj.
+  }
+  return null;
+}
+
+/**
+ * Štruktúrovaný popis obchodu pre stránku /kupony/[slug].
+ * Poradie zdrojov: DB (generátor) → kurátorský text → Redis cache → AI → fallback.
+ */
+export async function getShopDescription(shopName: string, slug: string): Promise<ShopDescription> {
+  // 1. DB — trvalý zdroj generovaný scriptom (short + long)
+  const db = await fromDb(slug);
+  if (db) return db;
+
+  // 2. Kurátorský text má prednosť pred cache aj AI — deterministický popis
+  if (GENERIC[slug]) {
+    return { short: GENERIC[slug], long: GENERIC[slug], source: "curated" };
+  }
 
   const cacheKey = `shop_desc:${slug}`;
 
-  // 1. Try Redis cache
+  // 3. Redis cache (legacy jednotlivý text)
   try {
     const cached = await redis.get<string>(cacheKey);
-    if (cached) return cached;
+    if (cached) return { short: cached, long: cached, source: "cache" };
   } catch {}
 
-  // 2. Try Anthropic API
+  // 4. Anthropic API (fallback pre obchody bez DB záznamu)
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (apiKey) {
     try {
@@ -51,7 +86,7 @@ export async function getShopDescription(shopName: string, slug: string): Promis
           max_tokens: 400,
           messages: [{
             role: "user",
-            content: `Napíš krátky popis obchodu ${shopName} v 150-200 slovách po slovensky. Zahrň: čo predávajú, prečo tam nakupovať, aké zľavy ponúkajú a tipy pre zákazníkov. Píš priamo, bez nadpisov, len súvislý text.`,
+            content: `Napíš krátky popis obchodu ${shopName} v 150-200 slovách po slovensky. Zahrň: čo predávajú, prečo tam nakupovať, aké zľavy ponúkajú a tipy pre zákazníkov. Píš priamo, bez nadpisov, len súvislý text. Nepoužívaj tvrdenia „najlepší", „najlacnejší", „oficiálny partner" ani „garantované ceny".`,
           }],
         }),
       });
@@ -59,16 +94,15 @@ export async function getShopDescription(shopName: string, slug: string): Promis
         const data = await res.json();
         const text = data.content?.[0]?.text?.trim();
         if (text && text.length > 50) {
-          // Cache for 7 days
           try { await redis.set(cacheKey, text, { ex: 86400 * 7 }); } catch {}
-          return text;
+          return { short: text, long: text, source: "ai" };
         }
       }
     } catch {}
   }
 
-  // 3. Fallback
+  // 5. Fallback
   const desc = genericDesc(shopName);
   try { await redis.set(cacheKey, desc, { ex: 86400 * 7 }); } catch {}
-  return desc;
+  return { short: desc, long: desc, source: "fallback" };
 }

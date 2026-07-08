@@ -8,9 +8,15 @@ import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import HeurekaWidget from "@/components/HeurekaWidget";
-import ShopTabs from "@/components/ShopTabs";
+import ShopCouponList from "@/components/ShopCouponList";
+import ShopPriceDrops from "@/components/ShopPriceDrops";
+import ShopProducts from "@/components/ShopProducts";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
+import { getShopProducts } from "@/lib/heureka/query";
+import { resolveCategory } from "@/lib/shop-categories";
+import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/lib/shop-affiliate";
 // ShopLogo removed — using ShopFavicon throughout
@@ -95,7 +101,7 @@ function getFAQ(shopName: string) {
   ];
 }
 
-function getRelatedShops(currentSlug: string, count = 4) {
+function getRelatedShopsFallback(currentSlug: string, count = 4) {
   const others = TOP_SLUGS.filter(s => s !== currentSlug);
   const seed = currentSlug.charCodeAt(0) + currentSlug.length;
   const start = seed % Math.max(1, others.length - count);
@@ -104,6 +110,42 @@ function getRelatedShops(currentSlug: string, count = 4) {
     const nameA = a.replace(/-/g, " ");
     const nameB = b.replace(/-/g, " ");
     return compareShopsByPriority({ name: nameA }, { name: nameB });
+  });
+}
+
+/**
+ * Súvisiace obchody z rovnakej kategórie (existujúce dáta getAllKnownShops).
+ * Fallback na kurátorské TOP_SLUGS, keď kategória chýba alebo má málo obchodov.
+ */
+async function getRelatedShops(
+  currentSlug: string,
+  categoryId: ReturnType<typeof resolveCategory>,
+  count = 4,
+): Promise<{ slug: string; name: string }[]> {
+  if (categoryId) {
+    try {
+      const shops = await getAllKnownShops();
+      const sameCat = shops
+        .filter(s => s.categoryId === categoryId && s.slug && s.slug !== currentSlug)
+        .sort(compareShopsByPriority)
+        .slice(0, count)
+        .map(s => ({ slug: s.slug, name: s.name }));
+      if (sameCat.length >= count) return sameCat;
+      // doplň fallbackom, bez duplicít
+      const seen = new Set([currentSlug, ...sameCat.map(s => s.slug)]);
+      for (const slug of getRelatedShopsFallback(currentSlug, count)) {
+        if (sameCat.length >= count) break;
+        if (seen.has(slug)) continue;
+        const n = slug.replace(/-/g, " ");
+        sameCat.push({ slug, name: n.charAt(0).toUpperCase() + n.slice(1) });
+        seen.add(slug);
+      }
+      if (sameCat.length > 0) return sameCat;
+    } catch {}
+  }
+  return getRelatedShopsFallback(currentSlug, count).map(slug => {
+    const n = slug.replace(/-/g, " ");
+    return { slug, name: n.charAt(0).toUpperCase() + n.slice(1) };
   });
 }
 
@@ -146,7 +188,6 @@ export default async function ShopPage({ params }: Props) {
   const { month, year } = currentMonthYear();
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
-  const relatedSlugs = getRelatedShops(baseSlug);
 
   let coupons: any[] = [];
   try { coupons = await getCouponsByShop(shopName); } catch {}
@@ -174,8 +215,25 @@ export default async function ShopPage({ params }: Props) {
     return { ...rest, _token: Buffer.from(`${capitalized}:${code}`).toString("base64") };
   });
 
-  let shopDesc = "";
+  let shopDesc: { short: string; long: string } = { short: "", long: "" };
   try { shopDesc = await getShopDescription(capitalized, baseSlug); } catch {}
+
+  // Sekcia 4 — najväčší pokles ceny. Prázdne, kým sa nenapĺňa history (Vlna 2) →
+  // ShopPriceDrops sa nezobrazí. Doména z názvu, fallback na slug.
+  let priceDrops: Awaited<ReturnType<typeof getBiggestPriceDropsByDomain>> = [];
+  try { priceDrops = await getBiggestPriceDropsByDomain(shopDomain, 6); } catch {}
+
+  // Produkty obchodu (hk_products) — len feed obchody; inak sa sekcia nezobrazí.
+  let shopProducts: Awaited<ReturnType<typeof getShopProducts>> = [];
+  try { shopProducts = await getShopProducts(shopDomain, 12); } catch {}
+  const hasCodeCoupon = codeCoupons.length > 0;
+
+  // Kategória obchodu (existujúce dáta, bez siete) — pre SEO blok, related shops a podobné kategórie
+  const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
+  const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
+  const productTypes = [...new Set(shopProducts.map(p => p.category).filter(Boolean))].slice(0, 4);
+  const relatedShops = await getRelatedShops(baseSlug, categoryId, 4);
+  const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -248,9 +306,9 @@ export default async function ShopPage({ params }: Props) {
                   <span style={{ fontSize: 12, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>CZ</span>
                 )}
               </div>
-              {shopDesc && (
+              {shopDesc.short && (
                 <p style={{ fontSize: 13, color: "#6B7280", margin: "12px 0 0", lineHeight: 1.65, maxWidth: 640 }}>
-                  {shopDesc.length > 220 ? shopDesc.slice(0, 220) + "…" : shopDesc}
+                  {shopDesc.short.length > 220 ? shopDesc.short.slice(0, 220) + "…" : shopDesc.short}
                 </p>
               )}
               <TrackedLink
@@ -293,14 +351,54 @@ export default async function ShopPage({ params }: Props) {
 
           {/* Left column */}
           <div style={{ flex: 1, minWidth: 0 }}>
+            {/* SEO blok pod hero — popis, kategória, typ produktov */}
+            {(shopDesc.short || categoryLabel) && (
+              <div className="card-section">
+                {shopDesc.short && (
+                  <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
+                    {shopDesc.short}
+                  </p>
+                )}
+                {(categoryLabel || productTypes.length > 0) && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                    {categoryLabel && (
+                      <a href={`/kategoria/${categoryId}`} style={{ textDecoration: "none" }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, background: "#DCFCE7", color: "#15803D", padding: "5px 12px", borderRadius: 9999 }}>
+                          {TAXONOMY[categoryId!].emoji} {categoryLabel}
+                        </span>
+                      </a>
+                    )}
+                    {productTypes.map(pt => (
+                      <span key={pt} style={{ fontSize: 12, fontWeight: 600, background: "#F1F5F9", color: "#475569", padding: "5px 12px", borderRadius: 9999 }}>
+                        {pt}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div style={{ marginBottom: 16, display: "flex", justifyContent: "center" }}>
               <AdBanner slot="header" shopName={capitalized} />
             </div>
 
-            {/* Coupon tabs */}
+            {/* Sekcia 2 — Overené kupóny (len s kódom) */}
             <div className="card-section">
-              <ShopTabs capitalized={capitalized} codeCoupons={codeCoupons} dealCoupons={dealCoupons} shopUrl={shopVisitUrl} />
+              <div className="section-title">🏷️ Overené kupóny ({codeCoupons.length})</div>
+              <ShopCouponList capitalized={capitalized} coupons={codeCoupons} kind="kupony" shopUrl={shopVisitUrl} />
             </div>
+
+            {/* Sekcia 3 — Akcie a zľavy (bez kódu) */}
+            <div className="card-section">
+              <div className="section-title">🔥 Akcie a zľavy ({dealCoupons.length})</div>
+              <ShopCouponList capitalized={capitalized} coupons={dealCoupons} kind="akcie" shopUrl={shopVisitUrl} />
+            </div>
+
+            {/* Sekcia 4 — Najväčší pokles ceny (zobrazí sa len ak existuje história) */}
+            <ShopPriceDrops drops={priceDrops} capitalized={capitalized} shopSlug={baseSlug} />
+
+            {/* Nakupované produkty z obchodu (zobrazí sa len ak existujú produkty) */}
+            <ShopProducts products={shopProducts} capitalized={capitalized} shopSlug={baseSlug} hasCoupon={hasCodeCoupon} />
 
             {/* AI Coupons */}
             <div className="card-section">
@@ -316,6 +414,18 @@ export default async function ShopPage({ params }: Props) {
                 <AiCoupons shopName={`${capitalized}${isCz ? " CZ" : ""}`} />
               </Suspense>
             </div>
+
+            {/* Sekcia 5 — O obchode (SEO popis, fallback ak chýba) */}
+            {shopDesc.long && (
+              <div className="card-section">
+                <div className="section-title">ℹ️ O obchode {capitalized}</div>
+                {shopDesc.long.split(/\n{2,}/).map((para, i) => (
+                  <p key={i} style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: i === 0 ? "0 0 12px" : "0 0 12px" }}>
+                    {para.trim()}
+                  </p>
+                ))}
+              </div>
+            )}
 
             <HeurekaWidget />
 
@@ -375,24 +485,37 @@ export default async function ShopPage({ params }: Props) {
           </div>
         </div>
 
-        {/* Related shops */}
+        {/* Related shops — z rovnakej kategórie (fallback TOP_SLUGS) */}
         <div style={{ marginTop: 32 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#1d1d1f" }}>
-            Súvisiace obchody
+            Súvisiace obchody{categoryLabel ? ` – ${categoryLabel}` : ""}
           </h2>
           <div className="related-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {relatedSlugs.map(s => {
-              const n = s.replace(/-/g, " ");
-              const name = n.charAt(0).toUpperCase() + n.slice(1);
-              return (
-                <a key={s} href={`/kupony/${s}`} style={{ textDecoration: "none" }}>
-                  <div style={{ background: "#fff", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, border: "1px solid #eaecf0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                    <ShopFavicon domain={getShopDomain(name) || `${s}.sk`} name={name} size={34} />
-                    <span style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f" }}>{name}</span>
-                  </div>
-                </a>
-              );
-            })}
+            {relatedShops.map(s => (
+              <a key={s.slug} href={`/kupony/${s.slug}`} style={{ textDecoration: "none" }}>
+                <div style={{ background: "#fff", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, border: "1px solid #eaecf0", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <ShopFavicon domain={getShopDomain(s.name) || `${s.slug}.sk`} name={s.name} size={34} />
+                  <span style={{ fontWeight: 600, fontSize: 13, color: "#1d1d1f" }}>{s.name}</span>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+
+        {/* Podobné kategórie — interné prelinkovanie na /kategoria/[id] */}
+        <div style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 16px", color: "#1d1d1f" }}>
+            Podobné kategórie
+          </h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {similarCategories.map(c => (
+              <a key={c.id} href={`/kategoria/${c.id}`} style={{ textDecoration: "none" }}>
+                <div style={{ background: c.bg, borderRadius: 9999, padding: "8px 16px", display: "flex", alignItems: "center", gap: 8, border: "1px solid #eaecf0" }}>
+                  <span style={{ fontSize: 15 }}>{c.emoji}</span>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: c.color }}>{c.label}</span>
+                </div>
+              </a>
+            ))}
           </div>
         </div>
       </div>
