@@ -234,8 +234,13 @@ export default async function ShopPage({ params }: Props) {
               </h1>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontSize: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
-                  ✓ {coupons.length} overených kupónov
+                  ✓ {codeCoupons.length} overených kupónov
                 </span>
+                {dealCoupons.length > 0 && (
+                  <span style={{ fontSize: 12, background: "#FFF7ED", color: "#C2410C", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
+                    🔥 {dealCoupons.length} akcií
+                  </span>
+                )}
                 <span style={{ fontSize: 12, background: "#F1F5F9", color: "#475569", fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>
                   Aktualizované: {month} {year}
                 </span>
