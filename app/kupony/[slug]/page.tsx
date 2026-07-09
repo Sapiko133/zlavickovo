@@ -98,6 +98,12 @@ function getRelatedShopsFallback(currentSlug: string, count = 4) {
   });
 }
 
+function getFallbackProductCategories(categoryId: ReturnType<typeof resolveCategory>): string[] {
+  if (!categoryId || categoryId === "ine") return [];
+  if (categoryId === "elektronika") return ["elektronika", "hobby", "byvanie", "ine"];
+  return [categoryId];
+}
+
 /**
  * Súvisiace obchody z rovnakej kategórie (existujúce dáta getAllKnownShops).
  * Fallback na kurátorské TOP_SLUGS, keď kategória chýba alebo má málo obchodov.
@@ -224,11 +230,17 @@ export default async function ShopPage({ params }: Props) {
     withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback),
   ]);
 
-  // Fallback produkty podľa kategórie — LEN ak obchod nemá vlastné produkty a má kategóriu
-  // (nie "ine"/null). Vždy LIMIT 12, s timeoutom; pri zlyhaní/timeoute [] → sekcia skrytá.
+  // Fallback produkty podľa kategórie — LEN ak obchod nemá vlastné produkty.
+  // Elektronika nemá vlastný Heureka feed, preto skúša širšie príbuzné produktové kategórie.
   let fallbackProducts: Awaited<ReturnType<typeof getProductsByCategory>> = [];
-  if (shopProducts.length === 0 && categoryId && categoryId !== "ine") {
-    fallbackProducts = await withTimeout(getProductsByCategory(categoryId, 12), 3000, []);
+  const fallbackProductCategories = getFallbackProductCategories(categoryId);
+  if (shopProducts.length === 0 && fallbackProductCategories.length > 0) {
+    const fallbackGroups = await Promise.all(
+      fallbackProductCategories.map((fallbackCategory) =>
+        withTimeout(getProductsByCategory(fallbackCategory, 12), 3000, [])
+      )
+    );
+    fallbackProducts = fallbackGroups.find((products) => products.length > 0) ?? [];
   }
   const productTypes = [...new Set(shopProducts.map(p => p.category).filter(Boolean))].slice(0, 4);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
