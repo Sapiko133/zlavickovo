@@ -30,6 +30,7 @@ type Props = { params: Promise<{ slug: string }> };
 const BASE = "https://www.zlavickovo.sk";
 
 export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 // Správne obchodné meno pre slugy, ktoré nie sú v žiadnom feede
 // a kapitalizácia zo slugu by vyrobila nezmysel ("Czc" namiesto "CZC.cz")
@@ -42,19 +43,6 @@ const TOP_SLUGS = [
   "ikea","dedoles","martinus","about-you","answear","dr-max",
   "zara","h-m","asos","lidl","kaufland","decathlon","nike","adidas",
 ];
-
-export async function generateStaticParams() {
-  // ZÁMERNE prázdne — shop stránky sa negenerujú pri builde, ale on-demand cez ISR
-  // (revalidate = 3600, dynamicParams default true).
-  //
-  // Dôvod: v build prostredí Vercelu nie je dostupný Redis (Error: ENVIRONMENT_FALLBACK),
-  // takže prerender každej shop stránky ide naživo (AI search, CJ, joined-campaigns)
-  // a prekračuje 60 s limit → build padal. Za behu Redis funguje, ISR vygeneruje
-  // a nacachuje stránku pri prvom requeste (rovnako indexovateľné pre SEO).
-  //
-  // Sitemap (app/sitemap.ts) naďalej vymenúva všetky shop URL — indexácia zostáva.
-  return [];
-}
 
 /**
  * Soft 404 guard — stránka existuje len pre slug známeho obchodu.
