@@ -15,6 +15,7 @@ import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
 import { getShopProducts, getProductsByCategory } from "@/lib/heureka/query";
+import { withTimeout } from "@/lib/with-timeout";
 import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
@@ -185,15 +186,16 @@ export default async function ShopPage({ params }: Props) {
   const pageUrl = `${BASE}/kupony/${slug}`;
   const faq = getFAQ(capitalized);
 
-  let coupons: any[] = [];
-  try { coupons = await getCouponsByShop(shopName); } catch {}
+  // Timeouty na render-path volania — ISR render sa nesmie zablokovať na pomalom
+  // externom volaní (live affiliate fetch, AI popis, studená DB/cache). Viď [[with-timeout]].
+  let coupons: any[] = await withTimeout(getCouponsByShop(shopName), 8000, []);
 
   // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
   const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
   const shopAffiliateUrl: string | null =
     affiliateUrlFromCoupons(coupons) ??
     affialShop?.affiliateUrl ??
-    (await getShopAffiliateUrl(capitalized).catch(() => null));
+    (await withTimeout(getShopAffiliateUrl(capitalized), 4000, null));
   const shopVisitUrl: string = shopAffiliateUrl ?? `https://${shopDomain}`;
 
   // Priame odkazy bez trackingu (statické akcie, fallbacky) nahradí affiliate URL, ak existuje
@@ -211,13 +213,8 @@ export default async function ShopPage({ params }: Props) {
     return { ...rest, _token: Buffer.from(`${capitalized}:${code}`).toString("base64") };
   });
 
-  let shopDesc: { short: string; long: string } = { short: "", long: "" };
-  try { shopDesc = await getShopDescription(capitalized, baseSlug); } catch {}
-
-  // Sekcia 4 — najväčší pokles ceny. Prázdne, kým sa nenapĺňa history (Vlna 2) →
-  // ShopPriceDrops sa nezobrazí. Doména z názvu, fallback na slug.
-  let priceDrops: Awaited<ReturnType<typeof getBiggestPriceDropsByDomain>> = [];
-  try { priceDrops = await getBiggestPriceDropsByDomain(shopDomain, 6); } catch {}
+  const shopDesc: { short: string; long: string } =
+    await withTimeout(getShopDescription(capitalized, baseSlug), 3000, { short: "", long: "", source: "fallback" as const });
 
   const hasCodeCoupon = codeCoupons.length > 0;
 
@@ -225,16 +222,27 @@ export default async function ShopPage({ params }: Props) {
   const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
   const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
 
-  // Produkty: 1. vlastné (podľa domény). 2. fallback podľa kategórie (odporúčané z podobných obchodov).
-  // "ine"/null kategória → žiadny fallback (grab-bag). Prázdne → sekcia sa nezobrazí.
-  let shopProducts: Awaited<ReturnType<typeof getShopProducts>> = [];
-  try { shopProducts = await getShopProducts(shopDomain, 12); } catch {}
+  // Related shops fallback (bez siete) pre prípad timeoutu getAllKnownShops
+  const relatedFallback = getRelatedShopsFallback(baseSlug, 4).map(s => {
+    const n = s.replace(/-/g, " ");
+    return { slug: s, name: n.charAt(0).toUpperCase() + n.slice(1) };
+  });
+
+  // Nezávislé DB/cache volania paralelne + s timeoutom (max 12 produktov, vždy LIMIT).
+  // Sekcia 4 (pokles ceny), vlastné produkty, related shops.
+  const [priceDrops, shopProducts, relatedShops] = await Promise.all([
+    withTimeout(getBiggestPriceDropsByDomain(shopDomain, 6), 3000, [] as Awaited<ReturnType<typeof getBiggestPriceDropsByDomain>>),
+    withTimeout(getShopProducts(shopDomain, 12), 3000, [] as Awaited<ReturnType<typeof getShopProducts>>),
+    withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback),
+  ]);
+
+  // Fallback produkty podľa kategórie — LEN ak obchod nemá vlastné produkty a má kategóriu
+  // (nie "ine"/null). Vždy LIMIT 12, s timeoutom; pri zlyhaní/timeoute [] → sekcia skrytá.
   let fallbackProducts: Awaited<ReturnType<typeof getProductsByCategory>> = [];
   if (shopProducts.length === 0 && categoryId && categoryId !== "ine") {
-    try { fallbackProducts = await getProductsByCategory(categoryId, 12); } catch {}
+    fallbackProducts = await withTimeout(getProductsByCategory(categoryId, 12), 3000, []);
   }
   const productTypes = [...new Set(shopProducts.map(p => p.category).filter(Boolean))].slice(0, 4);
-  const relatedShops = await getRelatedShops(baseSlug, categoryId, 4);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
 
   const jsonLd = {

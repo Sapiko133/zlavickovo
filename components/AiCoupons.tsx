@@ -1,11 +1,15 @@
 import { getAiCoupons } from "@/lib/ai-search";
+import { withTimeout } from "@/lib/with-timeout";
 import AiCouponCard from "@/components/AiCouponCard";
 
 export default async function AiCoupons({ shopName }: { shopName: string }) {
   let codes: any[] = [];
   let apiError = false;
   try {
-    const result = await getAiCoupons(shopName);
+    // AI web-search je pomalá (20–40 s) a blokuje ISR generovanie stránky.
+    // Timeout → fallback (žiadne kódy); výsledok sa medzitým môže nacachovať
+    // (unstable_cache 24h) pre ďalšie requesty. Viď [[with-timeout]].
+    const result = await withTimeout(getAiCoupons(shopName), 8000, { codes: [] as any[] });
     codes = result.codes || [];
   } catch {
     apiError = true;
