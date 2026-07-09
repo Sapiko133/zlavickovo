@@ -60,20 +60,33 @@ export async function getProducts(
 
 /**
  * Produkty obchodu pre sekciu „Nakupované produkty z obchodu".
- * Radenie: najnižšia cena → najnovšie. Cena je TEXT (PRICE_VAT), preto ju
- * bezpečne parsujeme cez regex (prvé číslo, čiarka→bodka); nečíselné/prázdne
- * ceny idú NULLS LAST (na koniec), nikdy nezhodia dopyt.
+ * Výber: rozumné stredné cenové pásmo, nie najlacnejšie položky.
+ * Extrémne lacné produkty filtrujeme preč (EUR/nejasné >= 3, CZK >= 80),
+ * preferujeme produkty s obrázkom a potom cenu okolo stredu ponuky.
  */
 export async function getShopProducts(domain: string, limit = 12): Promise<HkProduct[]> {
   if (!domain) return [];
   try {
     const sql = getDb();
     const rows = await sql`
+      WITH priced AS (
+        SELECT
+          id, name, price, url, img_url, domain, category, affiliate_url, updated_at,
+          NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric AS price_num
+        FROM hk_products
+        WHERE domain = ${domain}
+      ),
+      filtered AS (
+        SELECT *,
+          percent_rank() OVER (ORDER BY price_num) AS price_rank
+        FROM priced
+        WHERE price_num >= CASE WHEN domain ~* '\\.cz$' THEN 80 ELSE 3 END
+      )
       SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
-      FROM hk_products
-      WHERE domain = ${domain}
+      FROM filtered
       ORDER BY
-        NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric ASC NULLS LAST,
+        CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
+        abs(price_rank - 0.55),
         updated_at DESC
       LIMIT ${limit}
     `;
@@ -86,19 +99,33 @@ export async function getShopProducts(domain: string, limit = 12): Promise<HkPro
 
 /**
  * Fallback produkty podľa kategórie obchodu — pre obchody bez vlastných produktov.
- * Radenie: najnižšia cena → najnovšie (rovnaký bezpečný price parse ako getShopProducts).
- * Kategórie bez feedu (elektronika, cestovanie) vrátia [] → sekcia sa nezobrazí.
+ * Výber: stredné cenové pásmo v kategórii, nie najlacnejšie položky
+ * (rovnaký bezpečný price parse ako getShopProducts). Kategórie bez feedu
+ * (elektronika, cestovanie) vrátia [] → volajúca stránka skúsi ďalší fallback.
  */
 export async function getProductsByCategory(category: string, limit = 12): Promise<HkProduct[]> {
   if (!category) return [];
   try {
     const sql = getDb();
     const rows = await sql`
+      WITH priced AS (
+        SELECT
+          id, name, price, url, img_url, domain, category, affiliate_url, updated_at,
+          NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric AS price_num
+        FROM hk_products
+        WHERE category = ${category}
+      ),
+      filtered AS (
+        SELECT *,
+          percent_rank() OVER (ORDER BY price_num) AS price_rank
+        FROM priced
+        WHERE price_num >= CASE WHEN domain ~* '\\.cz$' THEN 80 ELSE 3 END
+      )
       SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
-      FROM hk_products
-      WHERE category = ${category}
+      FROM filtered
       ORDER BY
-        NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric ASC NULLS LAST,
+        CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
+        abs(price_rank - 0.55),
         updated_at DESC
       LIMIT ${limit}
     `;
