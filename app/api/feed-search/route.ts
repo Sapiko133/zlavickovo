@@ -1,4 +1,4 @@
-import { searchHkProducts, toProductSlug, formatPrice, formatAmount } from "@/lib/heureka/query";
+import { searchHkProducts, toProductSlug, parsePriceValue, getFormattedProductPricesFromRaw } from "@/lib/heureka/query";
 import { getProductOutboundUrl } from "@/lib/heureka/affiliate";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { buildShopOffersIndex } from "@/lib/shop-offers";
@@ -14,6 +14,7 @@ interface ProductResult {
   affiliateUrl: string; // trackovaný odkaz na nákup
   domain: string;
   price: string;        // formátovaná cena (napr. "12,99 €")
+  secondaryPrice: string | null;
   priceNum: number | null;
   imgUrl: string;
   source: string;
@@ -23,9 +24,7 @@ interface ProductResult {
 
 // Cena z feedu je string ("12,99 EUR", "1 299 Kč"...) — vytiahni číslo pre radenie
 function parsePriceNum(price?: string | null): number | null {
-  if (!price) return null;
-  const n = parseFloat(String(price).replace(/[^\d.,]/g, "").replace(/\s/g, "").replace(",", "."));
-  return isNaN(n) || n <= 0 ? null : n;
+  return parsePriceValue(price);
 }
 
 // Zhoda tokenu v texte — presná alebo cez stem-prefix (rieši SK/CZ morfológiu bez
@@ -105,13 +104,15 @@ export async function GET(req: Request) {
         const key = keyOf(p.name, p.domain);
         if (seen.has(key)) continue;
         seen.add(key);
+        const priceLines = getFormattedProductPricesFromRaw(p.price, p.currency_code, p.domain);
         merged.push({
           name: p.name,
           description: p.description ?? "",
           url: `/produkt/${toProductSlug(p.name, p.id)}`,
           affiliateUrl: getProductOutboundUrl(p),
           domain: p.domain,
-          price: formatPrice(p.price, p.domain),
+          price: priceLines?.primary ?? "",
+          secondaryPrice: priceLines?.secondary ?? null,
           priceNum: parsePriceNum(p.price),
           imgUrl: p.img_url,
           source: "heureka",
@@ -128,13 +129,15 @@ export async function GET(req: Request) {
         if (seen.has(key)) continue;
         seen.add(key);
         const priceNum = parsePriceNum(p.price);
+        const priceLines = getFormattedProductPricesFromRaw(p.price, null, p.domain);
         merged.push({
           name: p.name,
           description: p.description ?? "",
           url: p.affiliateUrl || p.url,
           affiliateUrl: p.affiliateUrl || p.url,
           domain: p.domain,
-          price: priceNum !== null ? formatAmount(priceNum, p.domain) : (p.price || ""),
+          price: priceLines?.primary ?? "",
+          secondaryPrice: priceLines?.secondary ?? null,
           priceNum,
           imgUrl: p.imgUrl,
           source: p.source,

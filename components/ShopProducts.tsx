@@ -1,7 +1,6 @@
 import { T } from "@/lib/design-tokens";
 import type { HkProduct } from "@/lib/heureka/types";
-import { toProductSlug } from "@/lib/heureka/query";
-import { formatPrice } from "@/lib/heureka/query";
+import { formatProductPriceLines, toProductSlug } from "@/lib/heureka/query";
 import TrackedLink from "@/components/TrackedLink";
 import ShopFavicon from "@/components/ShopFavicon";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -57,7 +56,7 @@ export default function ShopProducts({ products, capitalized, shopSlug, variant 
         {products.map((p) => {
           const productHref = `/produkt/${toProductSlug(p.name, p.id)}`;
           const outbound = p.affiliate_url || p.url;
-          const priceStr = formatPrice(p.price, p.domain);
+          const priceStr = formatProductPriceLines(p);
           return (
             <div key={p.id} style={{
               border: `1px solid ${T.border}`,
@@ -83,8 +82,13 @@ export default function ShopProducts({ products, capitalized, shopSlug, variant 
                 </div>
               </a>
               {priceStr && (
-                <div style={{ fontSize: 16, fontWeight: 800, color: T.greenDark }}>
-                  {priceStr}
+                <div style={{ color: T.greenDark, lineHeight: 1.2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 800 }}>{priceStr.primary}</div>
+                  {priceStr.secondary && (
+                    <div title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+                      {priceStr.secondary}
+                    </div>
+                  )}
                 </div>
               )}
               {p.domain && (

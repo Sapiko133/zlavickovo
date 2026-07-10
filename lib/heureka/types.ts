@@ -1,9 +1,12 @@
+import type { SupportedCurrency } from "@/lib/price";
+
 export interface HkFeedDef {
   id: string;
   url: string;
   domain: string;
   category: string;
   affiliateUrl: string | null;
+  currencyCode: SupportedCurrency | null;
   // Produkty, ktorých názov (bez diakritiky, lowercase) obsahuje niektorý z týchto výrazov,
   // sa neimportujú a existujúce sa pri importe zmažú z hk_products
   exclude?: string[];
@@ -15,6 +18,7 @@ export interface HkProduct {
   name: string;
   description: string;
   price: string;
+  currency_code: SupportedCurrency | null;
   url: string;
   img_url: string;
   domain: string;
@@ -33,6 +37,7 @@ export interface HkFeedRow {
   domain: string;
   category: string;
   affiliate_url: string;
+  currency_code: SupportedCurrency | null;
   enabled: boolean;
   last_fetched_at: string | null;
   last_error: string | null;

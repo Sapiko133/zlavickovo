@@ -1,6 +1,16 @@
 import { getDb } from "@/lib/db";
 import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
+import {
+  formatAmount as formatCurrencyAmount,
+  formatPricePrimary,
+  getFormattedProductPricesFromRaw,
+  inferCurrencyCodeForConfiguredFeed,
+  normalizeCurrencyCode,
+  parsePriceValue,
+  type FormattedProductPrices,
+  type SupportedCurrency,
+} from "@/lib/price";
 
 // Slug = {normalized-name}-{id}  →  /produkt/nike-air-max-90-12345
 export function toProductSlug(name: string, id: number): string {
@@ -42,13 +52,13 @@ export async function getProducts(
     const sql = getDb();
     if (category) {
       const [rows, countRows] = await Promise.all([
-        sql`SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products WHERE category = ${category} ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
+        sql`SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products WHERE category = ${category} ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
         sql`SELECT COUNT(*)::int AS total FROM hk_products WHERE category = ${category}`,
       ]);
       return { products: rows as HkProduct[], total: (countRows[0] as any).total ?? 0 };
     }
     const [rows, countRows] = await Promise.all([
-      sql`SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
+      sql`SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
       sql`SELECT COUNT(*)::int AS total FROM hk_products`,
     ]);
     return { products: rows as HkProduct[], total: (countRows[0] as any).total ?? 0 };
@@ -71,7 +81,7 @@ export async function getShopProducts(domain: string, limit = 12): Promise<HkPro
     const rows = await sql`
       WITH priced AS (
         SELECT
-          id, name, price, url, img_url, domain, category, affiliate_url, updated_at,
+          id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at,
           NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric AS price_num
         FROM hk_products
         WHERE domain = ${domain}
@@ -80,9 +90,9 @@ export async function getShopProducts(domain: string, limit = 12): Promise<HkPro
         SELECT *,
           percent_rank() OVER (ORDER BY price_num) AS price_rank
         FROM priced
-        WHERE price_num >= CASE WHEN domain ~* '\\.cz$' THEN 80 ELSE 3 END
+        WHERE price_num >= CASE WHEN currency_code = 'CZK' OR (currency_code IS NULL AND domain ~* '\\.cz$') THEN 80 ELSE 3 END
       )
-      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM filtered
       ORDER BY
         CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
@@ -110,7 +120,7 @@ export async function getProductsByCategory(category: string, limit = 12): Promi
     const rows = await sql`
       WITH priced AS (
         SELECT
-          id, name, price, url, img_url, domain, category, affiliate_url, updated_at,
+          id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at,
           NULLIF(substring(replace(price, ',', '.') from '[0-9]+\\.?[0-9]*'), '')::numeric AS price_num
         FROM hk_products
         WHERE category = ${category}
@@ -119,9 +129,9 @@ export async function getProductsByCategory(category: string, limit = 12): Promi
         SELECT *,
           percent_rank() OVER (ORDER BY price_num) AS price_rank
         FROM priced
-        WHERE price_num >= CASE WHEN domain ~* '\\.cz$' THEN 80 ELSE 3 END
+        WHERE price_num >= CASE WHEN currency_code = 'CZK' OR (currency_code IS NULL AND domain ~* '\\.cz$') THEN 80 ELSE 3 END
       )
-      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM filtered
       ORDER BY
         CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
@@ -140,7 +150,7 @@ export async function getProductsByDomain(domain: string, limit = 12): Promise<H
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM hk_products WHERE domain = ${domain}
       ORDER BY updated_at DESC LIMIT ${limit}
     `;
@@ -159,7 +169,7 @@ export async function getProductsByHkCategory(
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM hk_products WHERE category = ${hkCategorySlug}
       ORDER BY updated_at DESC LIMIT ${limit}
     `;
@@ -174,7 +184,7 @@ export async function getRelatedProducts(product: HkProduct, limit = 4): Promise
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, name, price, url, img_url, domain, category, affiliate_url, updated_at
+      SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM hk_products
       WHERE domain = ${product.domain} AND id != ${product.id}
       ORDER BY updated_at DESC LIMIT ${limit}
@@ -215,7 +225,7 @@ export async function searchHkProducts(query: string, limit = 20): Promise<HkPro
           const pattern = `\\m(${nq === cq ? nq : `${nq}|${cq}`})`;
           // Aj popis — tsquery vektor pokrýva name + description, fallback musí tiež
           const extra = await sql`
-            SELECT id, name, description, price, url, img_url, domain, category, affiliate_url, updated_at
+            SELECT id, name, description, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
             FROM hk_products
             WHERE translate(lower(name), ${SK_ACCENTED}, ${SK_PLAIN}) ~ ${pattern}
                OR translate(lower(coalesce(description, '')), ${SK_ACCENTED}, ${SK_PLAIN}) ~ ${pattern}
@@ -273,7 +283,7 @@ export async function getFeedStats(): Promise<HkFeedRow[]> {
   try {
     const sql = getDb();
     const rows = await sql`
-      SELECT id, domain, category, product_count, last_fetched_at, last_error, error_count, last_duration_ms
+      SELECT id, domain, category, currency_code, product_count, last_fetched_at, last_error, error_count, last_duration_ms
       FROM hk_feeds ORDER BY domain
     `;
     return rows as HkFeedRow[];
@@ -283,34 +293,24 @@ export async function getFeedStats(): Promise<HkFeedRow[]> {
   }
 }
 
-// Feed ani DB nemajú pole meny — inferujeme z domény obchodu (.cz účtuje v CZK)
-// Explicitné overridy pre známe české obchody s ne-CZ doménou
-const CURRENCY_OVERRIDES: Record<string, "EUR" | "CZK"> = {
-  "kojenecke-obleceni.eu": "CZK",
-};
+// Formátovanie cien — jediná implementácia žije v lib/price.ts. Zdroj pravdy pre menu
+// je hk_products.currency_code; pre staré riadky (NULL) sa mena dovodí z textu ceny
+// alebo z konfigurácie/domény kurátorovaného feedu. Neznáma mena → cena sa nezobrazí.
+export { getFormattedProductPricesFromRaw, parsePriceValue };
 
-export function currencyForDomain(domain?: string): "EUR" | "CZK" {
-  const d = (domain ?? "").trim().toLowerCase();
-  if (CURRENCY_OVERRIDES[d]) return CURRENCY_OVERRIDES[d];
-  return /\.cz$/i.test(d) ? "CZK" : "EUR";
+export function currencyForDomain(domain?: string): SupportedCurrency {
+  return inferCurrencyCodeForConfiguredFeed(domain) ?? "EUR";
 }
 
-export function formatAmount(n: number, domain?: string): string {
-  const currency = currencyForDomain(domain);
-  if (currency === "CZK") {
-    return n.toLocaleString("cs-CZ", {
-      style: "currency",
-      currency: "CZK",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: Number.isInteger(n) ? 0 : 2,
-    });
-  }
-  return n.toLocaleString("sk-SK", { style: "currency", currency: "EUR" });
+export function formatAmount(n: number, currencyOrDomain?: string | null): string {
+  const currency = normalizeCurrencyCode(currencyOrDomain) ?? inferCurrencyCodeForConfiguredFeed(currencyOrDomain) ?? "EUR";
+  return formatCurrencyAmount(n, currency);
 }
 
-export function formatPrice(price: string, domain?: string): string {
-  if (!price) return "";
-  const n = parseFloat(price.replace(/[^\d.,]/g, "").replace(",", "."));
-  if (isNaN(n)) return price;
-  return formatAmount(n, domain);
+export function formatPrice(price: string, currencyOrDomain?: string | null): string {
+  return formatPricePrimary(price, normalizeCurrencyCode(currencyOrDomain), currencyOrDomain);
+}
+
+export function formatProductPriceLines(product: Pick<HkProduct, "price" | "currency_code" | "domain">): FormattedProductPrices | null {
+  return getFormattedProductPricesFromRaw(product.price, product.currency_code, product.domain);
 }

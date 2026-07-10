@@ -8,7 +8,7 @@ import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { feedManager } from "@/lib/feeds/FeedManager";
-import { searchHkProducts, toProductSlug } from "@/lib/heureka/query";
+import { getFormattedProductPricesFromRaw, searchHkProducts, toProductSlug } from "@/lib/heureka/query";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
@@ -66,7 +66,15 @@ export async function GET(req: Request) {
         ? hkResult.value
             .map(p => {
               const slug = toProductSlug(p.name, p.id);
-              return { slug, name: p.name, url: `/produkt/${slug}` };
+              const price = getFormattedProductPricesFromRaw(p.price, p.currency_code, p.domain);
+              return {
+                slug,
+                name: p.name,
+                category: p.category,
+                domain: p.domain,
+                price: price?.primary ?? "",
+                url: `/produkt/${slug}`,
+              };
             })
             .sort((a, b) => skCollator.compare(a.name, b.name))
             .slice(0, 5)
@@ -180,7 +188,7 @@ export async function GET(req: Request) {
         slug: "",
         category: p.category || "Produkt",
         domain: p.domain || "",
-        price: p.price || "",
+        price: getFormattedProductPricesFromRaw(p.price, null, p.domain)?.primary ?? "",
         url: p.affiliateUrl || p.url || "",
       }));
       return Response.json(results, {

@@ -1,6 +1,6 @@
 import { T } from "@/lib/design-tokens";
 import type { PriceDrop } from "@/lib/heureka/price-history";
-import { formatAmount } from "@/lib/heureka/query";
+import { getFormattedProductPrices, normalizeCurrencyCode } from "@/lib/price";
 import TrackedLink from "@/components/TrackedLink";
 import { normalizeShopSlug } from "@/lib/slug";
 
@@ -29,6 +29,9 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
       }}>
         {drops.slice(0, 6).map((d) => {
           const link = d.affiliateUrl || d.productUrl;
+          const currency = normalizeCurrencyCode(d.currency);
+          const oldPrice = currency ? getFormattedProductPrices(d.oldPrice, currency) : null;
+          const newPrice = currency ? getFormattedProductPrices(d.newPrice, currency) : null;
           return (
             <div key={d.productUrl} style={{
               border: `1px solid ${T.border}`,
@@ -56,14 +59,23 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
               <div style={{ fontSize: 13, fontWeight: 600, color: T.textPrimary, lineHeight: 1.35, minHeight: 34, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>
                 {d.name}
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 12, color: T.textFaint, textDecoration: "line-through" }}>
-                  {formatAmount(d.oldPrice, d.domain)}
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: T.greenDark }}>
-                  {formatAmount(d.newPrice, d.domain)}
-                </span>
-              </div>
+              {oldPrice && newPrice && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ fontSize: 12, color: T.textFaint, textDecoration: "line-through" }}>
+                      {oldPrice.primary}
+                    </span>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: T.greenDark }}>
+                      {newPrice.primary}
+                    </span>
+                  </div>
+                  {newPrice.secondary && (
+                    <span title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: T.textMuted }}>
+                      {newPrice.secondary}
+                    </span>
+                  )}
+                </div>
+              )}
               <TrackedLink
                 href={link}
                 target="_blank"

@@ -8,9 +8,10 @@ import {
   toProductSlug,
   idFromSlug,
   getTopProductIds,
-  formatPrice,
-  currencyForDomain,
+  formatProductPriceLines,
+  parsePriceValue,
 } from "@/lib/heureka/query";
+import { normalizeCurrencyCode } from "@/lib/price";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!id) return {};
   const product = await getProductById(id);
   if (!product) return {};
-  const price = formatPrice(product.price, product.domain);
+  const price = formatProductPriceLines(product)?.primary ?? "";
   return {
     title: `${product.name}${price ? ` – ${price}` : ""} | Zlavickovo.sk`,
     description:
@@ -72,10 +73,10 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   if (!product) notFound();
 
   const related = await getRelatedProducts(product, 4);
-  const price = formatPrice(product.price, product.domain);
-  const currency = currencyForDomain(product.domain);
+  const price = formatProductPriceLines(product);
+  const currency = normalizeCurrencyCode(product.currency_code);
 
-  const priceNum = parseFloat(String(product.price ?? "").replace(/[^\d.,]/g, "").replace(",", "."));
+  const priceNum = parsePriceValue(product.price);
 
   // Dostupné kupóny/akcie obchodu (bez výpočtu efektívnej ceny)
   let shopOffers: { coupon: { title: string } | null; deal: { title: string } | null } = {
@@ -108,8 +109,8 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
         category: product.category || undefined,
         offers: {
           "@type": "Offer",
-          price: isNaN(priceNum) ? undefined : priceNum,
-          priceCurrency: currency,
+          price: priceNum ?? undefined,
+          priceCurrency: currency ?? undefined,
           availability: "https://schema.org/InStock",
           url: product.affiliate_url || product.url,
           seller: { "@type": "Organization", name: product.domain },
@@ -215,8 +216,13 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                   Cena
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 900, color: "#22C55E", letterSpacing: "-1px" }}>
-                  {price}
+                  {price.primary}
                 </div>
+                {price.secondary && (
+                  <div title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 14, color: "#6b7280", marginTop: 4 }}>
+                    {price.secondary}
+                  </div>
+                )}
               </div>
             )}
 
@@ -289,7 +295,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             </h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 12 }}>
               {related.map((p: HkProduct) => {
-                const rPrice = formatPrice(p.price, p.domain);
+                const rPrice = formatProductPriceLines(p);
                 const rSlug = toProductSlug(p.name, p.id);
                 return (
                   <a
@@ -315,7 +321,14 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                       {p.name.length > 60 ? p.name.slice(0, 60) + "…" : p.name}
                     </div>
                     {rPrice && (
-                      <div style={{ fontSize: 14, fontWeight: 800, color: "#22C55E" }}>{rPrice}</div>
+                      <div style={{ color: "#22C55E", lineHeight: 1.2 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800 }}>{rPrice.primary}</div>
+                        {rPrice.secondary && (
+                          <div title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                            {rPrice.secondary}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </a>
                 );

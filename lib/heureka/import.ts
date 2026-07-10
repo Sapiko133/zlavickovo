@@ -20,6 +20,7 @@ import type {
   HkImportRunFeedStatus,
   HkImportRunStatus,
 } from "./types";
+import { resolveProductCurrency, type SupportedCurrency } from "@/lib/price";
 
 const LOCK_NAME = "heureka_import";
 const DB_BATCH_SIZE = 200;
@@ -32,6 +33,7 @@ export interface HkFeedImportRow {
   domain: string;
   category: string;
   affiliate_url: string | null;
+  currency_code: SupportedCurrency | null;
   enabled: boolean;
 }
 
@@ -163,13 +165,14 @@ function isExcluded(name: string, exclude?: string[]): boolean {
 async function syncStaticHeurekaFeeds(sql: SqlClient): Promise<number> {
   for (const feed of HEUREKA_FEEDS) {
     await sql`
-      INSERT INTO hk_feeds (id, url, domain, category, affiliate_url, enabled)
-      VALUES (${feed.id}, ${feed.url}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl}, true)
+      INSERT INTO hk_feeds (id, url, domain, category, affiliate_url, currency_code, enabled)
+      VALUES (${feed.id}, ${feed.url}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl}, ${feed.currencyCode}, true)
       ON CONFLICT (id) DO UPDATE SET
         url           = EXCLUDED.url,
         domain        = EXCLUDED.domain,
         category      = EXCLUDED.category,
-        affiliate_url = EXCLUDED.affiliate_url
+        affiliate_url = EXCLUDED.affiliate_url,
+        currency_code = EXCLUDED.currency_code
     `;
   }
 
@@ -288,7 +291,7 @@ async function selectNextFeeds(
 
   if (cursorFeedId) {
     return (await sql`
-      SELECT id, url, domain, category, affiliate_url, enabled
+      SELECT id, url, domain, category, affiliate_url, currency_code, enabled
       FROM hk_feeds
       WHERE enabled = true AND id > ${cursorFeedId}
       ORDER BY id ASC
@@ -297,7 +300,7 @@ async function selectNextFeeds(
   }
 
   return (await sql`
-    SELECT id, url, domain, category, affiliate_url, enabled
+    SELECT id, url, domain, category, affiliate_url, currency_code, enabled
     FROM hk_feeds
     WHERE enabled = true
     ORDER BY id ASC
@@ -500,6 +503,9 @@ async function upsertProducts(
     const names = chunk.map((product) => product.name);
     const descriptions = chunk.map((product) => product.description);
     const prices = chunk.map((product) => product.price);
+    const currencies = chunk.map((product) =>
+      resolveProductCurrency(product.price, product.currencyCode ?? feed.currency_code, feed.domain)
+    );
     const urls = chunk.map((product) => product.url);
     const imgs = chunk.map((product) => product.imgUrl);
     const domains = chunk.map(() => feed.domain);
@@ -511,9 +517,9 @@ async function upsertProducts(
     const productnos = chunk.map((product) => product.productno);
 
     await sql`
-      INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
+      INSERT INTO hk_products (feed_id, name, description, price, currency_code, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
       SELECT * FROM UNNEST(
-        ${feedIds}::text[], ${names}::text[], ${descriptions}::text[], ${prices}::text[], ${urls}::text[],
+        ${feedIds}::text[], ${names}::text[], ${descriptions}::text[], ${prices}::text[], ${currencies}::text[], ${urls}::text[],
         ${imgs}::text[], ${domains}::text[], ${cats}::text[], ${affs}::text[], ${eans}::text[],
         ${itemIds}::text[], ${manufacturers}::text[], ${productnos}::text[]
       )
@@ -521,6 +527,7 @@ async function upsertProducts(
         name          = EXCLUDED.name,
         description   = EXCLUDED.description,
         price         = EXCLUDED.price,
+        currency_code = EXCLUDED.currency_code,
         img_url       = EXCLUDED.img_url,
         affiliate_url = EXCLUDED.affiliate_url,
         ean           = EXCLUDED.ean,

@@ -1,7 +1,7 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
-import { getProducts, toProductSlug, formatPrice } from "@/lib/heureka/query";
+import { getProducts, toProductSlug, formatProductPriceLines } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 
 export const revalidate = 3600;
@@ -158,7 +158,7 @@ export default async function ProduktyPage({
 
 function ProductCard({ product }: { product: HkProduct }) {
   const slug = toProductSlug(product.name, product.id);
-  const price = formatPrice(product.price, product.domain);
+  const price = formatProductPriceLines(product);
 
   return (
     <a
@@ -197,7 +197,14 @@ function ProductCard({ product }: { product: HkProduct }) {
         </div>
         <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {price ? (
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#22C55E" }}>{price}</span>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#22C55E" }}>{price.primary}</span>
+              {price.secondary && (
+                <span title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                  {price.secondary}
+                </span>
+              )}
+            </span>
           ) : (
             <span style={{ fontSize: 12, color: "#aaa" }}>Cena na webe</span>
           )}

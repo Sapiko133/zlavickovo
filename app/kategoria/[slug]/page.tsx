@@ -9,7 +9,7 @@ import { getCouponsByCategory } from "@/lib/category-coupons";
 import { TAXONOMY, TAXONOMY_LIST, isCategoryId, type TaxonomyCategory } from "@/lib/taxonomy";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { notFound } from "next/navigation";
-import { getProductsByHkCategory, toProductSlug, formatPrice } from "@/lib/heureka/query";
+import { getProductsByHkCategory, toProductSlug, formatProductPriceLines } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 
 export const revalidate = 3600;
@@ -287,7 +287,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
               {hkProducts.map((p: HkProduct) => {
                 const pSlug = toProductSlug(p.name, p.id);
-                const pPrice = formatPrice(p.price, p.domain);
+                const pPrice = formatProductPriceLines(p);
                 return (
                   <a
                     key={p.id}
@@ -313,7 +313,14 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
                       </div>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         {pPrice ? (
-                          <span style={{ fontSize: 13, fontWeight: 800, color: "#22C55E" }}>{pPrice}</span>
+                          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
+                            <span style={{ fontSize: 13, fontWeight: 800, color: "#22C55E" }}>{pPrice.primary}</span>
+                            {pPrice.secondary && (
+                              <span title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
+                                {pPrice.secondary}
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span style={{ fontSize: 11, color: "#aaa" }}>Cena na webe</span>
                         )}

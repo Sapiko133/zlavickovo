@@ -11,7 +11,7 @@ import { getLatestPosts, categoryLabel } from "@/lib/blog";
 import { AFFIAL_SHOPS, buildAffialTrackingUrl } from "@/lib/affial-shops";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { TAXONOMY, type CategoryId } from "@/lib/taxonomy";
-import { getCategoryProductCounts, getProducts, toProductSlug, formatPrice } from "@/lib/heureka/query";
+import { getCategoryProductCounts, getProducts, toProductSlug, formatProductPriceLines } from "@/lib/heureka/query";
 import type { HkProduct } from "@/lib/heureka/types";
 import { buildShopOffersIndex, type ShopOffer } from "@/lib/shop-offers";
 import { getSearchStats } from "@/lib/search-log";
@@ -484,7 +484,7 @@ export default async function Home() {
 // Produkt s indikáciou dostupného kupónu/akcie obchodu — vedie na detail produktu
 function ProductCouponCard({ product, offer }: { product: HkProduct; offer: ShopOffer }) {
   const slug = toProductSlug(product.name, product.id);
-  const price = formatPrice(product.price, product.domain);
+  const price = formatProductPriceLines(product);
   const badge = offer.coupon
     ? { label: "🏷️ Kupón", color: "#16A34A", bg: "#F0FDF4", border: "#bbf7d0" }
     : { label: "🔥 Akcia", color: "#EA580C", bg: "#fff7ed", border: "#fed7aa" };
@@ -535,7 +535,14 @@ function ProductCouponCard({ product, offer }: { product: HkProduct; offer: Shop
         </div>
         <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           {price ? (
-            <span style={{ fontSize: 15, fontWeight: 800, color: "#22C55E" }}>{price}</span>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.2 }}>
+              <span style={{ fontSize: 15, fontWeight: 800, color: "#22C55E" }}>{price.primary}</span>
+              {price.secondary && (
+                <span title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                  {price.secondary}
+                </span>
+              )}
+            </span>
           ) : (
             <span style={{ fontSize: 12, color: "#aaa" }}>Cena na webe</span>
           )}

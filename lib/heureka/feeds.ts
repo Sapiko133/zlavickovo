@@ -1,4 +1,5 @@
 import type { HkFeedDef } from "./types";
+import { inferCurrencyCodeForConfiguredFeed } from "@/lib/price";
 
 const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 
@@ -8,7 +9,9 @@ const AFFIAL_AID = process.env.AFFIAL_ACCOUNT_ID ?? "6202d95ce406b";
 // li-go.cz má popri Google feede aj validný /heureka/export/products.xml — pridaný
 // tpmove.sk vyradený — universal.xml má SHOPITEM bez PRODUCTNAME (parser ho nevie spracovať)
 // Feedy bez Affial programu majú affiliateUrl: null — tlačidlo vedie na URL produktu z feedu
-const _FEEDS: HkFeedDef[] = [
+type StaticFeedDef = Omit<HkFeedDef, "currencyCode"> & { currencyCode?: HkFeedDef["currencyCode"] };
+
+const _FEEDS: StaticFeedDef[] = [
   // bývanie
   {
     id: "e-matrac-sk",
@@ -550,4 +553,5 @@ const _FEEDS: HkFeedDef[] = [
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
   ...f,
   affiliateUrl: f.affiliateUrl ? f.affiliateUrl.replace("6202d95ce406b", AFFIAL_AID) : null,
+  currencyCode: f.currencyCode ?? inferCurrencyCodeForConfiguredFeed(f.domain),
 }));

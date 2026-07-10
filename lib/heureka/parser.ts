@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { HEUREKA_MAX_ITEMS } from "./config";
+import { detectCurrencyFromPriceText, normalizeCurrencyCode, type SupportedCurrency } from "@/lib/price";
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -44,6 +45,7 @@ export interface ParsedProduct {
   name: string;
   description: string;
   price: string;
+  currencyCode: SupportedCurrency | null;
   url: string;
   imgUrl: string;
   category: string;
@@ -74,12 +76,16 @@ function parseProducts(items: XmlRecord[], feedCategory: string): ParsedProduct[
       const rawCategory = String(
         getValue(item, "CATEGORY_FULL") ?? getValue(item, "CATEGORYTEXT") ?? getValue(item, "categorytext") ?? ""
       ).trim();
+      const price = String(getValue(item, "PRICE_VAT") ?? getValue(item, "PRICE") ?? getValue(item, "price") ?? "").trim();
+      const explicitCurrency =
+        pickStr(item, "CURRENCY_CODE", "CURRENCY", "PRICE_CURRENCY", "currency_code", "currency");
       return {
         name: String(getValue(item, "PRODUCTNAME") ?? getValue(item, "NAME") ?? getValue(item, "productname") ?? getValue(item, "name") ?? "").trim(),
         description: stripHtml(
           String(getValue(item, "DESCRIPTION") ?? getValue(item, "description") ?? "")
         ).slice(0, 300),
-        price: String(getValue(item, "PRICE_VAT") ?? getValue(item, "PRICE") ?? getValue(item, "price") ?? "").trim(),
+        price,
+        currencyCode: normalizeCurrencyCode(explicitCurrency) ?? detectCurrencyFromPriceText(price),
         url: String(getValue(item, "URL") ?? getValue(item, "url") ?? "").trim(),
         imgUrl: String(
           getValue(item, "IMGURL") ?? getValue(item, "IMAGE_MAIN") ?? getValue(item, "IMGURL_ALTERNATIVE") ?? getValue(item, "imgurl") ?? ""

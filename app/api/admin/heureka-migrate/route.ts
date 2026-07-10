@@ -21,6 +21,7 @@ export async function POST(req: NextRequest) {
         domain        TEXT DEFAULT '',
         category      TEXT DEFAULT '',
         affiliate_url TEXT DEFAULT '',
+        currency_code VARCHAR(3),
         enabled       BOOLEAN DEFAULT true,
         last_fetched_at TIMESTAMPTZ,
         last_error    TEXT,
@@ -32,6 +33,7 @@ export async function POST(req: NextRequest) {
 
     // Observabilita importu — trvanie posledného fetchu+upsertu daného feedu (idempotentne)
     await sql`ALTER TABLE hk_feeds ADD COLUMN IF NOT EXISTS last_duration_ms INT DEFAULT 0`;
+    await sql`ALTER TABLE hk_feeds ADD COLUMN IF NOT EXISTS currency_code VARCHAR(3)`;
 
     await sql`
       CREATE TABLE IF NOT EXISTS hk_products (
@@ -40,6 +42,7 @@ export async function POST(req: NextRequest) {
         name         TEXT NOT NULL,
         description  TEXT DEFAULT '',
         price        TEXT DEFAULT '',
+        currency_code VARCHAR(3),
         url          TEXT NOT NULL,
         img_url      TEXT DEFAULT '',
         domain       TEXT DEFAULT '',
@@ -62,6 +65,25 @@ export async function POST(req: NextRequest) {
     await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS item_id      TEXT DEFAULT ''`;
     await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS manufacturer TEXT DEFAULT ''`;
     await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS productno    TEXT DEFAULT ''`;
+    await sql`ALTER TABLE hk_products ADD COLUMN IF NOT EXISTS currency_code VARCHAR(3)`;
+
+    // CHECK je bezpečný: stĺpce currency_code sú nové (staré riadky = NULL) a import
+    // ukladá výhradne 'EUR'/'CZK'/NULL. Pri neočakávanej hodnote ALTER zlyhá nahlas.
+    await sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'hk_feeds_currency_code_check') THEN
+          ALTER TABLE hk_feeds
+            ADD CONSTRAINT hk_feeds_currency_code_check
+            CHECK (currency_code IS NULL OR currency_code IN ('EUR', 'CZK'));
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'hk_products_currency_code_check') THEN
+          ALTER TABLE hk_products
+            ADD CONSTRAINT hk_products_currency_code_check
+            CHECK (currency_code IS NULL OR currency_code IN ('EUR', 'CZK'));
+        END IF;
+      END $$
+    `;
 
     await sql`CREATE INDEX IF NOT EXISTS hk_products_search_idx  ON hk_products USING GIN(search_vec)`;
     await sql`CREATE INDEX IF NOT EXISTS hk_products_ean_idx     ON hk_products(ean)`;
@@ -108,13 +130,14 @@ export async function POST(req: NextRequest) {
     // Seed feedov
     for (const f of HEUREKA_FEEDS) {
       await sql`
-        INSERT INTO hk_feeds (id, url, domain, category, affiliate_url)
-        VALUES (${f.id}, ${f.url}, ${f.domain}, ${f.category}, ${f.affiliateUrl})
+        INSERT INTO hk_feeds (id, url, domain, category, affiliate_url, currency_code)
+        VALUES (${f.id}, ${f.url}, ${f.domain}, ${f.category}, ${f.affiliateUrl}, ${f.currencyCode})
         ON CONFLICT (id) DO UPDATE SET
           url           = EXCLUDED.url,
           domain        = EXCLUDED.domain,
           category      = EXCLUDED.category,
-          affiliate_url = EXCLUDED.affiliate_url
+          affiliate_url = EXCLUDED.affiliate_url,
+          currency_code = EXCLUDED.currency_code
       `;
     }
 
