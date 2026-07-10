@@ -398,6 +398,153 @@ const _FEEDS: HkFeedDef[] = [
     category: "ine",
     affiliateUrl: null,
   },
+  // ===== Rozsirenie feedov 2026-07-09 =====
+  // elektronika
+  {
+    id: "carneo-sk",
+    url: "https://www.carneo.sk/heureka/export/products.xml",
+    domain: "carneo.sk",
+    category: "elektronika",
+    affiliateUrl: null,
+  },
+  // hobby / naradie
+  {
+    id: "naradihned-sk",
+    url: "https://www.naradihned.sk/heureka/export/products.xml",
+    domain: "naradihned.sk",
+    category: "hobby",
+    affiliateUrl: null,
+  },
+  {
+    id: "mp-kovania-sk",
+    url: "https://www.mp-kovania.sk/export/heureka.xml",
+    domain: "mp-kovania.sk",
+    category: "hobby",
+    affiliateUrl: null,
+  },
+  {
+    id: "lacne-farby-laky-sk",
+    url: "https://www.lacne-farby-laky.sk/export/heureka.xml",
+    domain: "lacne-farby-laky.sk",
+    category: "hobby",
+    affiliateUrl: null,
+  },
+  // byvanie / domacnost
+  {
+    id: "sedet-cz",
+    url: "https://www.sedet.cz/export/heureka/feed.xml",
+    domain: "sedet.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "cistedrevo-sk",
+    url: "https://www.cistedrevo.sk/heureka/export/products.xml",
+    domain: "cistedrevo.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "perfetto-sk",
+    url: "https://www.perfetto.sk/export/heureka.xml",
+    domain: "perfetto.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  // deti
+  {
+    id: "kociky-sk",
+    url: "https://www.kociky.sk/heureka/export/products.xml",
+    domain: "kociky.sk",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  {
+    id: "bezvaplenky-cz",
+    url: "https://www.bezvaplenky.cz/heureka/export/products.xml",
+    domain: "bezvaplenky.cz",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  {
+    id: "elektrickeauticko-cz",
+    url: "https://feeds.mergado.com/elektricka-auticka-heureka-cz-cz-1-1ab00de3fd9779709cc451d089fbd3b0.xml",
+    domain: "elektrickeauticko.cz",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  // zdravie
+  {
+    id: "brainmarket-sk",
+    url: "https://www.brainmarket.sk/heureka/export/products.xml",
+    domain: "brainmarket.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "brainmarket-cz",
+    url: "https://www.brainmarket.cz/heureka/export/products.xml",
+    domain: "brainmarket.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "organicmarket-cz",
+    url: "https://www.organicmarket.cz/heureka/export/products.xml",
+    domain: "organicmarket.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "powerlogy-com",
+    url: "https://powerlogy.com/wp-content/uploads/wpallexport/exports/df3bd20ee04ad4a7874c46ee151b165f/current-CRON-heureka-xml-feed.xml",
+    domain: "powerlogy.com",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "bornature-sk",
+    url: "https://www.bornature.sk/heureka/export/products.xml",
+    domain: "bornature.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "avita-sk",
+    url: "https://avita.sk/heureka/export/products.xml",
+    domain: "avita.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "medaren-sk",
+    url: "https://www.medaren.sk/heureka/export/products.xml",
+    domain: "medaren.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  // krasa
+  {
+    id: "kosmetikomat-cz",
+    url: "https://www.kosmetikomat.cz/heureka/export/products.xml",
+    domain: "kosmetikomat.cz",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  {
+    id: "rajnehtu-cz",
+    url: "https://www.rajnehtu.cz/heureka/export/products.xml",
+    domain: "rajnehtu.cz",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  {
+    id: "hellococo-sk",
+    url: "https://www.hellococo.sk/heureka/export/products.xml",
+    domain: "hellococo.sk",
+    category: "krasa",
+    affiliateUrl: null,
+  },
 ];
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
