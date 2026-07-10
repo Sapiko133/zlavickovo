@@ -68,6 +68,13 @@ export interface ImportHeurekaBatchOptions {
   mode?: HkImportMode;
   batchSize?: number;
   parallelism?: number;
+  // Len pre mode=audit: nepokračovať v aktívnom (running/partial) rune, ale
+  // založiť úplne nový run s nulovými počítadlami a bez checkpointu. Starý run
+  // ostáva v DB nedotknutý. Full režim hodnotu ignoruje — jeho resume logika
+  // sa nesmie meniť.
+  freshRun?: boolean;
+  // Test-only: injektovaný SQL klient; produkčná cesta používa getDb().
+  sqlClient?: SqlClient;
 }
 
 export interface ImportHeurekaBatchFeedResult {
@@ -206,23 +213,32 @@ async function getEnabledFeedCount(sql: SqlClient): Promise<number> {
   return rows[0]?.total ?? 0;
 }
 
-async function getOrCreateRun(sql: SqlClient, mode: HkImportMode): Promise<HkImportRunRow> {
-  const active = (await sql`
-    SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
-    FROM hk_import_runs
-    WHERE type = 'heureka' AND status IN ('running', 'partial')
-    ORDER BY started_at DESC
-    LIMIT 1
-  `) as HkImportRunRow[];
+async function getOrCreateRun(
+  sql: SqlClient,
+  mode: HkImportMode,
+  freshRun = false
+): Promise<HkImportRunRow> {
+  // freshRun preskočí resume: starý running/partial run sa nečíta, nemaže ani
+  // neupravuje — nový run má novší started_at, takže ďalšie requesty bez
+  // freshRun pokračujú už v ňom.
+  if (!freshRun) {
+    const active = (await sql`
+      SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+      FROM hk_import_runs
+      WHERE type = 'heureka' AND status IN ('running', 'partial')
+      ORDER BY started_at DESC
+      LIMIT 1
+    `) as HkImportRunRow[];
 
-  if (active[0]) {
-    const run = active[0];
-    await sql`
-      UPDATE hk_import_runs
-      SET status = 'running', updated_at = now()
-      WHERE id = ${run.id}
-    `;
-    return { ...run, status: "running" };
+    if (active[0]) {
+      const run = active[0];
+      await sql`
+        UPDATE hk_import_runs
+        SET status = 'running', updated_at = now()
+        WHERE id = ${run.id}
+      `;
+      return { ...run, status: "running" };
+    }
   }
 
   const id = crypto.randomUUID();
@@ -670,9 +686,11 @@ async function hasRemainingFeeds(sql: SqlClient, runId: string): Promise<boolean
 export async function importHeurekaBatch(
   options: ImportHeurekaBatchOptions = {}
 ): Promise<ImportHeurekaBatchResult> {
-  const sql = getDb();
+  const sql = options.sqlClient ?? getDb();
   const owner = crypto.randomUUID();
   const requestedMode = options.mode ?? "full";
+  // freshRun smie ovplyvniť iba audit — full import sa nesmie začať odznova.
+  const freshRun = requestedMode === "audit" && options.freshRun === true;
   const batchSize = normalizeLimit(options.batchSize, HEUREKA_IMPORT_BATCH_SIZE, 10);
   const parallelism = normalizeLimit(options.parallelism, HEUREKA_IMPORT_PARALLELISM, 3);
   const lock = await acquireImportLock(sql, owner);
@@ -704,7 +722,7 @@ export async function importHeurekaBatch(
   try {
     const startedAt = Date.now();
     await syncStaticHeurekaFeeds(sql);
-    const run = await getOrCreateRun(sql, requestedMode);
+    const run = await getOrCreateRun(sql, requestedMode, freshRun);
     const mode = run.mode;
     const modeConfig = getImportModeConfig(mode);
     runId = run.id;

@@ -16,7 +16,11 @@ export async function GET(req: NextRequest) {
     const mode = req.nextUrl.searchParams.get("mode") === "audit" ? "audit" : "full";
     const batchSize = Number.parseInt(req.nextUrl.searchParams.get("batchSize") ?? "", 10);
     const parallelism = Number.parseInt(req.nextUrl.searchParams.get("parallelism") ?? "", 10);
-    const result = await importHeurekaBatch({ mode, batchSize, parallelism });
+    // freshRun=1 platí len pre mode=audit (založí nový run namiesto pokračovania
+    // v partial rune); pri mode=full sa ignoruje — rovnako lenientne ako ostatné
+    // parametre. Vynucuje importHeurekaBatch.
+    const freshRun = req.nextUrl.searchParams.get("freshRun") === "1";
+    const result = await importHeurekaBatch({ mode, batchSize, parallelism, freshRun });
 
     if (result.status === "locked") {
       return Response.json(result, { status: 409 });
