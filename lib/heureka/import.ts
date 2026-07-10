@@ -1,13 +1,371 @@
 import { getDb } from "@/lib/db";
-import { parseHeurekaXml } from "./parser";
+import { parseHeurekaXmlDetailed } from "./parser";
 import { HEUREKA_FEEDS } from "./feeds";
-import { HEUREKA_MAX_ITEMS, HEUREKA_MAX_BYTES } from "./config";
-import type { HkFeedDef, HkFeedErrorType, ImportFeedResult, PruneResult } from "./types";
+import {
+  HEUREKA_IMPORT_BATCH_SIZE,
+  HEUREKA_IMPORT_LOCK_TTL_MS,
+  HEUREKA_IMPORT_MIN_REMAINING_MS,
+  HEUREKA_IMPORT_PARALLELISM,
+  HEUREKA_IMPORT_REQUEST_BUDGET_MS,
+  HEUREKA_AUDIT_FEED_TIMEOUT_MS,
+  HEUREKA_AUDIT_MAX_ITEMS,
+  HEUREKA_AUDIT_REQUEST_BUDGET_MS,
+  HEUREKA_FULL_FEED_TIMEOUT_MS,
+  HEUREKA_MAX_BYTES,
+} from "./config";
+import type {
+  HkFeedDef,
+  HkFeedErrorType,
+  HkImportMode,
+  HkImportRunFeedStatus,
+  HkImportRunStatus,
+} from "./types";
 
-const MAX_ITEMS = HEUREKA_MAX_ITEMS;   // zdieľaný limit (rovnaký ako v parseri)
-const MAX_BYTES = HEUREKA_MAX_BYTES;   // núdzová brzda pre feedy s obrími položkami
+const LOCK_NAME = "heureka_import";
+const DB_BATCH_SIZE = 200;
 
-// Nájde koniec ďalšieho </SHOPITEM> (uppercase aj lowercase variant) od pozície `from`, -1 ak nie je
+type SqlClient = ReturnType<typeof getDb>;
+
+interface HkFeedImportRow {
+  id: string;
+  url: string;
+  domain: string;
+  category: string;
+  affiliate_url: string | null;
+  enabled: boolean;
+}
+
+interface HkImportRunRow {
+  id: string;
+  mode: HkImportMode;
+  status: HkImportRunStatus;
+  total_feeds: number;
+  processed_feeds: number;
+  successful_feeds: number;
+  failed_feeds: number;
+  cursor_feed_id: string | null;
+  error_summary: string | null;
+}
+
+interface HkImportRunFeedRow {
+  feed_id: string;
+  status: HkImportRunFeedStatus;
+}
+
+interface FetchXmlResult {
+  xml: string;
+  truncated: boolean;
+  bytesDownloaded: number;
+}
+
+export interface HeurekaImportModeConfig {
+  maxItems: number;
+  feedTimeoutMs: number;
+  requestBudgetMs: number;
+}
+
+export interface ImportHeurekaBatchOptions {
+  mode?: HkImportMode;
+  batchSize?: number;
+  parallelism?: number;
+}
+
+export interface ImportHeurekaBatchFeedResult {
+  feedId: string;
+  domain: string;
+  status: HkImportRunFeedStatus;
+  productCount: number;
+  durationMs: number;
+  errorType?: HkFeedErrorType;
+  errorMessage?: string;
+}
+
+export interface ImportHeurekaBatchResult {
+  ok: boolean;
+  runId: string | null;
+  status: HkImportRunStatus | "locked";
+  mode: HkImportMode;
+  checkpoint: string | null;
+  batchSize: number;
+  parallelism: number;
+  processedInBatch: number;
+  results: ImportHeurekaBatchFeedResult[];
+  needsNextRequest: boolean;
+  lock: {
+    name: typeof LOCK_NAME;
+    acquired: boolean;
+    ttlMs: number;
+    owner: string;
+    expiresAt?: string;
+  };
+  counts?: {
+    totalFeeds: number;
+    processedFeeds: number;
+    successfulFeeds: number;
+    failedFeeds: number;
+  };
+  error?: string;
+}
+
+function nowIsoPlus(ms: number): string {
+  return new Date(Date.now() + ms).toISOString();
+}
+
+function normalizeLimit(value: number | undefined, fallback: number, max: number): number {
+  if (!Number.isFinite(value) || !value || value < 1) return fallback;
+  return Math.min(Math.floor(value), max);
+}
+
+export function getImportModeConfig(mode: HkImportMode): HeurekaImportModeConfig {
+  if (mode === "audit") {
+    return {
+      maxItems: HEUREKA_AUDIT_MAX_ITEMS,
+      feedTimeoutMs: HEUREKA_AUDIT_FEED_TIMEOUT_MS,
+      requestBudgetMs: HEUREKA_AUDIT_REQUEST_BUDGET_MS,
+    };
+  }
+
+  return {
+    maxItems: Number.POSITIVE_INFINITY,
+    feedTimeoutMs: HEUREKA_FULL_FEED_TIMEOUT_MS,
+    requestBudgetMs: HEUREKA_IMPORT_REQUEST_BUDGET_MS,
+  };
+}
+
+function staticFeedById(): Map<string, HkFeedDef> {
+  return new Map(HEUREKA_FEEDS.map((feed) => [feed.id, feed]));
+}
+
+function deaccent(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function isExcluded(name: string, exclude?: string[]): boolean {
+  if (!exclude?.length) return false;
+  const normalized = deaccent(name);
+  return exclude.some((term) => normalized.includes(deaccent(term)));
+}
+
+async function syncStaticHeurekaFeeds(sql: SqlClient): Promise<number> {
+  for (const feed of HEUREKA_FEEDS) {
+    await sql`
+      INSERT INTO hk_feeds (id, url, domain, category, affiliate_url, enabled)
+      VALUES (${feed.id}, ${feed.url}, ${feed.domain}, ${feed.category}, ${feed.affiliateUrl}, true)
+      ON CONFLICT (id) DO UPDATE SET
+        url           = EXCLUDED.url,
+        domain        = EXCLUDED.domain,
+        category      = EXCLUDED.category,
+        affiliate_url = EXCLUDED.affiliate_url
+    `;
+  }
+
+  return HEUREKA_FEEDS.length;
+}
+
+async function acquireImportLock(
+  sql: SqlClient,
+  owner: string
+): Promise<{ acquired: boolean; expiresAt?: string }> {
+  const expiresAt = nowIsoPlus(HEUREKA_IMPORT_LOCK_TTL_MS);
+  const rows = (await sql`
+    INSERT INTO hk_import_locks (name, owner, locked_at, expires_at)
+    VALUES (${LOCK_NAME}, ${owner}, now(), ${expiresAt})
+    ON CONFLICT (name) DO UPDATE SET
+      owner = EXCLUDED.owner,
+      locked_at = EXCLUDED.locked_at,
+      expires_at = EXCLUDED.expires_at
+    WHERE hk_import_locks.expires_at < now()
+    RETURNING expires_at
+  `) as { expires_at: string }[];
+
+  if (rows.length === 0) return { acquired: false };
+  return { acquired: true, expiresAt: rows[0].expires_at };
+}
+
+async function attachRunToLock(sql: SqlClient, owner: string, runId: string): Promise<void> {
+  await sql`
+    UPDATE hk_import_locks
+    SET run_id = ${runId}
+    WHERE name = ${LOCK_NAME} AND owner = ${owner}
+  `;
+}
+
+async function releaseImportLock(sql: SqlClient, owner: string): Promise<void> {
+  await sql`DELETE FROM hk_import_locks WHERE name = ${LOCK_NAME} AND owner = ${owner}`;
+}
+
+async function getEnabledFeedCount(sql: SqlClient): Promise<number> {
+  const rows = (await sql`SELECT COUNT(*)::int AS total FROM hk_feeds WHERE enabled = true`) as { total: number }[];
+  return rows[0]?.total ?? 0;
+}
+
+async function getOrCreateRun(sql: SqlClient, mode: HkImportMode): Promise<HkImportRunRow> {
+  const active = (await sql`
+    SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+    FROM hk_import_runs
+    WHERE type = 'heureka' AND status IN ('running', 'partial')
+    ORDER BY started_at DESC
+    LIMIT 1
+  `) as HkImportRunRow[];
+
+  if (active[0]) {
+    const run = active[0];
+    await sql`
+      UPDATE hk_import_runs
+      SET status = 'running', updated_at = now()
+      WHERE id = ${run.id}
+    `;
+    return { ...run, status: "running" };
+  }
+
+  const id = crypto.randomUUID();
+  const totalFeeds = await getEnabledFeedCount(sql);
+  const rows = (await sql`
+    INSERT INTO hk_import_runs (
+      id, type, mode, status, started_at, total_feeds, processed_feeds,
+      successful_feeds, failed_feeds, cursor_feed_id
+    )
+    VALUES (${id}, 'heureka', ${mode}, 'running', now(), ${totalFeeds}, 0, 0, 0, null)
+    RETURNING id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+  `) as HkImportRunRow[];
+
+  await sql`
+    INSERT INTO hk_import_run_feeds (run_id, feed_id, status)
+    SELECT ${id}, id, 'pending'
+    FROM hk_feeds
+    WHERE enabled = true
+    ON CONFLICT (run_id, feed_id) DO NOTHING
+  `;
+
+  return rows[0];
+}
+
+async function getRun(sql: SqlClient, runId: string): Promise<HkImportRunRow> {
+  const rows = (await sql`
+    SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+    FROM hk_import_runs
+    WHERE id = ${runId}
+  `) as HkImportRunRow[];
+  return rows[0];
+}
+
+async function selectNextFeeds(
+  sql: SqlClient,
+  runId: string,
+  cursorFeedId: string | null,
+  limit: number
+): Promise<HkFeedImportRow[]> {
+  await sql`
+    INSERT INTO hk_import_run_feeds (run_id, feed_id, status)
+    SELECT ${runId}, id, 'pending'
+    FROM hk_feeds
+    WHERE enabled = true
+    ON CONFLICT (run_id, feed_id) DO NOTHING
+  `;
+
+  if (cursorFeedId) {
+    return (await sql`
+      SELECT id, url, domain, category, affiliate_url, enabled
+      FROM hk_feeds
+      WHERE enabled = true AND id > ${cursorFeedId}
+      ORDER BY id ASC
+      LIMIT ${limit}
+    `) as HkFeedImportRow[];
+  }
+
+  return (await sql`
+    SELECT id, url, domain, category, affiliate_url, enabled
+    FROM hk_feeds
+    WHERE enabled = true
+    ORDER BY id ASC
+    LIMIT ${limit}
+  `) as HkFeedImportRow[];
+}
+
+async function setRunFeedStatus(
+  sql: SqlClient,
+  runId: string,
+  feedId: string,
+  status: HkImportRunFeedStatus,
+  fields: {
+    errorType?: HkFeedErrorType;
+    errorMessage?: string;
+    productCount?: number;
+    durationMs?: number;
+    finished?: boolean;
+  } = {}
+): Promise<void> {
+  await sql`
+    INSERT INTO hk_import_run_feeds (
+      run_id, feed_id, status, started_at, finished_at, error_type,
+      error_message, product_count, duration_ms, updated_at
+    )
+    VALUES (
+      ${runId}, ${feedId}, ${status}, now(), ${fields.finished ? new Date().toISOString() : null},
+      ${fields.errorType ?? null}, ${fields.errorMessage ?? null},
+      ${fields.productCount ?? 0}, ${fields.durationMs ?? 0}, now()
+    )
+    ON CONFLICT (run_id, feed_id) DO UPDATE SET
+      status = EXCLUDED.status,
+      started_at = COALESCE(hk_import_run_feeds.started_at, EXCLUDED.started_at),
+      finished_at = EXCLUDED.finished_at,
+      error_type = EXCLUDED.error_type,
+      error_message = EXCLUDED.error_message,
+      product_count = EXCLUDED.product_count,
+      duration_ms = EXCLUDED.duration_ms,
+      updated_at = now()
+  `;
+}
+
+async function updateRunAfterFeed(
+  sql: SqlClient,
+  runId: string,
+  feedId: string,
+  result: ImportHeurekaBatchFeedResult
+): Promise<void> {
+  const successIncrement = result.status === "success" || result.status === "empty" ? 1 : 0;
+  const failedIncrement = successIncrement ? 0 : 1;
+  const errorSummary = result.errorMessage ? `${feedId}: ${result.errorMessage}`.slice(0, 1000) : null;
+
+  await sql`
+    UPDATE hk_import_runs
+    SET
+      status = 'partial',
+      processed_feeds = processed_feeds + 1,
+      successful_feeds = successful_feeds + ${successIncrement},
+      failed_feeds = failed_feeds + ${failedIncrement},
+      cursor_feed_id = ${feedId},
+      error_summary = COALESCE(${errorSummary}, error_summary),
+      updated_at = now()
+    WHERE id = ${runId}
+  `;
+}
+
+async function finalizeRunIfDone(sql: SqlClient, runId: string): Promise<HkImportRunRow> {
+  const pendingRows = (await sql`
+    SELECT COUNT(*)::int AS remaining
+    FROM hk_feeds
+    WHERE enabled = true
+      AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+  `) as { remaining: number }[];
+
+  const remaining = pendingRows[0]?.remaining ?? 0;
+  const run = await getRun(sql, runId);
+  if (remaining > 0) {
+    await sql`UPDATE hk_import_runs SET status = 'partial', updated_at = now() WHERE id = ${runId}`;
+    return { ...run, status: "partial" };
+  }
+
+  const finalStatus: HkImportRunStatus = run.failed_feeds > 0 ? "partial" : "success";
+  const rows = (await sql`
+    UPDATE hk_import_runs
+    SET status = ${finalStatus}, finished_at = now(), updated_at = now()
+    WHERE id = ${runId}
+    RETURNING id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+  `) as HkImportRunRow[];
+  return rows[0];
+}
+
 function nextShopitemEnd(xml: string, from: number): number {
   const upper = xml.indexOf("</SHOPITEM>", from);
   const lower = xml.indexOf("</shopitem>", from);
@@ -15,49 +373,67 @@ function nextShopitemEnd(xml: string, from: number): number {
   return idx === -1 ? -1 : idx + "</SHOPITEM>".length;
 }
 
-// Orezané XML treba korektne uzavrieť, inak ho parser zahodí
 function closeTruncatedXml(xml: string): string {
   const closers: string[] = [];
-  const head = xml.slice(0, 4096); // wrapper tagy (<rss>, <SHOP>) sú na začiatku feedu
-  for (const m of head.matchAll(/<(rss|RSS|SHOP|shop)(?=[\s>])/g)) {
-    closers.unshift(`</${m[1]}>`);
+  const head = xml.slice(0, 4096);
+  for (const match of head.matchAll(/<(rss|RSS|SHOP|shop)(?=[\s>])/g)) {
+    closers.unshift(`</${match[1]}>`);
   }
   return xml + closers.join("");
 }
 
-async function fetchXml(url: string): Promise<string> {
+async function fetchXml(url: string, modeConfig: HeurekaImportModeConfig): Promise<FetchXmlResult> {
   const res = await fetch(url, {
-    signal: AbortSignal.timeout(60000),
+    signal: AbortSignal.timeout(modeConfig.feedTimeoutMs),
     headers: { "User-Agent": "Zlavickovo/1.0 (+https://zlavickovo.sk)" },
     next: { revalidate: 0 },
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  if (!res.body) return res.text();
 
-  // Streamuj len začiatok feedu — parser berie max 500 produktov, celé XML (aj stovky MB) zabíjalo pamäť inštancie
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  if (!res.body) {
+    const xml = await res.text();
+    return { xml, truncated: false, bytesDownloaded: xml.length };
+  }
+
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
+  const maxItems = modeConfig.maxItems;
   let xml = "";
   let items = 0;
   let searchFrom = 0;
+  let bytesDownloaded = 0;
 
   try {
     while (true) {
       const { done, value } = await reader.read();
-      if (done) return xml + decoder.decode(); // feed má menej ako 500 položiek — je kompletný
+      if (done) {
+        xml += decoder.decode();
+        return { xml, truncated: false, bytesDownloaded };
+      }
 
+      bytesDownloaded += value.byteLength;
       xml += decoder.decode(value, { stream: true });
 
       let end: number;
-      while (items < MAX_ITEMS && (end = nextShopitemEnd(xml, searchFrom)) !== -1) {
+      while (items < maxItems && (end = nextShopitemEnd(xml, searchFrom)) !== -1) {
         items++;
         searchFrom = end;
       }
-      if (items >= MAX_ITEMS) {
-        return closeTruncatedXml(xml.slice(0, searchFrom));
+
+      if (items >= maxItems) {
+        return {
+          xml: closeTruncatedXml(xml.slice(0, searchFrom)),
+          truncated: true,
+          bytesDownloaded,
+        };
       }
-      if (xml.length >= MAX_BYTES) {
-        return searchFrom > 0 ? closeTruncatedXml(xml.slice(0, searchFrom)) : xml;
+
+      if (xml.length >= HEUREKA_MAX_BYTES) {
+        return {
+          xml: searchFrom > 0 ? closeTruncatedXml(xml.slice(0, searchFrom)) : xml,
+          truncated: true,
+          bytesDownloaded,
+        };
       }
     }
   } finally {
@@ -65,163 +441,304 @@ async function fetchXml(url: string): Promise<string> {
   }
 }
 
-// Porovnávanie bez diakritiky — "CBD květy" musí chytiť výraz "cbd kvet"
-const deaccent = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
-function isExcluded(name: string, exclude?: string[]): boolean {
-  if (!exclude?.length) return false;
-  const n = deaccent(name);
-  return exclude.some((term) => n.includes(term));
-}
-
-// Bezpečnostné čistenie DB pred importom:
-// 1. zmaže produkty feedov, ktoré už nie sú v HEUREKA_FEEDS (vyradené feedy)
-// 2. zmaže riadky vyradených feedov z hk_feeds
-// 3. zmaže existujúce produkty, ktoré matchujú exclude filter svojho feedu
-export async function pruneRemovedProducts(): Promise<PruneResult> {
-  const sql = getDb();
-  const ids = HEUREKA_FEEDS.map((f) => f.id);
-
-  const orphanProducts = await sql`DELETE FROM hk_products WHERE feed_id <> ALL(${ids}) RETURNING id`;
-  const orphanFeeds = await sql`DELETE FROM hk_feeds WHERE id <> ALL(${ids}) RETURNING id`;
-
-  let excludedProducts = 0;
-  for (const feed of HEUREKA_FEEDS) {
-    if (!feed.exclude?.length) continue;
-    // Diakritiku (květy vs kvety) nevie ILIKE bez unaccent extension — filtrujeme v JS
-    const rows = (await sql`SELECT id, name FROM hk_products WHERE feed_id = ${feed.id}`) as { id: number; name: string }[];
-    const toDelete = rows.filter((r) => isExcluded(r.name, feed.exclude)).map((r) => r.id);
-    if (toDelete.length > 0) {
-      await sql`DELETE FROM hk_products WHERE id = ANY(${toDelete})`;
-      excludedProducts += toDelete.length;
-    }
-  }
-
-  return {
-    orphanProducts: orphanProducts.length,
-    orphanFeeds: orphanFeeds.length,
-    excludedProducts,
-  };
-}
-
-// Klasifikácia chyby feedu pre observabilitu importu.
-export function classifyFeedError(msg: string): HkFeedErrorType {
-  if (/timeout|aborted|The operation was aborted/i.test(msg)) return "timeout";
-  if (/^HTTP\s+\d/i.test(msg) || /HTTP\s+\d{3}/i.test(msg)) return "http_error";
-  if (/parse|xml|unexpected|malformed|invalid/i.test(msg)) return "parse_error";
+export function classifyFeedError(message: string): HkFeedErrorType {
+  if (/timeout|aborted|The operation was aborted/i.test(message)) return "timeout";
+  if (/^HTTP\s+\d/i.test(message) || /HTTP\s+\d{3}/i.test(message)) return "http_error";
+  if (/unsupported/i.test(message)) return "unsupported_format";
+  if (/empty|žiadne produkty|ziadne produkty/i.test(message)) return "empty_feed";
+  if (/size|limit|truncated/i.test(message)) return "size_limit";
+  if (/database|db|sql|constraint|duplicate/i.test(message)) return "db_error";
+  if (/parse|xml|unexpected|malformed|invalid/i.test(message)) return "parse_error";
   return "unknown_error";
 }
 
-async function importSingleFeed(feed: HkFeedDef): Promise<ImportFeedResult> {
-  const sql = getDb();
-  const start = Date.now();
+async function upsertProducts(
+  sql: SqlClient,
+  feed: HkFeedImportRow,
+  products: ReturnType<typeof parseHeurekaXmlDetailed>["products"]
+): Promise<number> {
+  const unique = Array.from(new Map(products.map((product) => [product.url, product])).values());
+
+  for (let i = 0; i < unique.length; i += DB_BATCH_SIZE) {
+    const chunk = unique.slice(i, i + DB_BATCH_SIZE);
+    const feedIds = chunk.map(() => feed.id);
+    const names = chunk.map((product) => product.name);
+    const descriptions = chunk.map((product) => product.description);
+    const prices = chunk.map((product) => product.price);
+    const urls = chunk.map((product) => product.url);
+    const imgs = chunk.map((product) => product.imgUrl);
+    const domains = chunk.map(() => feed.domain);
+    const cats = chunk.map(() => feed.category);
+    const affs = chunk.map(() => feed.affiliate_url);
+    const eans = chunk.map((product) => product.ean);
+    const itemIds = chunk.map((product) => product.itemId);
+    const manufacturers = chunk.map((product) => product.manufacturer);
+    const productnos = chunk.map((product) => product.productno);
+
+    await sql`
+      INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
+      SELECT * FROM UNNEST(
+        ${feedIds}::text[], ${names}::text[], ${descriptions}::text[], ${prices}::text[], ${urls}::text[],
+        ${imgs}::text[], ${domains}::text[], ${cats}::text[], ${affs}::text[], ${eans}::text[],
+        ${itemIds}::text[], ${manufacturers}::text[], ${productnos}::text[]
+      )
+      ON CONFLICT (url) DO UPDATE SET
+        name          = EXCLUDED.name,
+        description   = EXCLUDED.description,
+        price         = EXCLUDED.price,
+        img_url       = EXCLUDED.img_url,
+        affiliate_url = EXCLUDED.affiliate_url,
+        ean           = EXCLUDED.ean,
+        item_id       = EXCLUDED.item_id,
+        manufacturer  = EXCLUDED.manufacturer,
+        productno     = EXCLUDED.productno,
+        updated_at    = now()
+    `;
+  }
+
+  return unique.length;
+}
+
+async function importOneFeed(
+  sql: SqlClient,
+  runId: string,
+  feed: HkFeedImportRow,
+  mode: HkImportMode,
+  modeConfig: HeurekaImportModeConfig,
+  staticFeeds: Map<string, HkFeedDef>
+): Promise<ImportHeurekaBatchFeedResult> {
+  const startedAt = Date.now();
+  await setRunFeedStatus(sql, runId, feed.id, "running");
 
   try {
-    const xml = await fetchXml(feed.url);
-    const products = parseHeurekaXml(xml, feed.category).filter((p) => !isExcluded(p.name, feed.exclude));
+    const fetchResult = await fetchXml(feed.url, modeConfig);
+    const parseResult = parseHeurekaXmlDetailed(fetchResult.xml, feed.category, {
+      maxItems: Number.isFinite(modeConfig.maxItems) ? modeConfig.maxItems : undefined,
+      truncated: fetchResult.truncated,
+    });
 
-    if (products.length === 0) {
-      const durationMs = Date.now() - start;
-      await sql`
-        UPDATE hk_feeds
-        SET last_fetched_at = now(), last_error = 'Žiadne produkty v XML', error_count = error_count + 1, last_duration_ms = ${durationMs}
-        WHERE id = ${feed.id}
-      `;
-      return { feedId: feed.id, domain: feed.domain, count: 0, error: "Žiadne produkty", empty: true, durationMs };
+    if (parseResult.status === "parse_error" || parseResult.status === "unsupported_format") {
+      throw new Error(parseResult.errorMessage ?? parseResult.status);
     }
 
-    // Deduplikácia podľa URL (kľúč ON CONFLICT) — jeden multi-row INSERT nesmie
-    // obsahovať tú istú URL 2× (Postgres: "cannot affect row a second time").
-    // Map zachová posledný výskyt = rovnaká sémantika ako pôvodný per-row upsert.
-    const unique = Array.from(new Map(products.map((p) => [p.url, p])).values());
+    const exclude = staticFeeds.get(feed.id)?.exclude;
+    const filtered = parseResult.products.filter((product) => !isExcluded(product.name, exclude));
+    const productCount = parseResult.truncated ? 0 : await upsertProducts(sql, feed, filtered);
+    const durationMs = Date.now() - startedAt;
+    const status: HkImportRunFeedStatus =
+      parseResult.truncated ? "truncated" : productCount > 0 ? "success" : "empty";
+    const errorType: HkFeedErrorType | undefined = status === "truncated" ? "size_limit" : undefined;
+    const errorMessage = status === "truncated" ? "Feed bol orezaný limitom a nebol označený ako úspešný." : undefined;
 
-    // Bulk upsert cez UNNEST — 1 DB round-trip na dávku namiesto N single INSERT-ov.
-    const BATCH = 200;
-    for (let i = 0; i < unique.length; i += BATCH) {
-      const chunk = unique.slice(i, i + BATCH);
-      const feedIds      = chunk.map(() => feed.id);
-      const names        = chunk.map((p) => p.name);
-      const descriptions = chunk.map((p) => p.description);
-      const prices       = chunk.map((p) => p.price);
-      const urls         = chunk.map((p) => p.url);
-      const imgs         = chunk.map((p) => p.imgUrl);
-      const domains      = chunk.map(() => feed.domain);
-      const cats         = chunk.map(() => feed.category);
-      const affs         = chunk.map(() => feed.affiliateUrl);
-      const eans         = chunk.map((p) => p.ean);
-      const itemIds      = chunk.map((p) => p.itemId);
-      const manus        = chunk.map((p) => p.manufacturer);
-      const productnos   = chunk.map((p) => p.productno);
-
-      await sql`
-        INSERT INTO hk_products (feed_id, name, description, price, url, img_url, domain, category, affiliate_url, ean, item_id, manufacturer, productno)
-        SELECT * FROM UNNEST(
-          ${feedIds}::text[], ${names}::text[], ${descriptions}::text[], ${prices}::text[], ${urls}::text[],
-          ${imgs}::text[], ${domains}::text[], ${cats}::text[], ${affs}::text[], ${eans}::text[],
-          ${itemIds}::text[], ${manus}::text[], ${productnos}::text[]
-        )
-        ON CONFLICT (url) DO UPDATE SET
-          name          = EXCLUDED.name,
-          description   = EXCLUDED.description,
-          price         = EXCLUDED.price,
-          img_url       = EXCLUDED.img_url,
-          affiliate_url = EXCLUDED.affiliate_url,
-          ean           = EXCLUDED.ean,
-          item_id       = EXCLUDED.item_id,
-          manufacturer  = EXCLUDED.manufacturer,
-          productno     = EXCLUDED.productno,
-          updated_at    = now()
-      `;
-    }
-
-    const durationMs = Date.now() - start;
     await sql`
       UPDATE hk_feeds
-      SET last_fetched_at = now(), last_error = null, error_count = 0, product_count = ${unique.length}, last_duration_ms = ${durationMs}
+      SET
+        last_fetched_at = now(),
+        last_error = ${errorMessage ?? null},
+        error_count = CASE WHEN ${status} IN ('success', 'empty') THEN 0 ELSE error_count + 1 END,
+        product_count = ${productCount},
+        last_duration_ms = ${durationMs}
       WHERE id = ${feed.id}
     `;
 
-    return { feedId: feed.id, domain: feed.domain, count: unique.length, durationMs };
-  } catch (err: any) {
-    const durationMs = Date.now() - start;
-    const msg = String(err?.message ?? err).slice(0, 500);
-    const errorType = classifyFeedError(msg);
-    try {
-      await sql`
-        UPDATE hk_feeds
-        SET last_fetched_at = now(), last_error = ${msg}, error_count = error_count + 1, last_duration_ms = ${durationMs}
-        WHERE id = ${feed.id}
-      `;
-    } catch {}
-    return { feedId: feed.id, domain: feed.domain, count: 0, error: msg, errorType, durationMs };
+    await setRunFeedStatus(sql, runId, feed.id, status, {
+      errorType,
+      errorMessage,
+      productCount,
+      durationMs,
+      finished: true,
+    });
+
+    return {
+      feedId: feed.id,
+      domain: feed.domain,
+      status,
+      productCount,
+      durationMs,
+      errorType,
+      errorMessage,
+    };
+  } catch (err) {
+    const durationMs = Date.now() - startedAt;
+    const errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
+    const errorType = classifyFeedError(errorMessage);
+
+    await sql`
+      UPDATE hk_feeds
+      SET
+        last_fetched_at = now(),
+        last_error = ${errorMessage},
+        error_count = error_count + 1,
+        last_duration_ms = ${durationMs}
+      WHERE id = ${feed.id}
+    `;
+
+    await setRunFeedStatus(sql, runId, feed.id, "error", {
+      errorType,
+      errorMessage,
+      productCount: 0,
+      durationMs,
+      finished: true,
+    });
+
+    return {
+      feedId: feed.id,
+      domain: feed.domain,
+      status: "error",
+      productCount: 0,
+      durationMs,
+      errorType,
+      errorMessage,
+    };
   }
 }
 
-// Feedy sa importujú v batchoch po 10 — 54 paralelných fetchov sa delilo o bandwidth a validné XML padali na timeout
-const FEED_BATCH = 10;
+async function hasRemainingFeeds(sql: SqlClient, runId: string): Promise<boolean> {
+  const rows = (await sql`
+    SELECT COUNT(*)::int AS remaining
+    FROM hk_feeds
+    WHERE enabled = true
+      AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+  `) as { remaining: number }[];
+  return (rows[0]?.remaining ?? 0) > 0;
+}
 
-export async function importAllHeurekaFeeds(): Promise<{ results: ImportFeedResult[]; prune: PruneResult }> {
-  const prune = await pruneRemovedProducts();
-  const results: ImportFeedResult[] = [];
+export async function importHeurekaBatch(
+  options: ImportHeurekaBatchOptions = {}
+): Promise<ImportHeurekaBatchResult> {
+  const sql = getDb();
+  const owner = crypto.randomUUID();
+  const requestedMode = options.mode ?? "full";
+  const batchSize = normalizeLimit(options.batchSize, HEUREKA_IMPORT_BATCH_SIZE, 10);
+  const parallelism = normalizeLimit(options.parallelism, HEUREKA_IMPORT_PARALLELISM, 3);
+  const lock = await acquireImportLock(sql, owner);
 
-  for (let i = 0; i < HEUREKA_FEEDS.length; i += FEED_BATCH) {
-    const batch = HEUREKA_FEEDS.slice(i, i + FEED_BATCH);
-    const settled = await Promise.allSettled(batch.map(importSingleFeed));
-    results.push(
-      ...settled.map((r, j) =>
-        r.status === "fulfilled"
-          ? r.value
-          : {
-              feedId: batch[j].id,
-              domain: batch[j].domain,
-              count: 0,
-              error: String((r as PromiseRejectedResult).reason),
-              errorType: classifyFeedError(String((r as PromiseRejectedResult).reason)),
-              durationMs: 0,
-            }
-      )
-    );
+  if (!lock.acquired) {
+    return {
+      ok: false,
+      runId: null,
+      status: "locked",
+      mode: requestedMode,
+      checkpoint: null,
+      batchSize,
+      parallelism,
+      processedInBatch: 0,
+      results: [],
+      needsNextRequest: true,
+      lock: {
+        name: LOCK_NAME,
+        acquired: false,
+        ttlMs: HEUREKA_IMPORT_LOCK_TTL_MS,
+        owner,
+      },
+      error: "Heureka import už beží.",
+    };
   }
 
-  return { results, prune };
+  let runId: string | null = null;
+
+  try {
+    const startedAt = Date.now();
+    await syncStaticHeurekaFeeds(sql);
+    const run = await getOrCreateRun(sql, requestedMode);
+    const mode = run.mode;
+    const modeConfig = getImportModeConfig(mode);
+    runId = run.id;
+    await attachRunToLock(sql, owner, run.id);
+
+    const staticFeeds = staticFeedById();
+    const results: ImportHeurekaBatchFeedResult[] = [];
+    let cursor = run.cursor_feed_id;
+    let currentRun = run;
+
+    while (results.length < batchSize) {
+      const elapsed = Date.now() - startedAt;
+      const remaining = modeConfig.requestBudgetMs - elapsed;
+      if (remaining < HEUREKA_IMPORT_MIN_REMAINING_MS) break;
+
+      const limit = Math.min(parallelism, batchSize - results.length);
+      const feeds = await selectNextFeeds(sql, run.id, cursor, limit);
+      if (feeds.length === 0) break;
+
+      const settled = await Promise.allSettled(
+        feeds.map((feed) => importOneFeed(sql, run.id, feed, mode, modeConfig, staticFeeds))
+      );
+
+      for (let i = 0; i < settled.length; i++) {
+        const feed = feeds[i];
+        const settledResult = settled[i];
+        const result =
+          settledResult.status === "fulfilled"
+            ? settledResult.value
+            : {
+                feedId: feed.id,
+                domain: feed.domain,
+                status: "error" as const,
+                productCount: 0,
+                durationMs: 0,
+                errorType: classifyFeedError(String(settledResult.reason)),
+                errorMessage: String(settledResult.reason).slice(0, 500),
+              };
+
+        await updateRunAfterFeed(sql, run.id, feed.id, result);
+        cursor = feed.id;
+        results.push(result);
+      }
+
+      if (Date.now() - startedAt >= modeConfig.requestBudgetMs) break;
+    }
+
+    currentRun = await finalizeRunIfDone(sql, run.id);
+    const needsNextRequest = await hasRemainingFeeds(sql, run.id);
+
+    return {
+      ok: true,
+      runId: run.id,
+      status: currentRun.status,
+      mode,
+      checkpoint: currentRun.cursor_feed_id,
+      batchSize,
+      parallelism,
+      processedInBatch: results.length,
+      results,
+      needsNextRequest,
+      lock: {
+        name: LOCK_NAME,
+        acquired: true,
+        ttlMs: HEUREKA_IMPORT_LOCK_TTL_MS,
+        owner,
+        expiresAt: lock.expiresAt,
+      },
+      counts: {
+        totalFeeds: currentRun.total_feeds,
+        processedFeeds: currentRun.processed_feeds,
+        successfulFeeds: currentRun.successful_feeds,
+        failedFeeds: currentRun.failed_feeds,
+      },
+    };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    if (runId) {
+      await sql`
+        UPDATE hk_import_runs
+        SET status = 'error', finished_at = now(), error_summary = ${error.slice(0, 1000)}, updated_at = now()
+        WHERE id = ${runId}
+      `;
+    }
+    throw err;
+  } finally {
+    await releaseImportLock(sql, owner);
+  }
+}
+
+export async function getHeurekaImportFeedState(
+  runId: string
+): Promise<HkImportRunFeedRow[]> {
+  const sql = getDb();
+  return (await sql`
+    SELECT feed_id, status
+    FROM hk_import_run_feeds
+    WHERE run_id = ${runId}
+    ORDER BY feed_id ASC
+  `) as HkImportRunFeedRow[];
 }
