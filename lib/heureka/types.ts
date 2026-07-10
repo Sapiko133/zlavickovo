@@ -62,7 +62,11 @@ export type HkImportRunFeedStatus =
   | "empty"
   | "error"
   | "partial"
-  | "truncated";
+  | "truncated"
+  // Audit režim: vzorka feedu sa stiahla a sparsovala — feed je zdravý.
+  // Do hk_import_run_feeds sa perzistuje ako 'success' (DB CHECK constraint),
+  // audit kontext nesie hk_import_runs.mode = 'audit'.
+  | "audit_success";
 
 export interface ImportFeedResult {
   feedId: string;

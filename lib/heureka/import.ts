@@ -26,7 +26,7 @@ const DB_BATCH_SIZE = 200;
 
 type SqlClient = ReturnType<typeof getDb>;
 
-interface HkFeedImportRow {
+export interface HkFeedImportRow {
   id: string;
   url: string;
   domain: string;
@@ -76,8 +76,15 @@ export interface ImportHeurekaBatchFeedResult {
   status: HkImportRunFeedStatus;
   productCount: number;
   durationMs: number;
-  errorType?: HkFeedErrorType;
+  errorType?: HkFeedErrorType | null;
   errorMessage?: string;
+  // Audit polia — nastavené len pri mode=audit
+  sampled?: boolean;
+  sampleLimit?: number;
+  sampleProductCount?: number;
+  // Celkový počet produktov feedu; null = neznámy (feed má viac položiek než vzorka)
+  totalProductCount?: number | null;
+  feedHasMoreItems?: boolean;
 }
 
 export interface ImportHeurekaBatchResult {
@@ -295,13 +302,14 @@ async function setRunFeedStatus(
     finished?: boolean;
   } = {}
 ): Promise<void> {
+  const dbStatus = toDbRunFeedStatus(status);
   await sql`
     INSERT INTO hk_import_run_feeds (
       run_id, feed_id, status, started_at, finished_at, error_type,
       error_message, product_count, duration_ms, updated_at
     )
     VALUES (
-      ${runId}, ${feedId}, ${status}, now(), ${fields.finished ? new Date().toISOString() : null},
+      ${runId}, ${feedId}, ${dbStatus}, now(), ${fields.finished ? new Date().toISOString() : null},
       ${fields.errorType ?? null}, ${fields.errorMessage ?? null},
       ${fields.productCount ?? 0}, ${fields.durationMs ?? 0}, now()
     )
@@ -317,13 +325,24 @@ async function setRunFeedStatus(
   `;
 }
 
+export function isRunFeedSuccessStatus(status: HkImportRunFeedStatus): boolean {
+  return status === "success" || status === "empty" || status === "audit_success";
+}
+
+// 'audit_success' nie je v DB CHECK constrainte hk_import_run_feeds_status_check
+// (produkčná migrácia 20260710 pozná len pôvodné statusy) — do run tabuľky sa
+// perzistuje ako 'success'; že šlo o audit, hovorí hk_import_runs.mode.
+function toDbRunFeedStatus(status: HkImportRunFeedStatus): HkImportRunFeedStatus {
+  return status === "audit_success" ? "success" : status;
+}
+
 async function updateRunAfterFeed(
   sql: SqlClient,
   runId: string,
   feedId: string,
   result: ImportHeurekaBatchFeedResult
 ): Promise<void> {
-  const successIncrement = result.status === "success" || result.status === "empty" ? 1 : 0;
+  const successIncrement = isRunFeedSuccessStatus(result.status) ? 1 : 0;
   const failedIncrement = successIncrement ? 0 : 1;
   const errorSummary = result.errorMessage ? `${feedId}: ${result.errorMessage}`.slice(0, 1000) : null;
 
@@ -499,7 +518,7 @@ async function upsertProducts(
   return unique.length;
 }
 
-async function importOneFeed(
+export async function importOneFeed(
   sql: SqlClient,
   runId: string,
   feed: HkFeedImportRow,
@@ -508,6 +527,7 @@ async function importOneFeed(
   staticFeeds: Map<string, HkFeedDef>
 ): Promise<ImportHeurekaBatchFeedResult> {
   const startedAt = Date.now();
+  const isAudit = mode === "audit";
   await setRunFeedStatus(sql, runId, feed.id, "running");
 
   try {
@@ -518,11 +538,45 @@ async function importOneFeed(
     });
 
     if (parseResult.status === "parse_error" || parseResult.status === "unsupported_format") {
-      throw new Error(parseResult.errorMessage ?? parseResult.status);
+      // Prefix so statusom parsera — classifyFeedError inak nevie z chybovej hlášky
+      // fast-xml-parseru odvodiť parse_error.
+      throw new Error(
+        parseResult.errorMessage ? `${parseResult.status}: ${parseResult.errorMessage}` : parseResult.status
+      );
     }
 
     const exclude = staticFeeds.get(feed.id)?.exclude;
     const filtered = parseResult.products.filter((product) => !isExcluded(product.name, exclude));
+
+    if (isAudit) {
+      // Audit režim: overí zdravie feedu na vzorke. Nezapisuje do hk_products
+      // ani do hk_feeds — výsledok ide len do hk_import_run_feeds/hk_import_runs.
+      // Dosiahnutie audit limitu nie je chyba.
+      const sampleProductCount = filtered.length;
+      const durationMs = Date.now() - startedAt;
+      const status: HkImportRunFeedStatus = sampleProductCount > 0 ? "audit_success" : "empty";
+
+      await setRunFeedStatus(sql, runId, feed.id, status, {
+        productCount: sampleProductCount,
+        durationMs,
+        finished: true,
+      });
+
+      return {
+        feedId: feed.id,
+        domain: feed.domain,
+        status,
+        productCount: sampleProductCount,
+        durationMs,
+        errorType: null,
+        sampled: true,
+        sampleLimit: modeConfig.maxItems,
+        sampleProductCount,
+        totalProductCount: parseResult.truncated ? null : sampleProductCount,
+        feedHasMoreItems: parseResult.truncated,
+      };
+    }
+
     const productCount = parseResult.truncated ? 0 : await upsertProducts(sql, feed, filtered);
     const durationMs = Date.now() - startedAt;
     const status: HkImportRunFeedStatus =
@@ -563,15 +617,17 @@ async function importOneFeed(
     const errorMessage = (err instanceof Error ? err.message : String(err)).slice(0, 500);
     const errorType = classifyFeedError(errorMessage);
 
-    await sql`
-      UPDATE hk_feeds
-      SET
-        last_fetched_at = now(),
-        last_error = ${errorMessage},
-        error_count = error_count + 1,
-        last_duration_ms = ${durationMs}
-      WHERE id = ${feed.id}
-    `;
+    if (!isAudit) {
+      await sql`
+        UPDATE hk_feeds
+        SET
+          last_fetched_at = now(),
+          last_error = ${errorMessage},
+          error_count = error_count + 1,
+          last_duration_ms = ${durationMs}
+        WHERE id = ${feed.id}
+      `;
+    }
 
     await setRunFeedStatus(sql, runId, feed.id, "error", {
       errorType,
@@ -589,6 +645,14 @@ async function importOneFeed(
       durationMs,
       errorType,
       errorMessage,
+      ...(isAudit
+        ? {
+            sampled: true,
+            sampleLimit: modeConfig.maxItems,
+            sampleProductCount: 0,
+            totalProductCount: null,
+          }
+        : {}),
     };
   }
 }
