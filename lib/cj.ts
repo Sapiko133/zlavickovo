@@ -31,7 +31,7 @@ function xmlField(xml: string, tag: string): string {
   return xml.match(new RegExp(`<${tag}>(.*?)</${tag}>`))?.[1]?.trim() ?? "";
 }
 
-function parseLinks(xml: string): any[] {
+function parseLinks(xml: string): string[] {
   return [...xml.matchAll(/<link>([\s\S]*?)<\/link>/g)].map(m => m[1]);
 }
 
@@ -172,8 +172,8 @@ export async function getCjShops(): Promise<CjShop[]> {
 
 export async function getCjCouponsByShop(shopName: string): Promise<CjCoupon[]> {
   const all = await getCjCoupons();
-  const lq = shopName.toLowerCase();
-  return all.filter((c) => c.advertiserName.toLowerCase().includes(lq));
+  const matches = createShopMatcher(shopName);
+  return all.filter((c) => matches(c.advertiserName));
 }
 
 /**
