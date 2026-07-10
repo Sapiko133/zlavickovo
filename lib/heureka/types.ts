@@ -41,7 +41,28 @@ export interface HkFeedRow {
   last_duration_ms: number;
 }
 
-export type HkFeedErrorType = "timeout" | "http_error" | "parse_error" | "unknown_error";
+export type HkImportMode = "audit" | "full";
+
+export type HkFeedErrorType =
+  | "timeout"
+  | "http_error"
+  | "parse_error"
+  | "unsupported_format"
+  | "empty_feed"
+  | "size_limit"
+  | "db_error"
+  | "unknown_error";
+
+export type HkImportRunStatus = "running" | "partial" | "success" | "error";
+
+export type HkImportRunFeedStatus =
+  | "pending"
+  | "running"
+  | "success"
+  | "empty"
+  | "error"
+  | "partial"
+  | "truncated";
 
 export interface ImportFeedResult {
   feedId: string;

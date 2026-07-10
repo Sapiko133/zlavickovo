@@ -13,7 +13,23 @@ function stripHtml(s: string): string {
 }
 
 // Bezpečné čítanie skalárneho poľa — vráti "" ak je hodnota objekt (napr. nested XML)
-function pickStr(item: any, ...keys: string[]): string {
+type XmlRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is XmlRecord {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function getRecord(value: unknown, key: string): XmlRecord | undefined {
+  if (!isRecord(value)) return undefined;
+  const child = value[key];
+  return isRecord(child) ? child : undefined;
+}
+
+function getValue(value: unknown, key: string): unknown {
+  return isRecord(value) ? value[key] : undefined;
+}
+
+function pickStr(item: XmlRecord, ...keys: string[]): string {
   for (const k of keys) {
     const v = item[k];
     if (v == null) continue;
@@ -37,54 +53,105 @@ export interface ParsedProduct {
   productno: string;
 }
 
-export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduct[] {
-  let parsed: any;
+export interface ParseHeurekaXmlResult {
+  status: "success" | "empty" | "unsupported_format" | "parse_error" | "truncated";
+  products: ParsedProduct[];
+  parsedCount: number;
+  validCount: number;
+  skippedCount: number;
+  errorMessage?: string;
+  truncated: boolean;
+}
+
+export interface ParseHeurekaXmlOptions {
+  maxItems?: number;
+  truncated?: boolean;
+}
+
+function parseProducts(items: XmlRecord[], feedCategory: string): ParsedProduct[] {
+  return items
+    .map((item): ParsedProduct => {
+      const rawCategory = String(
+        getValue(item, "CATEGORY_FULL") ?? getValue(item, "CATEGORYTEXT") ?? getValue(item, "categorytext") ?? ""
+      ).trim();
+      return {
+        name: String(getValue(item, "PRODUCTNAME") ?? getValue(item, "NAME") ?? getValue(item, "productname") ?? getValue(item, "name") ?? "").trim(),
+        description: stripHtml(
+          String(getValue(item, "DESCRIPTION") ?? getValue(item, "description") ?? "")
+        ).slice(0, 300),
+        price: String(getValue(item, "PRICE_VAT") ?? getValue(item, "PRICE") ?? getValue(item, "price") ?? "").trim(),
+        url: String(getValue(item, "URL") ?? getValue(item, "url") ?? "").trim(),
+        imgUrl: String(
+          getValue(item, "IMGURL") ?? getValue(item, "IMAGE_MAIN") ?? getValue(item, "IMGURL_ALTERNATIVE") ?? getValue(item, "imgurl") ?? ""
+        ).trim(),
+        category: rawCategory || feedCategory,
+        ean: pickStr(item, "EAN", "ean"),
+        itemId: pickStr(item, "ITEM_ID", "item_id"),
+        manufacturer: pickStr(item, "MANUFACTURER", "manufacturer"),
+        productno: pickStr(item, "PRODUCTNO", "productno", "ISBN", "isbn"),
+      };
+    })
+    .filter((p) => p.name && p.url);
+}
+
+export function parseHeurekaXmlDetailed(
+  xml: string,
+  feedCategory: string,
+  options: ParseHeurekaXmlOptions = {}
+): ParseHeurekaXmlResult {
+  let parsed: unknown;
   try {
     parsed = parser.parse(xml);
-  } catch {
-    return [];
+  } catch (err) {
+    return {
+      status: "parse_error",
+      products: [],
+      parsedCount: 0,
+      validCount: 0,
+      skippedCount: 0,
+      errorMessage: err instanceof Error ? err.message : "XML parse error",
+      truncated: Boolean(options.truncated),
+    };
   }
 
   // Heureka štandard: <SHOP><SHOPITEM>...</SHOPITEM></SHOP>
   // Niektoré feedy majú RSS wrapper: <rss><SHOP><SHOPITEM>...
   const shopRoot =
-    parsed?.SHOP ??
-    parsed?.shop ??
-    parsed?.rss?.SHOP ??
-    parsed?.rss?.shop ??
-    parsed?.RSS?.SHOP ??
-    parsed?.RSS?.shop ??
+    getRecord(parsed, "SHOP") ??
+    getRecord(parsed, "shop") ??
+    getRecord(getRecord(parsed, "rss"), "SHOP") ??
+    getRecord(getRecord(parsed, "rss"), "shop") ??
+    getRecord(getRecord(parsed, "RSS"), "SHOP") ??
+    getRecord(getRecord(parsed, "RSS"), "shop") ??
     parsed;
-  const rawItems = shopRoot?.SHOPITEM ?? shopRoot?.shopitem;
-  if (!rawItems) return [];
+  const rawItems = getValue(shopRoot, "SHOPITEM") ?? getValue(shopRoot, "shopitem");
+  if (!rawItems) {
+    return {
+      status: "unsupported_format",
+      products: [],
+      parsedCount: 0,
+      validCount: 0,
+      skippedCount: 0,
+      truncated: Boolean(options.truncated),
+    };
+  }
 
-  const items: any[] = Array.isArray(rawItems) ? rawItems : [rawItems];
+  const items = (Array.isArray(rawItems) ? rawItems : [rawItems]).filter(isRecord);
+  const maxItems = options.maxItems ?? items.length;
+  const limitedItems = items.slice(0, maxItems);
+  const products = parseProducts(limitedItems, feedCategory);
+  const truncated = Boolean(options.truncated) || items.length > maxItems;
 
-  return items
-    .filter((item: any) => item && typeof item === "object")
-    .slice(0, HEUREKA_MAX_ITEMS)
-    .map((item: any): ParsedProduct => {
-      const rawCategory = String(
-        item.CATEGORY_FULL ?? item.CATEGORYTEXT ?? item.categorytext ?? ""
-      ).trim();
-      return {
-        name: String(item.PRODUCTNAME ?? item.NAME ?? item.productname ?? item.name ?? "").trim(),
-        description: stripHtml(
-          String(item.DESCRIPTION ?? item.description ?? "")
-        ).slice(0, 300),
-        price: String(item.PRICE_VAT ?? item.PRICE ?? item.price ?? "").trim(),
-        url: String(item.URL ?? item.url ?? "").trim(),
-        imgUrl: String(
-          item.IMGURL ?? item.IMAGE_MAIN ?? item.IMGURL_ALTERNATIVE ?? item.imgurl ?? ""
-        ).trim(),
-        // Preferuj kategóriu z feeda, fallback na feedCategory
-        category: rawCategory || feedCategory,
-        ean: pickStr(item, "EAN", "ean"),
-        itemId: pickStr(item, "ITEM_ID", "item_id"),
-        manufacturer: pickStr(item, "MANUFACTURER", "manufacturer"),
-        // PRODUCTNO s fallbackom na ISBN (knižné feedy)
-        productno: pickStr(item, "PRODUCTNO", "productno", "ISBN", "isbn"),
-      };
-    })
-    .filter((p) => p.name && p.url);
+  return {
+    status: truncated ? "truncated" : products.length > 0 ? "success" : "empty",
+    products,
+    parsedCount: limitedItems.length,
+    validCount: products.length,
+    skippedCount: Math.max(0, limitedItems.length - products.length),
+    truncated,
+  };
+}
+
+export function parseHeurekaXml(xml: string, feedCategory: string): ParsedProduct[] {
+  return parseHeurekaXmlDetailed(xml, feedCategory, { maxItems: HEUREKA_MAX_ITEMS }).products;
 }
