@@ -17,6 +17,7 @@ import { buildShopOffersIndex, type ShopOffer } from "@/lib/shop-offers";
 import { getSearchStats } from "@/lib/search-log";
 import { getClickStats } from "@/lib/click-log";
 import { getShopDomain } from "@/lib/shop-domains";
+import { buildServerHeurekaUrl } from "@/lib/heureka/affiliate";
 
 export const revalidate = 3600;
 
@@ -39,8 +40,6 @@ export const metadata = {
 const ORANGE = "#F97316";
 const ORANGE_DARK = "#EA580C";
 const DARK = "#0F172A";
-
-const HEUREKA_HOME = "https://www.heureka.sk/?utm_source=zlavickovo&utm_medium=referral&positionid=71010";
 
 // ── Obľúbené obchody — fallback pre "Top obchody" kým nemáme dosť klik dát ──
 const FAVOURITE_SHOPS: { name: string; slug: string; domain: string }[] = [
@@ -92,6 +91,7 @@ function shopFromSlug(slug: string): { slug: string; name: string; domain: strin
 }
 
 export default async function Home() {
+  const heurekaHome = buildServerHeurekaUrl();
   const sales = getStaticSales();
   const latestPosts = getLatestPosts(3);
   const categoryCounts = await getCategoryProductCounts().catch(() => ({} as Record<string, number>));
@@ -458,7 +458,7 @@ export default async function Home() {
             Na Heureke nájdete ponuky od stoviek overených predajcov a porovnáte ceny.
           </p>
           <TrackedLink
-            href={HEUREKA_HOME}
+            href={heurekaHome}
             target="_blank"
             rel="noopener noreferrer"
             type="heureka_fallback"

@@ -47,6 +47,8 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const heurekaWidgetPositionId = process.env.HEUREKA_WIDGET_POSITION_ID?.trim();
+
   return (
     <html
       lang="sk"
@@ -59,10 +61,12 @@ export default function RootLayout({
           {children}
         </IntlProvider>
 
-        <Script
-          src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
-          strategy="lazyOnload"
-        />
+        {heurekaWidgetPositionId ? (
+          <Script
+            src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
+            strategy="lazyOnload"
+          />
+        ) : null}
 
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-DX0G5PZ4P7"

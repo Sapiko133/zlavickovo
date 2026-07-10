@@ -19,7 +19,9 @@
 
 ## HEUREKA - PRAVIDLO
 - Heureka widget sa zobrazuje IBA RAZ na každej stránke
-- Použi LEN HeurekaWidget s inputom (data-trixam-positionid="71010")
+- Klasické Heureka odkazy používajú `HEUREKA_HAFF_ID` a parameter `haff`
+- Trixam widget je samostatný systém a používa iba `HEUREKA_WIDGET_POSITION_ID`
+- Nepoužívaj `HEUREKA_HAFF_ID` ako `data-trixam-positionid`
 - NIKDY nedávať 2 Heureka boxy na jednu stránku
 - Script: //serve.affiliate.heurekashopping.sk/js/trixam.min.js
 

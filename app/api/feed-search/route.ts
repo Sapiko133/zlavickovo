@@ -1,4 +1,5 @@
 import { searchHkProducts, toProductSlug, formatPrice, formatAmount } from "@/lib/heureka/query";
+import { getProductOutboundUrl } from "@/lib/heureka/affiliate";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { buildShopOffersIndex } from "@/lib/shop-offers";
 import { normalizeSearchText } from "@/lib/search-normalize";
@@ -108,7 +109,7 @@ export async function GET(req: Request) {
           name: p.name,
           description: p.description ?? "",
           url: `/produkt/${toProductSlug(p.name, p.id)}`,
-          affiliateUrl: p.affiliate_url || p.url,
+          affiliateUrl: getProductOutboundUrl(p),
           domain: p.domain,
           price: formatPrice(p.price, p.domain),
           priceNum: parsePriceNum(p.price),
