@@ -24,24 +24,23 @@ export interface ShopOffer {
   deal: ShopDeal | null;
 }
 
-// Zjednotený tvar naprieč zdrojmi kupónov/akcií
-interface OfferRecord {
-  shopName: string;
-  domain: string;
-  code: string;
-  title: string;
-  link: string;
-  validTo: string | null;
-}
+// Zjednotený tvar naprieč zdrojmi kupónov/akcií + presné doménové párovanie —
+// čistá logika žije v lib/offer-domain.ts (bez siete, testovateľná samostatne).
+import {
+  buildOffersByExactDomain,
+  notExpired,
+  type ExactDomainOffer,
+  type OfferRecord,
+} from "@/lib/offer-domain";
 
-function notExpired(v: string | null): boolean {
-  if (!v) return true;
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return true;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return d >= today;
-}
+export {
+  buildOffersByExactDomain,
+  exactDomainKey,
+  type ExactDomainCoupon,
+  type ExactDomainDeal,
+  type ExactDomainOffer,
+  type OfferRecord,
+} from "@/lib/offer-domain";
 
 async function loadOfferRecords(): Promise<OfferRecord[]> {
   const [dognetAll, affialAll, ehubAll, cjAll] = await Promise.all([
@@ -154,4 +153,16 @@ export async function buildShopOffersIndex(
   }
 
   return index;
+}
+
+/** Index `presná doména → {kupón, akcia}` pre ponuky na produktovom detaile. */
+export async function getOffersByExactDomain(
+  domains: string[]
+): Promise<Map<string, ExactDomainOffer>> {
+  if (domains.length === 0) return new Map();
+  try {
+    return buildOffersByExactDomain(await loadOfferRecords(), domains);
+  } catch {
+    return new Map();
+  }
 }

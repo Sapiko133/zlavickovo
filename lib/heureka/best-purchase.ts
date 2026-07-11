@@ -49,6 +49,12 @@ export interface BestPurchaseOffer {
 export interface BestPurchase {
   lowestOffer: BestPurchaseOffer;
   secondOffer: BestPurchaseOffer | null;
+  /**
+   * Všetky porovnané ponuky zoradené rankingom — najlepšia platná ponuka za
+   * každú doménu, offers[0] === lowestOffer. Ponuky vylúčené z porovnania
+   * (neplatná cena/URL, neporovnateľná mena) tu nie sú.
+   */
+  offers: BestPurchaseOffer[];
   /** Rozdiel voči 2. ponuke v mene lowestOffer; null ak je 2. ponuka v inej mene. */
   priceDifference: number | null;
   /** Počet porovnaných ponúk (unikátne domény). */
@@ -166,6 +172,7 @@ export function pickBestPurchase(
   return {
     lowestOffer,
     secondOffer,
+    offers: sorted,
     priceDifference,
     offerCount: sorted.length,
     excludedCount,
@@ -236,6 +243,49 @@ export function getBestPurchaseCopy(
         allowSavingsClaim: false,
         ctaVerified: false,
         disclaimer: "Ponuky sú spárované podľa názvu — nemusí ísť o identický produkt.",
+      };
+  }
+}
+
+export interface OtherOffersCopy {
+  /** Nadpis sekcie „Ponuky v ďalších obchodoch" na produktovom detaile. */
+  title: string;
+  /** Disclaimer zobrazený raz nad sekciou; null pri EAN. */
+  disclaimer: string | null;
+  /** Cenové rozdiely/„najnižšia cena" voči odporúčanej ponuke sú dovolené (len EAN). */
+  allowLowestBadge: boolean;
+  /** „Ušetríte X" / rozdiel ceny ako dôkaz výhodnosti (len EAN). */
+  allowSavingsClaim: boolean;
+}
+
+/**
+ * Texty sekcie ďalších ponúk podľa sily identity (PROJECT_VISION §8):
+ * pri EAN možno hovoriť o rovnakom produkte a ukázať rozdiel ceny; pri
+ * manufacturer+productno len „rovnaký model"; pri name fallbacku sa NESMIE
+ * tvrdiť identický variant ani používať cenové poradie ako dôkaz.
+ */
+export function getOtherOffersCopy(identityLevel: IdentityLevel): OtherOffersCopy {
+  switch (identityLevel) {
+    case "ean":
+      return {
+        title: "Ponuky rovnakého produktu",
+        disclaimer: null,
+        allowLowestBadge: true,
+        allowSavingsClaim: true,
+      };
+    case "manufacturer_productno":
+      return {
+        title: "Ponuky rovnakého modelu",
+        disclaimer: "Ponuky sú spárované podľa výrobcu a čísla modelu — nemusí ísť o identický variant.",
+        allowLowestBadge: false,
+        allowSavingsClaim: false,
+      };
+    case "name":
+      return {
+        title: "Podobné ponuky z iných obchodov",
+        disclaimer: "Ponuky sú spárované podľa názvu a nemusia predstavovať identický variant.",
+        allowLowestBadge: false,
+        allowSavingsClaim: false,
       };
   }
 }

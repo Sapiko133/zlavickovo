@@ -14,10 +14,12 @@ import {
   parsePriceValue,
 } from "@/lib/heureka/query";
 import { normalizeCurrencyCode } from "@/lib/price";
-import { getBestPurchaseCopy } from "@/lib/heureka/best-purchase";
+import { getBestPurchaseCopy, getOtherOffersCopy } from "@/lib/heureka/best-purchase";
 import { getOfferOutbound } from "@/lib/heureka/affiliate";
+import { outboundClickType } from "@/lib/outbound-ui";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
+import { getOffersByExactDomain, exactDomainKey, type ExactDomainOffer } from "@/lib/shop-offers";
 import { normalizeShopSlug } from "@/lib/slug";
 import TrackedLink from "@/components/TrackedLink";
 
@@ -36,6 +38,14 @@ function couponHasCode(coupon: ShopCoupon): boolean {
 
 function couponText(value: unknown): string {
   return typeof value === "string" ? value : "";
+}
+
+/** Platnosť kupónu na zobrazenie ("31. 12. 2026") — null pri neznámom/nevalidnom dátume. */
+function formatValidTo(value: string | null): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("sk-SK");
 }
 
 /** Prvý dostupný kupón (s kódom) a prvá akcia (bez kódu) obchodu — bez výpočtu ceny. */
@@ -148,6 +158,26 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const shopSlug = normalizeShopSlug(product.domain);
   const recommendedShopSlug = normalizeShopSlug(recommendedDomain);
   const hasOffers = Boolean(shopOffers.coupon || shopOffers.deal);
+
+  // Ponuky v ďalších obchodoch: offers[0] je odporúčaná ponuka (tá je v boxe
+  // vyššie a neopakuje sa), zvyšok = najlepšia platná ponuka každej ďalšej
+  // domény. Texty a dovolené tvrdenia podľa sily identity (PROJECT_VISION §8).
+  const otherOffers =
+    bestPurchase && recommendedOffer
+      ? bestPurchase.offers.filter((o) => o.id !== recommendedOffer.id)
+      : [];
+  const otherCopy = bestPurchase ? getOtherOffersCopy(bestPurchase.identityLevel) : null;
+  // Kupón/akcia sa pripája IBA podľa presnej domény obchodu (celý host vrátane
+  // TLD) — .sk kupón sa nesmie zobraziť pri .cz ponuke. Chyba kupónov nesmie
+  // skryť ponuky (PROJECT_VISION §11) — getOffersByExactDomain vracia prázdnu mapu.
+  const otherOffersCoupons: Map<string, ExactDomainOffer> =
+    otherOffers.length > 0
+      ? await getOffersByExactDomain(otherOffers.map((o) => o.domain))
+      : new Map();
+  const otherOffersHaveCoupon = otherOffers.some((o) => {
+    const key = exactDomainKey(o.domain);
+    return key ? otherOffersCoupons.has(key) : false;
+  });
 
   const pageUrl = `https://www.zlavickovo.sk/produkt/${slug}`;
 
@@ -428,6 +458,133 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             </p>
           </div>
         </div>
+
+        {/* Ponuky v ďalších obchodoch — každý riadok používa getOfferOutbound
+            (žiadny ručný fallback na priamu URL), kupón/akcia len podľa presnej domény */}
+        {otherCopy && otherOffers.length > 0 && (
+          <div style={{ marginTop: 56 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px", letterSpacing: "-0.3px" }}>
+              Ponuky v ďalších obchodoch
+            </h2>
+            <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 600, marginBottom: otherCopy.disclaimer ? 4 : 14 }}>
+              {otherCopy.title}
+            </div>
+            {otherCopy.disclaimer && (
+              <div style={{ fontSize: 12, color: "#9ca3af", marginBottom: 14 }}>
+                {otherCopy.disclaimer}
+              </div>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, maxWidth: 720 }}>
+              {otherOffers.map((offer) => {
+                const rowPrice = formatProductPriceLines({
+                  price: offer.price,
+                  currency_code: offer.currency_code,
+                  domain: offer.domain,
+                });
+                const rowOutbound = getOfferOutbound(offer);
+                const rowIsHeureka = rowOutbound.kind === "heureka_fallback";
+                const rowShopSlug = normalizeShopSlug(offer.domain);
+                const rowKey = exactDomainKey(offer.domain);
+                const rowOffers = rowKey ? otherOffersCoupons.get(rowKey) : undefined;
+                const rowValidTo = formatValidTo(rowOffers?.coupon?.validTo ?? null);
+                // Rozdiel ceny len pri EAN identite a rovnakej mene — pri slabšej
+                // identite sa cenové poradie nesmie vydávať za dôkaz výhodnosti.
+                const rowDiff =
+                  otherCopy.allowSavingsClaim &&
+                  recommendedOffer &&
+                  offer.currency_code === recommendedOffer.currency_code
+                    ? Math.round((offer.priceNum - recommendedOffer.priceNum) * 100) / 100
+                    : null;
+                return (
+                  <div
+                    key={offer.id}
+                    style={{
+                      background: "#fff", border: "1.5px solid #e8e8e8", borderRadius: 14,
+                      padding: "14px 18px",
+                      display: "flex", justifyContent: "space-between", alignItems: "center",
+                      gap: 14, flexWrap: "wrap",
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: "1 1 220px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                        <ShopFavicon domain={offer.domain} name={offer.domain} size={20} />
+                        {rowShopSlug ? (
+                          <a href={`/kupony/${rowShopSlug}`} style={{ fontSize: 14, fontWeight: 800, color: "#1d1d1f", textDecoration: "none" }}>
+                            {offer.domain}
+                          </a>
+                        ) : (
+                          <span style={{ fontSize: 14, fontWeight: 800 }}>{offer.domain}</span>
+                        )}
+                      </div>
+                      {rowOffers?.coupon && (
+                        <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>
+                          🏷️ <strong>Kupón:</strong> {rowOffers.coupon.title || "Zľavový kód dostupný"}
+                          {rowValidTo ? ` · platí do ${rowValidTo}` : ""}
+                        </div>
+                      )}
+                      {rowOffers?.deal && (
+                        <div style={{ fontSize: 12, color: "#374151", lineHeight: 1.5 }}>
+                          🔥 <strong>Akcia:</strong> {rowOffers.deal.title || "Prebiehajúca akcia"}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ textAlign: "right", flex: "0 0 auto" }}>
+                      {rowPrice && (
+                        <>
+                          <div style={{ fontSize: 17, fontWeight: 900, color: "#111827", lineHeight: 1.2 }}>
+                            {rowPrice.primary}
+                          </div>
+                          {rowPrice.secondary && (
+                            <div title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                              {rowPrice.secondary}
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {rowDiff !== null && (
+                        <div style={{ fontSize: 11, color: "#6b7280", marginTop: 2 }}>
+                          {rowDiff === 0
+                            ? "rovnaká cena ako odporúčaná"
+                            : `+${formatAmount(rowDiff, offer.currency_code)} oproti odporúčanej`}
+                        </div>
+                      )}
+                      <TrackedLink
+                        href={rowOutbound.url}
+                        target="_blank"
+                        rel="nofollow noopener noreferrer"
+                        type={outboundClickType(rowOutbound.kind)}
+                        source="produkt-dalsie-ponuky"
+                        shopSlug={rowShopSlug}
+                        productSlug={slug}
+                        destinationDomain={rowIsHeureka ? "www.heureka.sk" : offer.domain}
+                        style={{
+                          display: "inline-flex", alignItems: "center", marginTop: 8,
+                          padding: "8px 16px", borderRadius: 10,
+                          background: rowIsHeureka ? "#f0fdf4" : "#22C55E",
+                          color: rowIsHeureka ? "#16a34a" : "#fff",
+                          border: rowIsHeureka ? "1.5px solid #bbf7d0" : "1.5px solid transparent",
+                          fontWeight: 800, fontSize: 13, textDecoration: "none",
+                        }}
+                      >
+                        {rowIsHeureka ? "Porovnať na Heureke →" : "Pozrieť v obchode →"}
+                      </TrackedLink>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {otherOffersHaveCoupon && (
+              <p style={{ fontSize: 11, color: "#9ca3af", marginTop: 10 }}>
+                Kupóny a akcie sa vzťahujú na obchod — nemusia platiť na tento konkrétny produkt.
+              </p>
+            )}
+          </div>
+        )}
+        {bestPurchase && otherOffers.length === 0 && (
+          <p style={{ marginTop: 32, fontSize: 13, color: "#9ca3af" }}>
+            Ďalšie dôveryhodne spárované ponuky sme zatiaľ nenašli.
+          </p>
+        )}
 
         {/* Súvisiace produkty */}
         {related.length > 0 && (
