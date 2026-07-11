@@ -1,6 +1,6 @@
 import { T } from "@/lib/design-tokens";
 import type { PriceDrop } from "@/lib/heureka/price-history";
-import { getFormattedProductPrices, normalizeCurrencyCode } from "@/lib/price";
+import { getFormattedProductPrices, getPreferredDisplayCurrency, normalizeCurrencyCode } from "@/lib/price";
 import { getOfferOutbound } from "@/lib/heureka/affiliate";
 import { outboundClickType } from "@/lib/outbound-ui";
 import TrackedLink from "@/components/TrackedLink";
@@ -34,8 +34,10 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
           const outbound = getOfferOutbound({ affiliateUrl: d.affiliateUrl, url: d.productUrl, name: d.name });
           const ctaIsHeureka = outbound.kind === "heureka_fallback";
           const currency = normalizeCurrencyCode(d.currency);
-          const oldPrice = currency ? getFormattedProductPrices(d.oldPrice, currency) : null;
-          const newPrice = currency ? getFormattedProductPrices(d.newPrice, currency) : null;
+          // Preferovaná mena zobrazenia podľa domény (.cz → CZK, .sk → EUR) — centrálne pravidlo v lib/price.ts
+          const displayCurrency = currency ? getPreferredDisplayCurrency(d.domain, currency) : null;
+          const oldPrice = currency && displayCurrency ? getFormattedProductPrices(d.oldPrice, currency, undefined, displayCurrency) : null;
+          const newPrice = currency && displayCurrency ? getFormattedProductPrices(d.newPrice, currency, undefined, displayCurrency) : null;
           return (
             <div key={d.productUrl} style={{
               border: `1px solid ${T.border}`,

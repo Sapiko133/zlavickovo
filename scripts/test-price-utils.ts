@@ -116,6 +116,8 @@ assert.deepEqual(
   {
     primary: "49,90 €",
     secondary: "≈ 1 248 Kč",
+    primaryCurrency: "EUR",
+    secondaryCurrency: "CZK",
   }
 );
 assert.deepEqual(
@@ -128,6 +130,8 @@ assert.deepEqual(
   {
     primary: "1 299 Kč",
     secondary: "≈ 51,96 €",
+    primaryCurrency: "CZK",
+    secondaryCurrency: "EUR",
   }
 );
 assert.equal(normalizeSpaces(getFormattedProductPricesFromRaw("1 299 Kč", null, null, RATE)?.secondary), "≈ 51,96 €");

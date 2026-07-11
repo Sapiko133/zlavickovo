@@ -8,6 +8,8 @@ export type ProductPrice = {
 export type FormattedProductPrices = {
   primary: string;
   secondary: string | null;
+  primaryCurrency: SupportedCurrency;
+  secondaryCurrency: SupportedCurrency | null;
 };
 
 const CURRENCY_BY_CONFIGURED_DOMAIN: Record<string, SupportedCurrency> = {
@@ -172,23 +174,55 @@ export function formatCzk(amount: number): string {
   }).format(amount);
 }
 
+/**
+ * Preferovaná mena ZOBRAZENIA podľa domény obchodu: .cz → CZK, .sk → EUR,
+ * ostatné domény → pôvodná mena produktu. Čisto vizuálne pravidlo (ktorá cena
+ * je veľká/primárna) — nemení uloženú cenu, currency_code, porovnávanie mien
+ * pre ranking ani badge „NAJNIŽŠIA CENA".
+ */
+export function getPreferredDisplayCurrency(
+  domain: string | null | undefined,
+  originalCurrency: SupportedCurrency
+): SupportedCurrency {
+  const d = (domain ?? "").trim().toLowerCase();
+  if (d.endsWith(".cz")) return "CZK";
+  if (d.endsWith(".sk")) return "EUR";
+  return originalCurrency;
+}
+
+/**
+ * Primárna + sekundárna cena na zobrazenie. displayCurrency (default = mena
+ * produktu) určuje, ktorá mena je primárna. Ak sa líši od meny produktu,
+ * primárnou je PREPOČET — označený „≈", lebo skutočná uložená cena je tá
+ * sekundárna. Bez kurzu sa prepočet nevymýšľa: zobrazí sa iba pôvodná cena
+ * v pôvodnej mene.
+ */
 export function getFormattedProductPrices(
   amount: number,
   currency: SupportedCurrency,
-  eurToCzkRate: number | null = getEurToCzkRate()
+  eurToCzkRate: number | null = getEurToCzkRate(),
+  displayCurrency: SupportedCurrency = currency
 ): FormattedProductPrices | null {
   if (!Number.isFinite(amount) || amount <= 0) return null;
-  if (currency === "EUR") {
-    const czk = convertEurToCzk(amount, eurToCzkRate);
+
+  const otherCurrency: SupportedCurrency = currency === "EUR" ? "CZK" : "EUR";
+  const converted =
+    currency === "EUR" ? convertEurToCzk(amount, eurToCzkRate) : convertCzkToEur(amount, eurToCzkRate);
+
+  if (displayCurrency !== currency && converted !== null) {
     return {
-      primary: formatEur(amount),
-      secondary: czk === null ? null : `≈ ${formatCzk(czk)}`,
+      primary: `≈ ${formatAmount(converted, otherCurrency)}`,
+      secondary: formatAmount(amount, currency),
+      primaryCurrency: otherCurrency,
+      secondaryCurrency: currency,
     };
   }
-  const eur = convertCzkToEur(amount, eurToCzkRate);
+
   return {
-    primary: formatCzk(amount),
-    secondary: eur === null ? null : `≈ ${formatEur(eur)}`,
+    primary: formatAmount(amount, currency),
+    secondary: converted === null ? null : `≈ ${formatAmount(converted, otherCurrency)}`,
+    primaryCurrency: currency,
+    secondaryCurrency: converted === null ? null : otherCurrency,
   };
 }
 
@@ -200,7 +234,12 @@ export function getFormattedProductPricesFromRaw(
 ): FormattedProductPrices | null {
   const parsed = parseProductPrice(price, currency, configuredDomain);
   if (!parsed) return null;
-  return getFormattedProductPrices(parsed.amount, parsed.currency, eurToCzkRate);
+  return getFormattedProductPrices(
+    parsed.amount,
+    parsed.currency,
+    eurToCzkRate,
+    getPreferredDisplayCurrency(configuredDomain, parsed.currency)
+  );
 }
 
 export function formatPricePrimary(
