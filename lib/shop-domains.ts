@@ -35,6 +35,11 @@ const DOMAIN_MAP: Record<string, string> = {
   "panta rhei": "pantarhei.sk",
   "invia": "invia.sk",
   "rohlik": "rohlik.cz",
+  "belda": "belda.sk",
+  "belda sport": "belda.sk",
+  "dadaboom": "dadaboom.sk",
+  "kojenecke obleceni": "kojenecke-obleceni.eu",
+  "kojenecké oblečenie": "kojenecke-obleceni.eu",
 
   // Medzinárodné
   "zalando": "zalando.sk",

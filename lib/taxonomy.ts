@@ -49,7 +49,6 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
       { name: "Mall", slug: "mall" },
       { name: "CZC.cz", slug: "czc" },
       { name: "NAY", slug: "nay" },
-      { name: "Okay.sk", slug: "okay" },
     ],
   },
   moda: {
@@ -62,8 +61,8 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
       { name: "ASOS", slug: "asos" },
       { name: "About You", slug: "about-you" },
       { name: "Answear", slug: "answear" },
-      { name: "Enemiq", slug: "enemiq-sk" },
-      { name: "Arno Obuv", slug: "arno-obuv-sk" },
+      { name: "Enemiq", slug: "enemiq" },
+      { name: "Arno Obuv", slug: "arno-obuv" },
     ],
   },
   zdravie: {
@@ -75,9 +74,9 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
       { name: "Dr. Max", slug: "dr-max" },
       { name: "Notino", slug: "notino" },
       { name: "Herbatica", slug: "herbatica" },
-      { name: "Superstrava", slug: "superstrava-sk" },
-      { name: "Blendea", slug: "blendea-sk" },
-      { name: "Altevita", slug: "altevita-sk" },
+      { name: "Superstrava", slug: "superstrava" },
+      { name: "Blendea", slug: "blendea" },
+      { name: "Altevita", slug: "altevita" },
     ],
   },
   krasa: {
@@ -86,9 +85,9 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     color: "#db2777", bg: "#fdf2f8",
     featuredShops: [
       { name: "Notino", slug: "notino" },
-      { name: "Kosmetikomat", slug: "kosmetikomat-sk" },
-      { name: "Spaceylon", slug: "spaceylon-sk" },
-      { name: "Nechtovyraj", slug: "nechtovyraj-sk" },
+      { name: "Kosmetikomat", slug: "kosmetikomat" },
+      { name: "Spaceylon", slug: "spaceylon" },
+      { name: "Nechtovyraj", slug: "nechtovyraj" },
     ],
   },
   sport: {
@@ -98,8 +97,8 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     featuredShops: [
       { name: "Sportisimo", slug: "sportisimo" },
       { name: "Decathlon", slug: "decathlon" },
-      { name: "Shox", slug: "shox-sk" },
-      { name: "Belda Sport", slug: "belda-sk" },
+      { name: "Shox", slug: "shox" },
+      { name: "Belda Sport", slug: "belda" },
     ],
   },
   byvanie: {
@@ -108,7 +107,7 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     color: "#7C3AED", bg: "#ede9fe",
     featuredShops: [
       { name: "IKEA", slug: "ikea" },
-      { name: "E-matrac", slug: "e-matrac-sk" },
+      { name: "E-matrac", slug: "e-matrac" },
       { name: "Artofhome", slug: "artofhome-cz" },
       { name: "Li-Go", slug: "li-go-cz" },
     ],
@@ -122,7 +121,6 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
       { name: "Kaufland", slug: "kaufland", href: "/letaky/kaufland" },
       { name: "Tesco", slug: "tesco", href: "/letaky/tesco" },
       { name: "Billa", slug: "billa", href: "/letaky/billa" },
-      { name: "Rohlik.sk", slug: "rohlik" },
     ],
   },
   deti: {
@@ -130,19 +128,17 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     desc: "Hračky, detské oblečenie a potreby pre bábätká a deti.",
     color: "#f59e0b", bg: "#fef3c7",
     featuredShops: [
-      { name: "Dadaboom", slug: "dadaboom-sk" },
-      { name: "Kojenecké oblečenie", slug: "kojenecke-obleceni-eu" },
+      { name: "Dadaboom", slug: "dadaboom" },
+      { name: "Kojenecké oblečenie", slug: "kojenecke-obleceni" },
     ],
   },
   cestovanie: {
     id: "cestovanie", label: "Cestovanie", emoji: "✈️",
     desc: "Zľavy na hotely, letenky a dovolenkové balíčky.",
     color: "#0ea5e9", bg: "#e0f2fe",
-    featuredShops: [
-      { name: "Booking.com", slug: "booking-com" },
-      { name: "Airbnb", slug: "airbnb" },
-      { name: "Invia", slug: "invia" },
-    ],
+    // Žiadny obchod nemá kupónový zdroj ani shop stránku (Booking/Airbnb/Invia
+    // odstránené — /kupony/[slug] vracalo 404). Sekcia obchodov sa nevyrenderuje.
+    featuredShops: [],
   },
   knihy: {
     id: "knihy", label: "Knihy", emoji: "📚",
@@ -151,7 +147,7 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     featuredShops: [
       { name: "Martinus", slug: "martinus" },
       { name: "Bux.sk", slug: "bux" },
-      { name: "Panta Rhei", slug: "panta-rhei" },
+      { name: "Panta Rhei", slug: "pantarhei" },
     ],
   },
   ine: {

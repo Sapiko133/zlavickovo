@@ -36,6 +36,8 @@ export const dynamic = "force-dynamic";
 // a kapitalizácia zo slugu by vyrobila nezmysel ("Czc" namiesto "CZC.cz")
 const SHOP_NAME_OVERRIDES: Record<string, string> = {
   czc: "CZC.cz",
+  belda: "Belda Sport",
+  "kojenecke-obleceni": "Kojenecké oblečenie",
 };
 
 const TOP_SLUGS = [

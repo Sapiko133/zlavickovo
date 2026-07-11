@@ -48,7 +48,9 @@ function getCategoryFAQ(cat: { label: string; featuredShops: { name: string }[] 
   return [
     {
       q: `Kde kúpiť ${cat.label.toLowerCase()} najlacnejšie?`,
-      a: `Najlepšie ceny ${cat.label.toLowerCase()} nájdete v obchodoch ako ${shopNames}. Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`,
+      a: shopNames
+        ? `Najlepšie ceny ${cat.label.toLowerCase()} nájdete v obchodoch ako ${shopNames}. Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`
+        : `Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`,
     },
     {
       q: `Ako ušetriť na ${cat.label.toLowerCase()}?`,
@@ -179,7 +181,8 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px 64px" }}>
 
-        {/* Shops grid */}
+        {/* Shops grid — len ak má kategória aspoň jednu platnú shop kartu */}
+        {(catShops.length > 0 || affialForCat.length > 0) && (
         <section style={{ marginBottom: 48 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px", color: "#1d1d1f" }}>
             Obchody v kategórii {cat.label}
@@ -239,6 +242,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
             })}
           </div>
         </section>
+        )}
 
         {/* Kupóny (s kódom) — sekcia sa zobrazí len ak má obsah */}
         {kuponyList.length > 0 && (
