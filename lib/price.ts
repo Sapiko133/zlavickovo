@@ -56,6 +56,18 @@ export function inferCurrencyCodeForConfiguredFeed(domain?: string | null): Supp
   return null;
 }
 
+/** Iba explicitne nakonfigurované domény (CURRENCY_BY_CONFIGURED_DOMAIN) — bez TLD heuristiky. */
+export function currencyForConfiguredDomain(domain?: string | null): SupportedCurrency | null {
+  const d = (domain ?? "").trim().toLowerCase();
+  return d ? CURRENCY_BY_CONFIGURED_DOMAIN[d] ?? null : null;
+}
+
+/**
+ * Mena produktu vrátane TLD heuristiky (.cz → CZK, .sk → EUR) ako posledného
+ * fallbacku. TLD odhad je vhodný na FORMÁTOVANIE ceny, ale nie na tvrdenie
+ * „najnižšia cena" naprieč menami — na to použi resolveTrustedProductCurrency.
+ * (Odstránenie TLD fallbacku = samostatná Fáza 3.)
+ */
 export function resolveProductCurrency(
   price?: string | number | null,
   explicitCurrency?: string | null,
@@ -65,6 +77,24 @@ export function resolveProductCurrency(
     normalizeCurrencyCode(explicitCurrency) ??
     detectCurrencyFromPriceText(price) ??
     inferCurrencyCodeForConfiguredFeed(configuredDomain)
+  );
+}
+
+/**
+ * Dôveryhodná mena pre cenové porovnania (badge „NAJNIŽŠIA CENA"): explicitný
+ * currency_code → mena v texte ceny → explicitne nakonfigurovaný feed.
+ * ŽIADNY všeobecný TLD fallback — mena odhadnutá len z .sk/.cz domény nesmie
+ * rozhodovať o cross-currency porovnaní.
+ */
+export function resolveTrustedProductCurrency(
+  price?: string | number | null,
+  explicitCurrency?: string | null,
+  configuredDomain?: string | null
+): SupportedCurrency | null {
+  return (
+    normalizeCurrencyCode(explicitCurrency) ??
+    detectCurrencyFromPriceText(price) ??
+    currencyForConfiguredDomain(configuredDomain)
   );
 }
 
@@ -183,4 +213,57 @@ export function formatPricePrimary(
 
 export function formatAmount(amount: number, currency: SupportedCurrency): string {
   return currency === "CZK" ? formatCzk(amount) : formatEur(amount);
+}
+
+export type LowestPriceInput = {
+  priceNum: number | null;
+  /** Dôveryhodná mena (resolveTrustedProductCurrency); null = mena neznáma. */
+  currency: SupportedCurrency | null;
+};
+
+/**
+ * Indexy ponúk, ktoré smú dostať badge „NAJNIŽŠIA CENA". Rovnaká normalizácia
+ * ako pickBestPurchase (Fáza 1): EUR a CZK sa NIKDY neporovnávajú ako surové
+ * čísla. Prázdna množina = porovnanie nie je dôveryhodné a badge sa nezobrazí:
+ * - menej než 2 ponuky s platnou cenou (niet čo porovnávať),
+ * - ľubovoľná ponuka s cenou má neznámu menu (nevieme porovnať všetky),
+ * - mix EUR/CZK bez dostupného kurzu.
+ */
+export function findLowestPriceIndexes(
+  items: LowestPriceInput[],
+  eurToCzkRate: number | null = getEurToCzkRate()
+): Set<number> {
+  const priced = items
+    .map((item, index) => ({ ...item, index }))
+    .filter((item): item is { priceNum: number; currency: SupportedCurrency | null; index: number } =>
+      item.priceNum !== null && Number.isFinite(item.priceNum) && item.priceNum > 0
+    );
+
+  if (priced.length < 2) return new Set();
+  if (priced.some((item) => item.currency === null)) return new Set();
+
+  const currencies = new Set(priced.map((item) => item.currency));
+  let comparable: (value: { priceNum: number; currency: SupportedCurrency | null }) => number | null;
+  if (currencies.size <= 1) {
+    comparable = (item) => item.priceNum;
+  } else {
+    if (eurToCzkRate === null || !Number.isFinite(eurToCzkRate) || eurToCzkRate <= 0) return new Set();
+    comparable = (item) =>
+      item.currency === "EUR" ? item.priceNum : convertCzkToEur(item.priceNum, eurToCzkRate);
+  }
+
+  let min = Infinity;
+  const values = priced.map((item) => {
+    const value = comparable(item);
+    if (value !== null && value < min) min = value;
+    return value;
+  });
+  if (!Number.isFinite(min)) return new Set();
+
+  const EPSILON = 1e-6;
+  const lowest = new Set<number>();
+  values.forEach((value, i) => {
+    if (value !== null && Math.abs(value - min) < EPSILON) lowest.add(priced[i].index);
+  });
+  return lowest;
 }

@@ -1,5 +1,6 @@
 import { searchHkProducts, toProductSlug, parsePriceValue, getFormattedProductPricesFromRaw } from "@/lib/heureka/query";
-import { getProductOutboundUrl } from "@/lib/heureka/affiliate";
+import { getOfferOutbound, type OfferOutboundKind } from "@/lib/heureka/affiliate";
+import { findLowestPriceIndexes, resolveTrustedProductCurrency, type SupportedCurrency } from "@/lib/price";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { buildShopOffersIndex } from "@/lib/shop-offers";
 import { normalizeSearchText } from "@/lib/search-normalize";
@@ -10,12 +11,16 @@ export const dynamic = "force-dynamic";
 interface ProductResult {
   name: string;
   description: string;
-  url: string;          // interná stránka produktu (Heureka) alebo odkaz obchodu
-  affiliateUrl: string; // trackovaný odkaz na nákup
+  url: string;          // interná stránka produktu (Heureka) alebo outbound odkaz
+  affiliateUrl: string; // outbound URL z centrálnej logiky (getOfferOutbound)
+  outboundType: OfferOutboundKind;
+  monetized: boolean;
   domain: string;
   price: string;        // formátovaná cena (napr. "12,99 €")
   secondaryPrice: string | null;
   priceNum: number | null;
+  /** Badge „NAJNIŽŠIA CENA" — počíta sa serverovo cez findLowestPriceIndexes. */
+  isCheapest: boolean;
   imgUrl: string;
   source: string;
   coupon: { code: string; title: string; link: string } | null;
@@ -97,6 +102,8 @@ export async function GET(req: Request) {
     const seen = new Set<string>();
     const keyOf = (name: string, domain: string) =>
       `${normalizeSearchText(name)}|${(domain || "").toLowerCase()}`;
+    // Dôveryhodná mena pre badge — bez TLD heuristiky, drží sa mimo odpovede
+    const trustedCurrency = new Map<ProductResult, SupportedCurrency | null>();
 
     // Heureka má prioritu — má vlastnú detailnú stránku produktu
     if (hkRes.status === "fulfilled") {
@@ -105,24 +112,30 @@ export async function GET(req: Request) {
         if (seen.has(key)) continue;
         seen.add(key);
         const priceLines = getFormattedProductPricesFromRaw(p.price, p.currency_code, p.domain);
-        merged.push({
+        const outbound = getOfferOutbound(p);
+        const item: ProductResult = {
           name: p.name,
           description: p.description ?? "",
           url: `/produkt/${toProductSlug(p.name, p.id)}`,
-          affiliateUrl: getProductOutboundUrl(p),
+          affiliateUrl: outbound.url,
+          outboundType: outbound.kind,
+          monetized: outbound.monetized,
           domain: p.domain,
           price: priceLines?.primary ?? "",
           secondaryPrice: priceLines?.secondary ?? null,
           priceNum: parsePriceNum(p.price),
+          isCheapest: false,
           imgUrl: p.img_url,
           source: "heureka",
           coupon: null,
           deal: null,
-        });
+        };
+        trustedCurrency.set(item, resolveTrustedProductCurrency(p.price, p.currency_code, p.domain));
+        merged.push(item);
       }
     }
 
-    // Feedové produkty (Dognet/Affial/eHub/CJ) — bez internej stránky, odkaz do obchodu
+    // Feedové produkty (Dognet/Affial/eHub/CJ) — bez internej stránky, outbound priamo
     if (feedRes.status === "fulfilled") {
       for (const p of feedRes.value) {
         const key = keyOf(p.name, p.domain);
@@ -130,20 +143,26 @@ export async function GET(req: Request) {
         seen.add(key);
         const priceNum = parsePriceNum(p.price);
         const priceLines = getFormattedProductPricesFromRaw(p.price, null, p.domain);
-        merged.push({
+        const outbound = getOfferOutbound({ affiliateUrl: p.affiliateUrl, url: p.url, name: p.name });
+        const item: ProductResult = {
           name: p.name,
           description: p.description ?? "",
-          url: p.affiliateUrl || p.url,
-          affiliateUrl: p.affiliateUrl || p.url,
+          url: outbound.url,
+          affiliateUrl: outbound.url,
+          outboundType: outbound.kind,
+          monetized: outbound.monetized,
           domain: p.domain,
           price: priceLines?.primary ?? "",
           secondaryPrice: priceLines?.secondary ?? null,
           priceNum,
+          isCheapest: false,
           imgUrl: p.imgUrl,
           source: p.source,
           coupon: null,
           deal: null,
-        });
+        };
+        trustedCurrency.set(item, resolveTrustedProductCurrency(p.price, null, p.domain));
+        merged.push(item);
       }
     }
 
@@ -197,7 +216,15 @@ export async function GET(req: Request) {
       }
     }
 
-    return Response.json([...head, ...tail].slice(0, 30));
+    // ── Badge „NAJNIŽŠIA CENA" — iba dôveryhodné porovnanie (rovnaká mena,
+    // alebo mix EUR/CZK prepočítaný cez kurz; inak žiadny badge) ──
+    const final = [...head, ...tail].slice(0, 30);
+    const lowest = findLowestPriceIndexes(
+      final.map((p) => ({ priceNum: p.priceNum, currency: trustedCurrency.get(p) ?? null }))
+    );
+    lowest.forEach((i) => { final[i].isCheapest = true; });
+
+    return Response.json(final);
   } catch {
     return Response.json([]);
   }

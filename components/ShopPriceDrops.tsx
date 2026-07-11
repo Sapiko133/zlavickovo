@@ -1,6 +1,8 @@
 import { T } from "@/lib/design-tokens";
 import type { PriceDrop } from "@/lib/heureka/price-history";
 import { getFormattedProductPrices, normalizeCurrencyCode } from "@/lib/price";
+import { getOfferOutbound } from "@/lib/heureka/affiliate";
+import { outboundClickType } from "@/lib/outbound-ui";
 import TrackedLink from "@/components/TrackedLink";
 import { normalizeShopSlug } from "@/lib/slug";
 
@@ -28,7 +30,9 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
         gap: 14,
       }}>
         {drops.slice(0, 6).map((d) => {
-          const link = d.affiliateUrl || d.productUrl;
+          // Centrálna outbound logika (PROJECT_VISION §14) — bez lokálneho fallbacku
+          const outbound = getOfferOutbound({ affiliateUrl: d.affiliateUrl, url: d.productUrl, name: d.name });
+          const ctaIsHeureka = outbound.kind === "heureka_fallback";
           const currency = normalizeCurrencyCode(d.currency);
           const oldPrice = currency ? getFormattedProductPrices(d.oldPrice, currency) : null;
           const newPrice = currency ? getFormattedProductPrices(d.newPrice, currency) : null;
@@ -77,12 +81,12 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
                 </div>
               )}
               <TrackedLink
-                href={link}
+                href={outbound.url}
                 target="_blank"
                 rel="nofollow noopener noreferrer"
-                type="product_outbound"
+                type={outboundClickType(outbound.kind)}
                 shopSlug={normalizeShopSlug(shopSlug)}
-                destinationDomain={d.domain}
+                destinationDomain={ctaIsHeureka ? "www.heureka.sk" : d.domain}
                 style={{
                   display: "block", textAlign: "center",
                   padding: "9px 12px", borderRadius: T.rMd,
@@ -91,7 +95,7 @@ export default function ShopPriceDrops({ drops, capitalized, shopSlug }: ShopPri
                   textDecoration: "none", boxShadow: T.shadowGreen,
                 }}
               >
-                Do obchodu →
+                {ctaIsHeureka ? "Porovnať na Heureke →" : "Do obchodu →"}
               </TrackedLink>
             </div>
           );

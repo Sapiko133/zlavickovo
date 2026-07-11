@@ -107,7 +107,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const outbound = getOfferOutbound(recommendedOffer ?? product);
   const buyUrl = outbound.url;
   const ctaIsHeureka = outbound.kind === "heureka_fallback";
-  const isMonetized = outbound.kind !== "direct_unmonetized";
+  const isMonetized = outbound.monetized;
 
   const recommendedDomain = recommendedOffer?.domain || product.domain;
   const bestPrice = recommendedOffer

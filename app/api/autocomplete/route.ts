@@ -9,6 +9,7 @@ import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { getFormattedProductPricesFromRaw, searchHkProducts, toProductSlug } from "@/lib/heureka/query";
+import { getOfferOutbound, type OfferOutboundKind } from "@/lib/heureka/affiliate";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ interface ProductEntry {
   domain: string;
   price?: string;
   url?: string;
+  outboundType?: OfferOutboundKind;
+  monetized?: boolean;
 }
 
 // Jediný zdroj pravdy — lib/all-shops.ts (getAllKnownShops)
@@ -183,14 +186,20 @@ export async function GET(req: Request) {
     if (q.length < 1) return Response.json([]);
     try {
       const products = await feedManager.search(q);
-      const results: ProductEntry[] = products.slice(0, 5).map(p => ({
-        name: p.name,
-        slug: "",
-        category: p.category || "Produkt",
-        domain: p.domain || "",
-        price: getFormattedProductPricesFromRaw(p.price, null, p.domain)?.primary ?? "",
-        url: p.affiliateUrl || p.url || "",
-      }));
+      const results: ProductEntry[] = products.slice(0, 5).map(p => {
+        // Centrálna outbound logika (PROJECT_VISION §14) — bez lokálneho fallbacku
+        const outbound = getOfferOutbound({ affiliateUrl: p.affiliateUrl, url: p.url, name: p.name });
+        return {
+          name: p.name,
+          slug: "",
+          category: p.category || "Produkt",
+          domain: p.domain || "",
+          price: getFormattedProductPricesFromRaw(p.price, null, p.domain)?.primary ?? "",
+          url: outbound.url,
+          outboundType: outbound.kind,
+          monetized: outbound.monetized,
+        };
+      });
       return Response.json(results, {
         headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
       });

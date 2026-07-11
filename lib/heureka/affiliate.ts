@@ -55,12 +55,9 @@ export function buildServerHeurekaSearchUrl(query: string, options?: HeurekaUrlO
   return buildHeurekaSearchUrl(query, { affiliateId });
 }
 
+/** Tenký wrapper nad getOfferOutbound pre vrstvy, ktoré potrebujú iba URL. */
 export function getProductOutboundUrl(product: ProductOutboundInput): string {
-  const affiliateUrl = product.affiliate_url || product.affiliateUrl;
-  if (affiliateUrl) return affiliateUrl;
-
-  const query = (product.ean || product.name || "").trim();
-  return buildServerHeurekaSearchUrl(query);
+  return getOfferOutbound(product).url;
 }
 
 export type OfferOutboundKind = "shop_affiliate" | "heureka_fallback" | "direct_unmonetized";
@@ -68,6 +65,7 @@ export type OfferOutboundKind = "shop_affiliate" | "heureka_fallback" | "direct_
 export type OfferOutbound = {
   url: string;
   kind: OfferOutboundKind;
+  monetized: boolean;
 };
 
 type OfferOutboundInput = ProductOutboundInput & {
@@ -97,15 +95,15 @@ function cleanHttpUrl(value?: string | null): string | null {
  */
 export function getOfferOutbound(offer: OfferOutboundInput): OfferOutbound {
   const affiliateUrl = cleanHttpUrl(offer.affiliate_url ?? offer.affiliateUrl);
-  if (affiliateUrl) return { url: affiliateUrl, kind: "shop_affiliate" };
+  if (affiliateUrl) return { url: affiliateUrl, kind: "shop_affiliate", monetized: true };
 
   const query = (offer.ean || offer.name || "").trim();
   if (getHeurekaHaffId()) {
-    return { url: buildServerHeurekaSearchUrl(query), kind: "heureka_fallback" };
+    return { url: buildServerHeurekaSearchUrl(query), kind: "heureka_fallback", monetized: true };
   }
 
   const directUrl = cleanHttpUrl(offer.url);
-  if (directUrl) return { url: directUrl, kind: "direct_unmonetized" };
+  if (directUrl) return { url: directUrl, kind: "direct_unmonetized", monetized: false };
 
-  return { url: buildServerHeurekaSearchUrl(query), kind: "direct_unmonetized" };
+  return { url: buildServerHeurekaSearchUrl(query), kind: "direct_unmonetized", monetized: false };
 }

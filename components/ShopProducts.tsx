@@ -1,6 +1,8 @@
 import { T } from "@/lib/design-tokens";
 import type { HkProduct } from "@/lib/heureka/types";
 import { formatProductPriceLines, toProductSlug } from "@/lib/heureka/query";
+import { getOfferOutbound } from "@/lib/heureka/affiliate";
+import { outboundClickType } from "@/lib/outbound-ui";
 import TrackedLink from "@/components/TrackedLink";
 import ShopFavicon from "@/components/ShopFavicon";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -55,7 +57,9 @@ export default function ShopProducts({ products, capitalized, shopSlug, variant 
       }}>
         {products.map((p) => {
           const productHref = `/produkt/${toProductSlug(p.name, p.id)}`;
-          const outbound = p.affiliate_url || p.url;
+          // Centrálna outbound logika (PROJECT_VISION §14) — bez lokálneho fallbacku
+          const outbound = getOfferOutbound(p);
+          const ctaIsHeureka = outbound.kind === "heureka_fallback";
           const priceStr = formatProductPriceLines(p);
           return (
             <div key={p.id} style={{
@@ -98,13 +102,13 @@ export default function ShopProducts({ products, capitalized, shopSlug, variant 
                 </div>
               )}
               <TrackedLink
-                href={outbound}
+                href={outbound.url}
                 target="_blank"
                 rel="nofollow noopener noreferrer"
-                type="product_outbound"
+                type={outboundClickType(outbound.kind)}
                 shopSlug={normalizeShopSlug(shopSlug)}
                 productSlug={toProductSlug(p.name, p.id)}
-                destinationDomain={p.domain}
+                destinationDomain={ctaIsHeureka ? "www.heureka.sk" : p.domain}
                 style={{
                   display: "block", textAlign: "center", marginTop: "auto",
                   padding: "9px 12px", borderRadius: T.rMd,
@@ -113,7 +117,7 @@ export default function ShopProducts({ products, capitalized, shopSlug, variant 
                   textDecoration: "none", boxShadow: T.shadowGreen,
                 }}
               >
-                Prejsť do obchodu →
+                {ctaIsHeureka ? "Porovnať na Heureke →" : "Prejsť do obchodu →"}
               </TrackedLink>
             </div>
           );

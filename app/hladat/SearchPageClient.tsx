@@ -34,10 +34,15 @@ type SearchProduct = {
   name: string;
   url: string;
   domain?: string | null;
+  /** Outbound URL vypočítaná serverovo (getOfferOutbound) — klient ju neprepočítava. */
   affiliateUrl?: string | null;
+  outboundType?: "shop_affiliate" | "heureka_fallback" | "direct_unmonetized" | null;
+  monetized?: boolean | null;
   price?: string | null;
   secondaryPrice?: string | null;
   priceNum?: number | null;
+  /** Badge „NAJNIŽŠIA CENA" — server ho priradí len pri dôveryhodnom porovnaní mien. */
+  isCheapest?: boolean | null;
   coupon?: ProductCoupon | null;
   deal?: ProductDeal | null;
 };
@@ -179,9 +184,8 @@ function SearchResults({ heurekaHaffId }: { heurekaHaffId?: string }) {
   const codeCoupons = coupons.filter((c) => c.code && String(c.code).trim() !== "");
   const dealCoupons = coupons.filter((c) => (!c.code || String(c.code).trim() === "") && (c.affiliate_link || c.url));
 
-  // Najnižšia cena naprieč výsledkami — na zvýraznenie (produkty prídu zo servera zoradené)
-  const priceNums = products.map((p) => p.priceNum).filter((n): n is number => typeof n === "number");
-  const cheapestNum = priceNums.length > 0 ? Math.min(...priceNums) : null;
+  // Badge „NAJNIŽŠIA CENA" počíta server (feed-search) s normalizáciou mien —
+  // klient neporovnáva surové EUR/CZK čísla.
 
   // Dopyt = existujúci obchod (getAllKnownShops) → redirect na /kupony/[slug]
   useEffect(() => {
@@ -266,7 +270,8 @@ function SearchResults({ heurekaHaffId }: { heurekaHaffId?: string }) {
           )}
 
           {!loadingProducts && products.length > 0 && products.map((p, i) => {
-            const isCheapest = cheapestNum !== null && p.priceNum === cheapestNum;
+            const isCheapest = p.isCheapest === true;
+            const ctaIsHeureka = p.outboundType === "heureka_fallback";
             return (
             <div
               key={i}
@@ -320,26 +325,28 @@ function SearchResults({ heurekaHaffId }: { heurekaHaffId?: string }) {
                   </div>
                 )}
 
-                <a
-                  href={p.affiliateUrl || p.url}
-                  target="_blank"
-                  rel="nofollow noopener noreferrer"
-                  onClick={() => trackClick({
-                    type: "product_outbound",
-                    shopSlug: p.domain ? normalizeShopSlug(p.domain) : null,
-                    productSlug: typeof p.url === "string" && p.url.startsWith("/produkt/") ? p.url.slice("/produkt/".length) : null,
-                    destination: p.affiliateUrl || p.url || null,
-                    destinationDomain: p.domain || null,
-                    query: q || null,
-                  })}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    padding: "8px 18px", borderRadius: 8,
-                    background: "#22C55E", color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none",
-                  }}
-                >
-                  Otvoriť v obchode ↗
-                </a>
+                {p.affiliateUrl && (
+                  <a
+                    href={p.affiliateUrl}
+                    target="_blank"
+                    rel="nofollow noopener noreferrer"
+                    onClick={() => trackClick({
+                      type: ctaIsHeureka ? "heureka_fallback" : "product_outbound",
+                      shopSlug: p.domain ? normalizeShopSlug(p.domain) : null,
+                      productSlug: typeof p.url === "string" && p.url.startsWith("/produkt/") ? p.url.slice("/produkt/".length) : null,
+                      destination: p.affiliateUrl || null,
+                      destinationDomain: ctaIsHeureka ? "heureka.sk" : p.domain || null,
+                      query: q || null,
+                    })}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      padding: "8px 18px", borderRadius: 8,
+                      background: "#22C55E", color: "#fff", fontSize: 13, fontWeight: 700, textDecoration: "none",
+                    }}
+                  >
+                    {ctaIsHeureka ? "Porovnať ponuky na Heureke ↗" : "Otvoriť v obchode ↗"}
+                  </a>
+                )}
               </div>
               {p.price && (
                 <div style={{ flexShrink: 0, textAlign: "right", paddingTop: 2 }}>
