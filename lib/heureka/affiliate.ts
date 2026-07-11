@@ -62,3 +62,50 @@ export function getProductOutboundUrl(product: ProductOutboundInput): string {
   const query = (product.ean || product.name || "").trim();
   return buildServerHeurekaSearchUrl(query);
 }
+
+export type OfferOutboundKind = "shop_affiliate" | "heureka_fallback" | "direct_unmonetized";
+
+export type OfferOutbound = {
+  url: string;
+  kind: OfferOutboundKind;
+};
+
+type OfferOutboundInput = ProductOutboundInput & {
+  url?: string | null;
+};
+
+function cleanHttpUrl(value?: string | null): string | null {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    return trimmed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Outbound URL odporúčanej ponuky vrátane typu monetizácie (pre CTA text a tracking).
+ * Priorita (PROJECT_VISION §12–13):
+ * 1. platný priamy affiliate link ponuky (deep linky sietí sa stavajú pri importe feedu),
+ * 2. Heureka affiliate fallback s haff (len ak je HEUREKA_HAFF_ID nastavené — bez env
+ *    sa odkaz nesmie tváriť ako monetizovaný),
+ * 3. nemonetizovaný priamy link na produkt,
+ * 4. posledná záchrana: Heureka vyhľadávanie bez haff — stránka nesmie zostať bez CTA.
+ */
+export function getOfferOutbound(offer: OfferOutboundInput): OfferOutbound {
+  const affiliateUrl = cleanHttpUrl(offer.affiliate_url ?? offer.affiliateUrl);
+  if (affiliateUrl) return { url: affiliateUrl, kind: "shop_affiliate" };
+
+  const query = (offer.ean || offer.name || "").trim();
+  if (getHeurekaHaffId()) {
+    return { url: buildServerHeurekaSearchUrl(query), kind: "heureka_fallback" };
+  }
+
+  const directUrl = cleanHttpUrl(offer.url);
+  if (directUrl) return { url: directUrl, kind: "direct_unmonetized" };
+
+  return { url: buildServerHeurekaSearchUrl(query), kind: "direct_unmonetized" };
+}

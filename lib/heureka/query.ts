@@ -1,6 +1,7 @@
 import { getDb } from "@/lib/db";
 import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
+import { pickBestPurchase, type BestPurchase, type BestPurchaseCandidate } from "./best-purchase";
 import {
   formatAmount as formatCurrencyAmount,
   formatPricePrimary,
@@ -61,7 +62,7 @@ export async function getProducts(
       sql`SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at FROM hk_products ORDER BY updated_at DESC LIMIT ${limit} OFFSET ${offset}`,
       sql`SELECT COUNT(*)::int AS total FROM hk_products`,
     ]);
-    return { products: rows as HkProduct[], total: (countRows[0] as any).total ?? 0 };
+    return { products: rows as HkProduct[], total: (countRows[0] as { total?: number }).total ?? 0 };
   } catch (err) {
     console.error("[heureka:db] getProducts:", err);
     return { products: [], total: 0 };
@@ -193,6 +194,46 @@ export async function getRelatedProducts(product: HkProduct, limit = 4): Promise
   } catch (err) {
     console.error("[heureka:db] getRelatedProducts:", err);
     return [];
+  }
+}
+
+export type { BestPurchase, BestPurchaseOffer } from "./best-purchase";
+
+/**
+ * Ponuky toho istého produktu naprieč obchodmi + výber odporúčanej.
+ * Identita produktu (PROJECT_VISION §8): EAN → manufacturer+productno →
+ * presná zhoda názvu ako konzervatívny fallback. Ranking (normalizácia
+ * EUR/CZK, tie-breakery, vylúčenie neporovnateľných mien) žije
+ * v pickBestPurchase (lib/heureka/best-purchase.ts).
+ */
+export async function getBestPurchase(product: HkProduct): Promise<BestPurchase | null> {
+  try {
+    const sql = getDb();
+    const ean = (product.ean || "").trim();
+    const productno = (product.productno || "").trim();
+    const manufacturer = (product.manufacturer || "").trim();
+    const hasStrongId = Boolean(ean || (productno && manufacturer));
+    const rows = hasStrongId
+      ? await sql`
+          SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
+          FROM hk_products
+          WHERE id = ${product.id}
+             OR (${ean} <> '' AND ean = ${ean})
+             OR (${productno} <> '' AND ${manufacturer} <> '' AND productno = ${productno} AND lower(manufacturer) = lower(${manufacturer}))
+          LIMIT 80
+        `
+      : await sql`
+          SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
+          FROM hk_products
+          WHERE id = ${product.id}
+             OR lower(name) = lower(${product.name})
+          LIMIT 80
+        `;
+
+    return pickBestPurchase(rows as BestPurchaseCandidate[]);
+  } catch (err) {
+    console.error("[heureka:db] getBestPurchase:", err);
+    return null;
   }
 }
 

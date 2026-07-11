@@ -5,28 +5,48 @@ import ShopFavicon from "@/components/ShopFavicon";
 import {
   getProductById,
   getRelatedProducts,
+  getBestPurchase,
   toProductSlug,
   idFromSlug,
   getTopProductIds,
+  formatAmount,
   formatProductPriceLines,
   parsePriceValue,
 } from "@/lib/heureka/query";
 import { normalizeCurrencyCode } from "@/lib/price";
+import { getOfferOutbound } from "@/lib/heureka/affiliate";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
 import { normalizeShopSlug } from "@/lib/slug";
 import TrackedLink from "@/components/TrackedLink";
 
+type ShopCoupon = {
+  code?: unknown;
+  title?: unknown;
+  name?: unknown;
+  description?: unknown;
+  affiliate_link?: unknown;
+  url?: unknown;
+};
+
+function couponHasCode(coupon: ShopCoupon): boolean {
+  return typeof coupon.code === "string" && coupon.code.trim() !== "";
+}
+
+function couponText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 /** Prvý dostupný kupón (s kódom) a prvá akcia (bez kódu) obchodu — bez výpočtu ceny. */
-function pickShopOffers(coupons: any[]): {
+function pickShopOffers(coupons: ShopCoupon[]): {
   coupon: { title: string } | null;
   deal: { title: string } | null;
 } {
   let coupon: { title: string } | null = null;
   let deal: { title: string } | null = null;
   for (const c of coupons) {
-    const hasCode = c?.code && String(c.code).trim() !== "";
-    const title = c?.title || c?.name || c?.description || "";
+    const hasCode = couponHasCode(c);
+    const title = couponText(c.title) || couponText(c.name) || couponText(c.description);
     if (hasCode && !coupon) coupon = { title };
     else if (!hasCode && !deal && (c?.affiliate_link || c?.url)) deal = { title };
     if (coupon && deal) break;
@@ -72,30 +92,66 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const product = await getProductById(id);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product, 4);
+  const [related, bestPurchase] = await Promise.all([
+    getRelatedProducts(product, 4),
+    getBestPurchase(product),
+  ]);
   const price = formatProductPriceLines(product);
   const currency = normalizeCurrencyCode(product.currency_code);
 
   const priceNum = parsePriceValue(product.price);
+
+  // Odporúčaná ponuka, hlavné CTA aj JSON-LD vychádzajú z TEJ ISTEJ ponuky —
+  // box nesmie odporučiť obchod A a CTA poslať do obchodu B (PROJECT_VISION §9).
+  const recommendedOffer = bestPurchase?.lowestOffer ?? null;
+  const outbound = getOfferOutbound(recommendedOffer ?? product);
+  const buyUrl = outbound.url;
+  const ctaIsHeureka = outbound.kind === "heureka_fallback";
+  const isMonetized = outbound.kind !== "direct_unmonetized";
+
+  const recommendedDomain = recommendedOffer?.domain || product.domain;
+  const bestPrice = recommendedOffer
+    ? formatProductPriceLines({
+        price: recommendedOffer.price,
+        currency_code: recommendedOffer.currency_code,
+        domain: recommendedOffer.domain,
+      })
+    : null;
+  const bestDifference = bestPurchase && bestPurchase.priceDifference !== null
+    ? formatAmount(bestPurchase.priceDifference, bestPurchase.lowestOffer.currency_code)
+    : null;
 
   // Dostupné kupóny/akcie obchodu (bez výpočtu efektívnej ceny)
   let shopOffers: { coupon: { title: string } | null; deal: { title: string } | null } = {
     coupon: null,
     deal: null,
   };
+  let recommendedCouponCount = 0;
   try {
-    shopOffers = pickShopOffers(await getCouponsByShop(product.domain));
+    const sameRecommendedShop = recommendedDomain.toLowerCase() === product.domain.toLowerCase();
+    const [productCoupons, recommendedCoupons] = sameRecommendedShop
+      ? await getCouponsByShop(product.domain).then((coupons) => [coupons, coupons] as const)
+      : await Promise.all([
+          getCouponsByShop(product.domain),
+          getCouponsByShop(recommendedDomain),
+        ]);
+    shopOffers = pickShopOffers(productCoupons);
+    recommendedCouponCount = recommendedCoupons.filter(couponHasCode).length;
   } catch (error) {
     console.error("[product-shop-offers]", error);
   }
   const shopSlug = normalizeShopSlug(product.domain);
+  const recommendedShopSlug = normalizeShopSlug(recommendedDomain);
   const hasOffers = Boolean(shopOffers.coupon || shopOffers.deal);
 
-  // Feedy bez affiliate programu majú affiliate_url null — tlačidlo vedie priamo na produkt
-  const buyUrl = product.affiliate_url || product.url;
-  const isAffiliate = Boolean(product.affiliate_url);
-
   const pageUrl = `https://www.zlavickovo.sk/produkt/${slug}`;
+
+  // JSON-LD Offer iba so spoľahlivo známou cenou, menou a URL — inak sa vynechá.
+  const schemaOffer = recommendedOffer
+    ? { price: recommendedOffer.priceNum, currency: recommendedOffer.currency_code, seller: recommendedOffer.domain }
+    : priceNum !== null && currency
+      ? { price: priceNum, currency, seller: product.domain }
+      : null;
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -107,14 +163,16 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
         image: product.img_url || undefined,
         brand: { "@type": "Brand", name: product.domain },
         category: product.category || undefined,
-        offers: {
-          "@type": "Offer",
-          price: priceNum ?? undefined,
-          priceCurrency: currency ?? undefined,
-          availability: "https://schema.org/InStock",
-          url: product.affiliate_url || product.url,
-          seller: { "@type": "Organization", name: product.domain },
-        },
+        offers: schemaOffer
+          ? {
+              "@type": "Offer",
+              price: schemaOffer.price,
+              priceCurrency: schemaOffer.currency,
+              availability: "https://schema.org/InStock",
+              url: buyUrl,
+              seller: { "@type": "Organization", name: schemaOffer.seller },
+            }
+          : undefined,
       },
       {
         "@type": "BreadcrumbList",
@@ -226,6 +284,74 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
 
+            {bestPurchase && bestPrice && (
+              <div style={{
+                background: "#fff", border: "1.5px solid #d1fae5", borderRadius: 14,
+                padding: "18px 20px", marginBottom: 24, maxWidth: 560,
+                boxShadow: "0 2px 12px rgba(16,185,129,0.08)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+                      {bestPurchase.isLowestVerified ? "Najvýhodnejšia kúpa" : "Dostupná ponuka"}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 3 }}>
+                      {bestPurchase.isLowestVerified ? `Najnižšia cena z ${bestPurchase.offerCount} porovnaných ponúk` : "Cena"}
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1.2 }}>
+                      {bestPrice.primary}
+                    </div>
+                    {bestPrice.secondary && (
+                      <div title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 12, color: "#6b7280", marginTop: 3 }}>
+                        {bestPrice.secondary}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#166534", fontSize: 13, fontWeight: 800 }}>
+                    <ShopFavicon domain={recommendedDomain} name={recommendedDomain} size={22} />
+                    {recommendedShopSlug ? (
+                      <a href={`/kupony/${recommendedShopSlug}`} style={{ color: "#166534", textDecoration: "none" }}>
+                        {recommendedDomain}
+                      </a>
+                    ) : (
+                      <span>{recommendedDomain}</span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }}>
+                  <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>Rozdiel oproti 2. ponuke</div>
+                    <div style={{ fontSize: 15, color: "#111827", fontWeight: 900 }}>
+                      {!bestPurchase.secondOffer
+                        ? "bez druhej ponuky"
+                        : bestPurchase.priceDifference === null
+                          ? "2. ponuka v inej mene"
+                          : bestPurchase.priceDifference === 0
+                            ? "rovnaká cena"
+                            : `ušetríš ${bestDifference}`}
+                    </div>
+                  </div>
+                  <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>Kupóny obchodu</div>
+                    <div style={{ fontSize: 15, color: "#111827", fontWeight: 900 }}>
+                      {recommendedCouponCount}
+                    </div>
+                  </div>
+                  <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>Porovnané ponuky</div>
+                    <div style={{ fontSize: 15, color: "#111827", fontWeight: 900 }}>
+                      {bestPurchase.offerCount}
+                    </div>
+                  </div>
+                </div>
+                {recommendedCouponCount > 0 && (
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 10 }}>
+                    Kupóny sa vzťahujú na obchod {recommendedDomain} — nemusia platiť na tento konkrétny produkt.
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Dostupné kupóny a akcie obchodu */}
             {hasOffers && (
               <div style={{
@@ -261,15 +387,15 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
 
-            {/* CTA */}
+            {/* CTA — vždy tá istá ponuka, ktorú odporúča box vyššie */}
             <TrackedLink
               href={buyUrl}
               target="_blank"
               rel="nofollow noopener noreferrer"
-              type="product_outbound"
-              shopSlug={shopSlug}
+              type={ctaIsHeureka ? "heureka_fallback" : "product_outbound"}
+              shopSlug={recommendedShopSlug || shopSlug}
               productSlug={slug}
-              destinationDomain={product.domain}
+              destinationDomain={ctaIsHeureka ? "www.heureka.sk" : recommendedDomain}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 10,
                 padding: "16px 32px", borderRadius: 14,
@@ -278,11 +404,15 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                 boxShadow: "0 4px 18px rgba(34,197,94,0.30)",
               }}
             >
-              Kúpiť na {product.domain} →
+              {ctaIsHeureka
+                ? "Zobraziť ponuky na Heureke →"
+                : bestPurchase?.isLowestVerified
+                  ? "Prejsť na najvýhodnejšiu ponuku →"
+                  : `Kúpiť na ${recommendedDomain} →`}
             </TrackedLink>
 
             <p style={{ fontSize: 11, color: "#bbb", marginTop: 10, margin: "10px 0 0" }}>
-              {isAffiliate ? "Partnerský odkaz · " : ""}Cena overená pri poslednom importe XML feeda
+              {isMonetized ? "Partnerský odkaz · " : ""}Cena overená pri poslednom importe XML feeda
             </p>
           </div>
         </div>
