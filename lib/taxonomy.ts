@@ -144,10 +144,10 @@ export const TAXONOMY: Record<CategoryId, TaxonomyCategory> = {
     id: "knihy", label: "Knihy", emoji: "📚",
     desc: "Kupóny na knihy, audioknihy a e-booky.",
     color: "#D32F2F", bg: "#fee2e2",
+    // Bux.sk a Panta Rhei odstránené — nie sú v žiadnom aktuálnom affiliate
+    // zdroji (Dognet po market filtri ich nemá), /kupony/[slug] vracia 404.
     featuredShops: [
       { name: "Martinus", slug: "martinus" },
-      { name: "Bux.sk", slug: "bux" },
-      { name: "Panta Rhei", slug: "pantarhei" },
     ],
   },
   ine: {
