@@ -41,6 +41,19 @@ export const HEUREKA_AUDIT_FEED_TIMEOUT_MS = 60 * 1000;
 export const HEUREKA_FULL_FEED_TIMEOUT_MS = 60 * 1000;
 
 /**
+ * Timeout jedného feedu pri cielenom retry (mode=full + feedIds=...). Feedy,
+ * ktoré v bežnom full rune spadli na 60 s timeout, dostanú viac času.
+ * Konfigurovateľné cez env `HEUREKA_FULL_FEED_TIMEOUT_MS`; bez env platí
+ * 180 000 ms. Strop: feed sa musí zmestiť do request budgetu (240 s) aj
+ * s rezervou na parse a upsert, inak by sa v requeste nezačal žiadny feed.
+ */
+export const HEUREKA_RETRY_FEED_TIMEOUT_MS: number = (() => {
+  const raw = parseInt(process.env.HEUREKA_FULL_FEED_TIMEOUT_MS ?? "", 10);
+  const value = Number.isFinite(raw) && raw > 0 ? raw : 180 * 1000;
+  return Math.min(value, HEUREKA_IMPORT_REQUEST_BUDGET_MS - 30 * 1000);
+})();
+
+/**
  * Núdzová brzda pre streamovaný download feedu (feedy s obrími položkami).
  * Konzervatívne 60 MB — pri budúcom limite 2000 nesmie orezať feed skôr, než sa
  * dosiahne HEUREKA_MAX_ITEMS. Stream sa aj tak primárne zastaví na počte položiek.

@@ -12,6 +12,7 @@ import {
   HEUREKA_AUDIT_REQUEST_BUDGET_MS,
   HEUREKA_FULL_FEED_TIMEOUT_MS,
   HEUREKA_MAX_BYTES,
+  HEUREKA_RETRY_FEED_TIMEOUT_MS,
 } from "./config";
 import type {
   HkFeedDef,
@@ -24,6 +25,11 @@ import { resolveProductCurrency, type SupportedCurrency } from "@/lib/price";
 
 const LOCK_NAME = "heureka_import";
 const DB_BATCH_SIZE = 200;
+
+// Retry run má vlastný type: resume dotaz bežného importu filtruje
+// type = 'heureka', takže denný cron nikdy neadoptuje rozbehnutý retry run
+// (a naopak). Stĺpec type nemá CHECK constraint, na rozdiel od mode.
+const RETRY_RUN_TYPE = "heureka_retry";
 
 type SqlClient = ReturnType<typeof getDb>;
 
@@ -64,6 +70,10 @@ export interface HeurekaImportModeConfig {
   maxItems: number;
   feedTimeoutMs: number;
   requestBudgetMs: number;
+  // Nový feed sa nezačne, ak v request budgete ostáva menej než táto rezerva.
+  // Retry run ju zvyšuje na feedTimeoutMs + rezerva, aby sa dlhý feed nezačal
+  // tesne pred koncom budgetu a nezabil ho Vercel maxDuration.
+  minRemainingMs: number;
 }
 
 export interface ImportHeurekaBatchOptions {
@@ -75,6 +85,11 @@ export interface ImportHeurekaBatchOptions {
   // ostáva v DB nedotknutý. Full režim hodnotu ignoruje — jeho resume logika
   // sa nesmie meniť.
   freshRun?: boolean;
+  // Cielený retry: importovať len tieto feed ID (povolené len pre mode=full).
+  // ID musia byť v HEUREKA_FEEDS whiteliste, inak importHeurekaBatch odmietne
+  // celý request ešte pred získaním locku. Vytvorí/obnoví samostatný retry run
+  // (type = 'heureka_retry'), bežné full runy sa nedotknú.
+  feedIds?: string[];
   // Test-only: injektovaný SQL klient; produkčná cesta používa getDb().
   sqlClient?: SqlClient;
 }
@@ -120,6 +135,9 @@ export interface ImportHeurekaBatchResult {
     successfulFeeds: number;
     failedFeeds: number;
   };
+  // Nastavené len pri cielenom retry (options.feedIds)
+  retry?: boolean;
+  retryFeedIds?: string[];
   error?: string;
 }
 
@@ -132,12 +150,25 @@ function normalizeLimit(value: number | undefined, fallback: number, max: number
   return Math.min(Math.floor(value), max);
 }
 
-export function getImportModeConfig(mode: HkImportMode): HeurekaImportModeConfig {
+export function getImportModeConfig(mode: HkImportMode, retryRun = false): HeurekaImportModeConfig {
   if (mode === "audit") {
     return {
       maxItems: HEUREKA_AUDIT_MAX_ITEMS,
       feedTimeoutMs: HEUREKA_AUDIT_FEED_TIMEOUT_MS,
       requestBudgetMs: HEUREKA_AUDIT_REQUEST_BUDGET_MS,
+      minRemainingMs: HEUREKA_IMPORT_MIN_REMAINING_MS,
+    };
+  }
+
+  if (retryRun) {
+    return {
+      maxItems: Number.POSITIVE_INFINITY,
+      feedTimeoutMs: HEUREKA_RETRY_FEED_TIMEOUT_MS,
+      requestBudgetMs: HEUREKA_IMPORT_REQUEST_BUDGET_MS,
+      minRemainingMs: Math.max(
+        HEUREKA_IMPORT_MIN_REMAINING_MS,
+        HEUREKA_RETRY_FEED_TIMEOUT_MS + 30 * 1000
+      ),
     };
   }
 
@@ -145,11 +176,35 @@ export function getImportModeConfig(mode: HkImportMode): HeurekaImportModeConfig
     maxItems: Number.POSITIVE_INFINITY,
     feedTimeoutMs: HEUREKA_FULL_FEED_TIMEOUT_MS,
     requestBudgetMs: HEUREKA_IMPORT_REQUEST_BUDGET_MS,
+    minRemainingMs: HEUREKA_IMPORT_MIN_REMAINING_MS,
   };
 }
 
 function staticFeedById(): Map<string, HkFeedDef> {
   return new Map(HEUREKA_FEEDS.map((feed) => [feed.id, feed]));
+}
+
+/**
+ * Whitelist validácia feed ID pre cielený retry: dedupe, trim, kontrola proti
+ * HEUREKA_FEEDS. Neznáme ID sa vracajú zvlášť — volajúci ich musí odmietnuť.
+ */
+export function validateRetryFeedIds(requested: string[]): { valid: string[]; unknown: string[] } {
+  const known = staticFeedById();
+  const valid: string[] = [];
+  const unknown: string[] = [];
+
+  for (const raw of requested) {
+    const id = raw.trim();
+    if (!id) continue;
+    if (!known.has(id)) {
+      if (!unknown.includes(id)) unknown.push(id);
+    } else if (!valid.includes(id)) {
+      valid.push(id);
+    }
+  }
+
+  valid.sort();
+  return { valid, unknown };
 }
 
 function deaccent(value: string): string {
@@ -266,6 +321,64 @@ async function getOrCreateRun(
   return rows[0];
 }
 
+/**
+ * Retry run pre konkrétne feed ID. Nikdy nepokračuje v bežnom full rune
+ * (a bežný import zas nevidí retry run — filtruje type = 'heureka').
+ * Aktívny retry run sa obnoví len vtedy, keď jeho feed set presne sedí
+ * s požadovanými ID; inak sa založí nový run a starý ostane nedotknutý.
+ */
+async function getOrCreateRetryRun(sql: SqlClient, feedIds: string[]): Promise<HkImportRunRow> {
+  const active = (await sql`
+    SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+    FROM hk_import_runs
+    WHERE type = ${RETRY_RUN_TYPE} AND status IN ('running', 'partial')
+    ORDER BY started_at DESC
+    LIMIT 1
+  `) as HkImportRunRow[];
+
+  if (active[0]) {
+    const runFeeds = (await sql`
+      SELECT feed_id FROM hk_import_run_feeds WHERE run_id = ${active[0].id}
+    `) as { feed_id: string }[];
+    const existing = new Set(runFeeds.map((row) => row.feed_id));
+    const sameSet = existing.size === feedIds.length && feedIds.every((id) => existing.has(id));
+
+    if (sameSet) {
+      await sql`
+        UPDATE hk_import_runs
+        SET status = 'running', updated_at = now()
+        WHERE id = ${active[0].id}
+      `;
+      return { ...active[0], status: "running" };
+    }
+  }
+
+  const id = crypto.randomUUID();
+  const totalRows = (await sql`
+    SELECT COUNT(*)::int AS total FROM hk_feeds WHERE enabled = true AND id = ANY(${feedIds}::text[])
+  `) as { total: number }[];
+  const totalFeeds = totalRows[0]?.total ?? 0;
+
+  const rows = (await sql`
+    INSERT INTO hk_import_runs (
+      id, type, mode, status, started_at, total_feeds, processed_feeds,
+      successful_feeds, failed_feeds, cursor_feed_id
+    )
+    VALUES (${id}, ${RETRY_RUN_TYPE}, 'full', 'running', now(), ${totalFeeds}, 0, 0, 0, null)
+    RETURNING id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
+  `) as HkImportRunRow[];
+
+  await sql`
+    INSERT INTO hk_import_run_feeds (run_id, feed_id, status)
+    SELECT ${id}, id, 'pending'
+    FROM hk_feeds
+    WHERE enabled = true AND id = ANY(${feedIds}::text[])
+    ON CONFLICT (run_id, feed_id) DO NOTHING
+  `;
+
+  return rows[0];
+}
+
 async function getRun(sql: SqlClient, runId: string): Promise<HkImportRunRow> {
   const rows = (await sql`
     SELECT id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
@@ -279,8 +392,38 @@ async function selectNextFeeds(
   sql: SqlClient,
   runId: string,
   cursorFeedId: string | null,
-  limit: number
+  limit: number,
+  retryFeedIds: string[] | null = null
 ): Promise<HkFeedImportRow[]> {
+  if (retryFeedIds) {
+    // Retry run: seedujú a vyberajú sa výhradne požadované feed ID
+    await sql`
+      INSERT INTO hk_import_run_feeds (run_id, feed_id, status)
+      SELECT ${runId}, id, 'pending'
+      FROM hk_feeds
+      WHERE enabled = true AND id = ANY(${retryFeedIds}::text[])
+      ON CONFLICT (run_id, feed_id) DO NOTHING
+    `;
+
+    if (cursorFeedId) {
+      return (await sql`
+        SELECT id, url, domain, category, affiliate_url, currency_code, enabled
+        FROM hk_feeds
+        WHERE enabled = true AND id = ANY(${retryFeedIds}::text[]) AND id > ${cursorFeedId}
+        ORDER BY id ASC
+        LIMIT ${limit}
+      `) as HkFeedImportRow[];
+    }
+
+    return (await sql`
+      SELECT id, url, domain, category, affiliate_url, currency_code, enabled
+      FROM hk_feeds
+      WHERE enabled = true AND id = ANY(${retryFeedIds}::text[])
+      ORDER BY id ASC
+      LIMIT ${limit}
+    `) as HkFeedImportRow[];
+  }
+
   await sql`
     INSERT INTO hk_import_run_feeds (run_id, feed_id, status)
     SELECT ${runId}, id, 'pending'
@@ -379,13 +522,25 @@ async function updateRunAfterFeed(
   `;
 }
 
-async function finalizeRunIfDone(sql: SqlClient, runId: string): Promise<HkImportRunRow> {
-  const pendingRows = (await sql`
-    SELECT COUNT(*)::int AS remaining
-    FROM hk_feeds
-    WHERE enabled = true
-      AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
-  `) as { remaining: number }[];
+async function finalizeRunIfDone(
+  sql: SqlClient,
+  runId: string,
+  retryFeedIds: string[] | null = null
+): Promise<HkImportRunRow> {
+  const pendingRows = retryFeedIds
+    ? ((await sql`
+        SELECT COUNT(*)::int AS remaining
+        FROM hk_feeds
+        WHERE enabled = true
+          AND id = ANY(${retryFeedIds}::text[])
+          AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+      `) as { remaining: number }[])
+    : ((await sql`
+        SELECT COUNT(*)::int AS remaining
+        FROM hk_feeds
+        WHERE enabled = true
+          AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+      `) as { remaining: number }[]);
 
   const remaining = pendingRows[0]?.remaining ?? 0;
   const run = await getRun(sql, runId);
@@ -527,7 +682,8 @@ async function upsertProducts(
         name          = EXCLUDED.name,
         description   = EXCLUDED.description,
         price         = EXCLUDED.price,
-        currency_code = EXCLUDED.currency_code,
+        -- NULL z parsera nesmie prepísať už známu menu existujúceho produktu
+        currency_code = COALESCE(EXCLUDED.currency_code, hk_products.currency_code),
         img_url       = EXCLUDED.img_url,
         affiliate_url = EXCLUDED.affiliate_url,
         ean           = EXCLUDED.ean,
@@ -680,13 +836,25 @@ export async function importOneFeed(
   }
 }
 
-async function hasRemainingFeeds(sql: SqlClient, runId: string): Promise<boolean> {
-  const rows = (await sql`
-    SELECT COUNT(*)::int AS remaining
-    FROM hk_feeds
-    WHERE enabled = true
-      AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
-  `) as { remaining: number }[];
+async function hasRemainingFeeds(
+  sql: SqlClient,
+  runId: string,
+  retryFeedIds: string[] | null = null
+): Promise<boolean> {
+  const rows = retryFeedIds
+    ? ((await sql`
+        SELECT COUNT(*)::int AS remaining
+        FROM hk_feeds
+        WHERE enabled = true
+          AND id = ANY(${retryFeedIds}::text[])
+          AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+      `) as { remaining: number }[])
+    : ((await sql`
+        SELECT COUNT(*)::int AS remaining
+        FROM hk_feeds
+        WHERE enabled = true
+          AND id > COALESCE((SELECT cursor_feed_id FROM hk_import_runs WHERE id = ${runId}), '')
+      `) as { remaining: number }[]);
   return (rows[0]?.remaining ?? 0) > 0;
 }
 
@@ -700,6 +868,24 @@ export async function importHeurekaBatch(
   const freshRun = requestedMode === "audit" && options.freshRun === true;
   const batchSize = normalizeLimit(options.batchSize, HEUREKA_IMPORT_BATCH_SIZE, 10);
   const parallelism = normalizeLimit(options.parallelism, HEUREKA_IMPORT_PARALLELISM, 3);
+
+  // Cielený retry sa validuje ešte pred získaním locku — neplatný request
+  // nesmie prevziať lock ani založiť run.
+  let retryFeedIds: string[] | null = null;
+  if (options.feedIds && options.feedIds.length > 0) {
+    if (requestedMode !== "full") {
+      throw new Error("feedIds retry je povolený len pre mode=full");
+    }
+    const { valid, unknown } = validateRetryFeedIds(options.feedIds);
+    if (unknown.length > 0) {
+      throw new Error(`Neznáme feed ID (nie sú v HEUREKA_FEEDS): ${unknown.join(", ")}`);
+    }
+    if (valid.length === 0) {
+      throw new Error("feedIds neobsahuje žiadne platné feed ID");
+    }
+    retryFeedIds = valid;
+  }
+
   const lock = await acquireImportLock(sql, owner);
 
   if (!lock.acquired) {
@@ -729,9 +915,11 @@ export async function importHeurekaBatch(
   try {
     const startedAt = Date.now();
     await syncStaticHeurekaFeeds(sql);
-    const run = await getOrCreateRun(sql, requestedMode, freshRun);
+    const run = retryFeedIds
+      ? await getOrCreateRetryRun(sql, retryFeedIds)
+      : await getOrCreateRun(sql, requestedMode, freshRun);
     const mode = run.mode;
-    const modeConfig = getImportModeConfig(mode);
+    const modeConfig = getImportModeConfig(mode, retryFeedIds !== null);
     runId = run.id;
     await attachRunToLock(sql, owner, run.id);
 
@@ -743,10 +931,10 @@ export async function importHeurekaBatch(
     while (results.length < batchSize) {
       const elapsed = Date.now() - startedAt;
       const remaining = modeConfig.requestBudgetMs - elapsed;
-      if (remaining < HEUREKA_IMPORT_MIN_REMAINING_MS) break;
+      if (remaining < modeConfig.minRemainingMs) break;
 
       const limit = Math.min(parallelism, batchSize - results.length);
-      const feeds = await selectNextFeeds(sql, run.id, cursor, limit);
+      const feeds = await selectNextFeeds(sql, run.id, cursor, limit, retryFeedIds);
       if (feeds.length === 0) break;
 
       const settled = await Promise.allSettled(
@@ -777,8 +965,8 @@ export async function importHeurekaBatch(
       if (Date.now() - startedAt >= modeConfig.requestBudgetMs) break;
     }
 
-    currentRun = await finalizeRunIfDone(sql, run.id);
-    const needsNextRequest = await hasRemainingFeeds(sql, run.id);
+    currentRun = await finalizeRunIfDone(sql, run.id, retryFeedIds);
+    const needsNextRequest = await hasRemainingFeeds(sql, run.id, retryFeedIds);
 
     return {
       ok: true,
@@ -804,6 +992,7 @@ export async function importHeurekaBatch(
         successfulFeeds: currentRun.successful_feeds,
         failedFeeds: currentRun.failed_feeds,
       },
+      ...(retryFeedIds ? { retry: true, retryFeedIds } : {}),
     };
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
