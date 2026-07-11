@@ -2,9 +2,11 @@ import { getDb } from "@/lib/db";
 import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
 import { pickBestPurchase, type BestPurchase, type BestPurchaseCandidate } from "./best-purchase";
+import { normalizeEan, normalizeManufacturer, normalizeProductNo, type IdentityLevel } from "./identity";
 import {
   formatAmount as formatCurrencyAmount,
   formatPricePrimary,
+  getEurToCzkRate,
   getFormattedProductPricesFromRaw,
   inferCurrencyCodeForConfiguredFeed,
   normalizeCurrencyCode,
@@ -201,36 +203,58 @@ export type { BestPurchase, BestPurchaseOffer } from "./best-purchase";
 
 /**
  * Ponuky toho istého produktu naprieč obchodmi + výber odporúčanej.
- * Identita produktu (PROJECT_VISION §8): EAN → manufacturer+productno →
- * presná zhoda názvu ako konzervatívny fallback. Ranking (normalizácia
+ * Identita produktu (PROJECT_VISION §8): validný EAN → validný
+ * manufacturer+productno → presná zhoda názvu ako konzervatívny fallback.
+ * Validáciu identít (GTIN checksum, placeholder EAN, productno "N/A"...)
+ * robí lib/heureka/identity.ts — nevalidná identita sa NESMIE použiť na
+ * spájanie produktov a prechádza sa na ďalší krok. Úrovne sa nemiešajú:
+ * pri validnom EAN sa matchuje výhradne EAN-om, aby pár manufacturer+productno
+ * s viacerými rôznymi EAN nespojil rozdielne varianty. Ranking (normalizácia
  * EUR/CZK, tie-breakery, vylúčenie neporovnateľných mien) žije
  * v pickBestPurchase (lib/heureka/best-purchase.ts).
  */
 export async function getBestPurchase(product: HkProduct): Promise<BestPurchase | null> {
   try {
     const sql = getDb();
-    const ean = (product.ean || "").trim();
-    const productno = (product.productno || "").trim();
-    const manufacturer = (product.manufacturer || "").trim();
-    const hasStrongId = Boolean(ean || (productno && manufacturer));
-    const rows = hasStrongId
-      ? await sql`
-          SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
-          FROM hk_products
-          WHERE id = ${product.id}
-             OR (${ean} <> '' AND ean = ${ean})
-             OR (${productno} <> '' AND ${manufacturer} <> '' AND productno = ${productno} AND lower(manufacturer) = lower(${manufacturer}))
-          LIMIT 80
-        `
-      : await sql`
-          SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
-          FROM hk_products
-          WHERE id = ${product.id}
-             OR lower(name) = lower(${product.name})
-          LIMIT 80
-        `;
+    const ean = normalizeEan(product.ean);
+    const manufacturer = normalizeManufacturer(product.manufacturer);
+    const productno = normalizeProductNo(product.productno);
+    const identityLevel: IdentityLevel = ean
+      ? "ean"
+      : manufacturer && productno
+        ? "manufacturer_productno"
+        : "name";
 
-    return pickBestPurchase(rows as BestPurchaseCandidate[]);
+    // Porovnanie na strane DB používa rovnakú normalizáciu ako identity.ts:
+    // EAN bez medzier/pomlčiek, manufacturer lowercase + collapse whitespace,
+    // productno collapse whitespace (case sa zachováva).
+    const rows =
+      identityLevel === "ean"
+        ? await sql`
+            SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
+            FROM hk_products
+            WHERE id = ${product.id}
+               OR translate(ean, ' -', '') = ${ean}
+            LIMIT 80
+          `
+        : identityLevel === "manufacturer_productno"
+          ? await sql`
+              SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
+              FROM hk_products
+              WHERE id = ${product.id}
+                 OR (lower(regexp_replace(btrim(manufacturer), '\\s+', ' ', 'g')) = ${manufacturer}
+                     AND regexp_replace(btrim(productno), '\\s+', ' ', 'g') = ${productno})
+              LIMIT 80
+            `
+          : await sql`
+              SELECT id, name, price, currency_code, url, domain, affiliate_url, ean
+              FROM hk_products
+              WHERE id = ${product.id}
+                 OR lower(name) = lower(${product.name})
+              LIMIT 80
+            `;
+
+    return pickBestPurchase(rows as BestPurchaseCandidate[], getEurToCzkRate(), identityLevel);
   } catch (err) {
     console.error("[heureka:db] getBestPurchase:", err);
     return null;

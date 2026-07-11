@@ -5,6 +5,7 @@ import {
   resolveProductCurrency,
   type SupportedCurrency,
 } from "../price";
+import type { IdentityLevel } from "./identity";
 
 /**
  * Výber „Najvýhodnejšej kúpy" — čistá ranking logika bez DB a env, testovateľná
@@ -56,6 +57,12 @@ export interface BestPurchase {
   excludedCount: number;
   /** „Najnižšia cena" možno tvrdiť len ak sa reálne porovnali aspoň 2 ponuky. */
   isLowestVerified: boolean;
+  /**
+   * Sila identity, ktorou boli ponuky spojené (PROJECT_VISION §8) — UI podľa
+   * nej rozhoduje, či smie tvrdiť „Najvýhodnejšia kúpa"/„Najnižšia cena" (len
+   * "ean"), alebo musí použiť opatrnejší text.
+   */
+  identityLevel: IdentityLevel;
 }
 
 function cleanUrl(value?: string | null): string | null {
@@ -103,7 +110,8 @@ function compareOffers(a: BestPurchaseOffer, b: BestPurchaseOffer, sortValue: (o
 
 export function pickBestPurchase(
   candidates: BestPurchaseCandidate[],
-  eurToCzkRate: number | null = getEurToCzkRate()
+  eurToCzkRate: number | null = getEurToCzkRate(),
+  identityLevel: IdentityLevel = "name"
 ): BestPurchase | null {
   let excludedCount = 0;
 
@@ -162,5 +170,72 @@ export function pickBestPurchase(
     offerCount: sorted.length,
     excludedCount,
     isLowestVerified: sorted.length >= 2,
+    identityLevel,
   };
+}
+
+export interface BestPurchaseCopy {
+  /** Nadpis boxu na produktovej stránke. */
+  title: string;
+  /** Popisok nad cenou odporúčanej ponuky. */
+  subtitle: string;
+  /** Badge/tvrdenie „NAJNIŽŠIA CENA" je dovolené (len EAN identita). */
+  allowLowestBadge: boolean;
+  /** Tvrdenie „ušetríš X" je dovolené (len EAN identita). */
+  allowSavingsClaim: boolean;
+  /** CTA smie tvrdiť „najvýhodnejšia ponuka" (len EAN identita). */
+  ctaVerified: boolean;
+  /** Povinné upozornenie pri slabšej identite; null pri EAN. */
+  disclaimer: string | null;
+}
+
+/**
+ * UI texty podľa sily identity (PROJECT_VISION §8–9): agresívne tvrdenia
+ * („Najvýhodnejšia kúpa", „Najnižšia cena", „Ušetríte") sú dovolené len pri
+ * EAN identite s reálne porovnanými ponukami. Pri manufacturer+productno sa
+ * hovorí o „rovnakom modeli", pri name fallbacku UI NESMIE tvrdiť, že ide
+ * o potvrdený identický produkt.
+ */
+export function getBestPurchaseCopy(
+  best: Pick<BestPurchase, "identityLevel" | "isLowestVerified" | "offerCount">
+): BestPurchaseCopy {
+  if (!best.isLowestVerified) {
+    return {
+      title: "Dostupná ponuka",
+      subtitle: "Cena",
+      allowLowestBadge: false,
+      allowSavingsClaim: false,
+      ctaVerified: false,
+      disclaimer: null,
+    };
+  }
+  switch (best.identityLevel) {
+    case "ean":
+      return {
+        title: "Najvýhodnejšia kúpa",
+        subtitle: `Najnižšia cena z ${best.offerCount} porovnaných ponúk`,
+        allowLowestBadge: true,
+        allowSavingsClaim: true,
+        ctaVerified: true,
+        disclaimer: null,
+      };
+    case "manufacturer_productno":
+      return {
+        title: "Porovnané ponuky rovnakého modelu",
+        subtitle: "Cena v odporúčanej ponuke",
+        allowLowestBadge: false,
+        allowSavingsClaim: false,
+        ctaVerified: false,
+        disclaimer: "Ponuky sú spárované podľa výrobcu a čísla modelu.",
+      };
+    case "name":
+      return {
+        title: "Podobné ponuky z iných obchodov",
+        subtitle: "Cena v odporúčanej ponuke",
+        allowLowestBadge: false,
+        allowSavingsClaim: false,
+        ctaVerified: false,
+        disclaimer: "Ponuky sú spárované podľa názvu — nemusí ísť o identický produkt.",
+      };
+  }
 }

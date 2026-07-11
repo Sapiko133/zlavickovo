@@ -14,6 +14,7 @@ import {
   parsePriceValue,
 } from "@/lib/heureka/query";
 import { normalizeCurrencyCode } from "@/lib/price";
+import { getBestPurchaseCopy } from "@/lib/heureka/best-purchase";
 import { getOfferOutbound } from "@/lib/heureka/affiliate";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getCouponsByShop } from "@/lib/dognet";
@@ -104,6 +105,10 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   // Odporúčaná ponuka, hlavné CTA aj JSON-LD vychádzajú z TEJ ISTEJ ponuky —
   // box nesmie odporučiť obchod A a CTA poslať do obchodu B (PROJECT_VISION §9).
   const recommendedOffer = bestPurchase?.lowestOffer ?? null;
+  // Texty podľa sily identity (PROJECT_VISION §8): „Najvýhodnejšia kúpa" /
+  // „Najnižšia cena" / „ušetríš" len pri EAN zhode; name fallback nesmie
+  // tvrdiť potvrdený identický produkt.
+  const bestCopy = bestPurchase ? getBestPurchaseCopy(bestPurchase) : null;
   const outbound = getOfferOutbound(recommendedOffer ?? product);
   const buyUrl = outbound.url;
   const ctaIsHeureka = outbound.kind === "heureka_fallback";
@@ -293,10 +298,10 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 14, flexWrap: "wrap" }}>
                   <div>
                     <div style={{ fontSize: 11, fontWeight: 800, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
-                      {bestPurchase.isLowestVerified ? "Najvýhodnejšia kúpa" : "Dostupná ponuka"}
+                      {bestCopy?.title ?? "Dostupná ponuka"}
                     </div>
                     <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 3 }}>
-                      {bestPurchase.isLowestVerified ? `Najnižšia cena z ${bestPurchase.offerCount} porovnaných ponúk` : "Cena"}
+                      {bestCopy?.subtitle ?? "Cena"}
                     </div>
                     <div style={{ fontSize: 22, fontWeight: 900, color: "#111827", lineHeight: 1.2 }}>
                       {bestPrice.primary}
@@ -328,7 +333,9 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                           ? "2. ponuka v inej mene"
                           : bestPurchase.priceDifference === 0
                             ? "rovnaká cena"
-                            : `ušetríš ${bestDifference}`}
+                            : bestCopy?.allowSavingsClaim
+                              ? `ušetríš ${bestDifference}`
+                              : `${bestDifference}`}
                     </div>
                   </div>
                   <div style={{ background: "#f9fafb", borderRadius: 10, padding: "10px 12px" }}>
@@ -344,6 +351,11 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                     </div>
                   </div>
                 </div>
+                {bestCopy?.disclaimer && (
+                  <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 10 }}>
+                    {bestCopy.disclaimer}
+                  </div>
+                )}
                 {recommendedCouponCount > 0 && (
                   <div style={{ fontSize: 11, color: "#9ca3af", marginTop: 10 }}>
                     Kupóny sa vzťahujú na obchod {recommendedDomain} — nemusia platiť na tento konkrétny produkt.
@@ -406,7 +418,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             >
               {ctaIsHeureka
                 ? "Zobraziť ponuky na Heureke →"
-                : bestPurchase?.isLowestVerified
+                : bestCopy?.ctaVerified
                   ? "Prejsť na najvýhodnejšiu ponuku →"
                   : `Kúpiť na ${recommendedDomain} →`}
             </TrackedLink>
