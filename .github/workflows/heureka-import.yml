@@ -1,0 +1,138 @@
+name: Heureka Import
+
+# Externý scheduler pre denný Heureka import.
+# Vercel Hobby plán nedovoľuje cron každých 5–10 min, a jeden Vercel cron
+# spracuje iba jeden batch. Tento workflow raz denne opakovane volá produkčný
+# endpoint, kým sa celý import nedokončí (needsNextRequest=false).
+#
+# Endpoint riadi stav v DB (lock, run resume, cursor checkpoint), workflow je
+# len "poháňač": posiela requesty, číta JSON a rozhoduje, či pokračovať.
+
+on:
+  schedule:
+    # 07:00 UTC = 09:00 SK (CEST v lete). Zhoduje sa s pôvodným Vercel cronom,
+    # ktorý bol z vercel.json odstránený, aby nebežali dva scheduler-y naraz.
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+# Iba jeden beh Heureka importu súčasne. Manuálne workflow_dispatch počas
+# bežiaceho behu sa zaradí do fronty (necanceluje aktívny). Druhá poistka je
+# DB lock v samotnom importe (HTTP 409 locked).
+concurrency:
+  group: heureka-import
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    # Tvrdý strop pre celý beh (30 iterácií × ~4 min request + sleep).
+    timeout-minutes: 180
+    env:
+      ENDPOINT: "https://www.zlavickovo.sk/api/cron/import-heureka?batchSize=6&parallelism=1"
+      MAX_ITERATIONS: "30"
+      SLEEP_BETWEEN: "45"   # sekúnd medzi úspešnými batchmi
+      LOCK_SLEEP: "60"      # sekúnd čakania pri HTTP 409 / locked
+      MAX_HTTP_RETRIES: "3" # pokusy pri sieťovej chybe alebo HTTP 5xx
+      RETRY_SLEEP: "15"     # sekúnd medzi HTTP retry pokusmi
+      CURL_MAX_TIME: "320"  # route maxDuration=300, request budget=240s
+    steps:
+      - name: Run Heureka import until complete
+        env:
+          # CRON_SECRET iba z GitHub repository secret. Nikdy sa nevypisuje.
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET secret nie je nastavený v repozitári."
+            exit 1
+          fi
+
+          iteration=0
+          while [ "$iteration" -lt "$MAX_ITERATIONS" ]; do
+            iteration=$((iteration + 1))
+
+            # --- HTTP volanie s obmedzeným retry na sieťovú chybu / 5xx ---
+            attempt=0
+            http_code="000"
+            while [ "$attempt" -lt "$MAX_HTTP_RETRIES" ]; do
+              attempt=$((attempt + 1))
+              # -sS: tichý ale ukáž chyby. Authorization hlavička sa NIKDY netrace-uje
+              # (set -x je vypnutý), curl ju do stdout nepíše.
+              http_code=$(curl -sS -o response.json -w '%{http_code}' \
+                --max-time "$CURL_MAX_TIME" \
+                -H "Authorization: Bearer ${CRON_SECRET}" \
+                "$ENDPOINT" || echo "000")
+
+              if [ "$http_code" = "000" ]; then
+                echo "iteration=$iteration attempt=$attempt: sieťová chyba (bez odpovede)"
+              elif [ "$http_code" -ge 500 ]; then
+                echo "iteration=$iteration attempt=$attempt: HTTP $http_code (server error)"
+              else
+                break
+              fi
+
+              if [ "$attempt" -lt "$MAX_HTTP_RETRIES" ]; then
+                echo "  retry o ${RETRY_SLEEP}s..."
+                sleep "$RETRY_SLEEP"
+              fi
+            done
+
+            # --- Parsovanie JSON (jq je v ubuntu-latest predinštalovaný) ---
+            status=$(jq -r '.status // "unknown"' response.json 2>/dev/null || echo "unparseable")
+            run_id=$(jq -r '.runId // "null"' response.json 2>/dev/null || echo "null")
+            processed=$(jq -r '.processedInBatch // 0' response.json 2>/dev/null || echo "0")
+            checkpoint=$(jq -r '.checkpoint // "null"' response.json 2>/dev/null || echo "null")
+            needs=$(jq -r '.needsNextRequest // false' response.json 2>/dev/null || echo "false")
+
+            echo "── iteration=$iteration http=$http_code runId=$run_id status=$status processedInBatch=$processed checkpoint=$checkpoint needsNextRequest=$needs"
+
+            # --- Rozhodovanie podľa HTTP kódu ---
+
+            # Sieťová chyba pretrvala po všetkých pokusoch → tvrdé zlyhanie.
+            if [ "$http_code" = "000" ]; then
+              echo "::error::Sieťová chyba pretrvala po $MAX_HTTP_RETRIES pokusoch."
+              exit 1
+            fi
+
+            # 401 = zlý/nenastavený secret → nemá zmysel opakovať.
+            if [ "$http_code" = "401" ]; then
+              echo "::error::Unauthorized (401) — skontroluj CRON_SECRET."
+              exit 1
+            fi
+
+            # 409 / locked: iný beh drží lock. NIE je to zlyhanie — počkaj a skús znova.
+            if [ "$http_code" = "409" ] || [ "$status" = "locked" ]; then
+              echo "  import je zamknutý (locked) — čakám ${LOCK_SLEEP}s a skúsim znova"
+              sleep "$LOCK_SLEEP"
+              continue
+            fi
+
+            # 5xx pretrvalo po retry → tvrdé zlyhanie.
+            if [ "$http_code" -ge 500 ]; then
+              echo "::error::Server error (HTTP $http_code) pretrval po $MAX_HTTP_RETRIES pokusoch."
+              exit 1
+            fi
+
+            # Ostatné 4xx (napr. 400 zlé feedIds) → tvrdé zlyhanie.
+            if [ "$http_code" -ge 400 ]; then
+              err=$(jq -r '.error // "unknown"' response.json 2>/dev/null || echo "unknown")
+              echo "::error::Client error (HTTP $http_code): $err"
+              exit 1
+            fi
+
+            # --- HTTP 2xx: úspešný batch ---
+            if [ "$needs" = "false" ]; then
+              echo "✅ Import dokončený. Finálny status=$status runId=$run_id"
+              exit 0
+            fi
+
+            echo "  ostávajú ďalšie feedy — čakám ${SLEEP_BETWEEN}s pred ďalším batchom"
+            sleep "$SLEEP_BETWEEN"
+          done
+
+          echo "::error::Dosiahnutý MAX_ITERATIONS=$MAX_ITERATIONS, ale needsNextRequest je stále true. Import nedokončený."
+          exit 1
