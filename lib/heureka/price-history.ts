@@ -1,4 +1,7 @@
 import { getDb } from "@/lib/db";
+import { normalizeCurrencyCode, type SupportedCurrency } from "@/lib/price";
+
+type SqlClient = ReturnType<typeof getDb>;
 
 export interface PriceDrop {
   productUrl: string;
@@ -84,5 +87,78 @@ export async function getBiggestPriceDropsByDomain(
     // Chýbajúca tabuľka / prázdna história nesmie zhodiť stránku obchodu.
     console.error("[price-history] getBiggestPriceDropsByDomain:", err);
     return [];
+  }
+}
+
+export interface ProductPriceStats {
+  current: number;
+  min: number;
+  max: number;
+  // Celé percento poklesu od maxima v okne (0 ak je aktuálna cena = maximum).
+  dropFromMaxPct: number;
+  currency: SupportedCurrency;
+}
+
+/**
+ * Cenová štatistika produktu pre produktový detail V1: aktuálna cena, minimum
+ * a maximum v okne (WINDOW_DAYS) a pokles od maxima. Bez grafu a bez points[]
+ * (V2). Kľúč je product_url (história jednej ponuky obchodu).
+ *
+ * Vracia null, kým nie sú ≥2 snapshoty, ak sa mena v okne mení (cross-currency
+ * min/max by bolo klamlivé, §9) alebo ak cena nie je kladná — sekcia sa potom
+ * jednoducho nezobrazí.
+ */
+export async function getProductPriceStats(
+  productUrl: string,
+  windowDays = WINDOW_DAYS,
+  sqlClient?: SqlClient
+): Promise<ProductPriceStats | null> {
+  if (!productUrl) return null;
+  try {
+    const sql = sqlClient ?? getDb();
+    const rows = (await sql`
+      WITH h AS (
+        SELECT price, currency, recorded_at
+        FROM product_price_history
+        WHERE product_url = ${productUrl}
+          AND recorded_at >= now() - (${windowDays} || ' days')::interval
+      )
+      SELECT
+        count(*)::int                                          AS n,
+        count(DISTINCT currency)::int                          AS currencies,
+        min(price)::float8                                     AS min_price,
+        max(price)::float8                                     AS max_price,
+        (array_agg(price ORDER BY recorded_at DESC))[1]::float8 AS current_price,
+        (array_agg(currency ORDER BY recorded_at DESC))[1]     AS currency
+      FROM h
+    `) as {
+      n: number;
+      currencies: number;
+      min_price: number | null;
+      max_price: number | null;
+      current_price: number | null;
+      currency: string | null;
+    }[];
+
+    const r = rows[0];
+    if (!r || r.n < 2 || r.currencies !== 1) return null;
+
+    const currency = normalizeCurrencyCode(r.currency);
+    const max = r.max_price;
+    const min = r.min_price;
+    const current = r.current_price;
+    if (!currency || max === null || min === null || current === null) return null;
+    if (!(max > 0) || !(current > 0)) return null;
+
+    return {
+      current,
+      min,
+      max,
+      dropFromMaxPct: Math.round(((max - current) / max) * 100),
+      currency,
+    };
+  } catch (err) {
+    console.error("[price-history] getProductPriceStats:", err);
+    return null;
   }
 }

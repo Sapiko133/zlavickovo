@@ -93,6 +93,7 @@ function dispatch(db: FakeDb, text: string, values: unknown[]): unknown[] {
 
   if (text.includes("hk_import_run_feeds")) return [];
   if (text.includes("hk_products")) return [];
+  if (text.includes("product_price_history")) return []; // cenový snapshot (full režim)
 
   if (text.includes("hk_import_runs")) {
     if (text.includes("INSERT INTO hk_import_runs")) {

@@ -21,7 +21,7 @@ import type {
   HkImportRunFeedStatus,
   HkImportRunStatus,
 } from "./types";
-import { resolveProductCurrency, type SupportedCurrency } from "@/lib/price";
+import { parsePriceValue, resolveProductCurrency, type SupportedCurrency } from "@/lib/price";
 
 const LOCK_NAME = "heureka_import";
 const DB_BATCH_SIZE = 200;
@@ -703,6 +703,57 @@ async function upsertProducts(
   return unique.length;
 }
 
+/**
+ * Denný snapshot cien do product_price_history. Volá sa LEN pre reálne
+ * naimportované produkty full/retry behu (nie audit, nie truncated/empty).
+ *
+ * Pravidlá:
+ *  - jeden snapshot na produkt (dedup podľa url v rámci feedu),
+ *  - cena musí byť parsovateľná a > 0, mena spoľahlivo EUR/CZK — inak sa
+ *    snapshot nezapíše (žiadne fiktívne ceny, PROJECT_VISION §17),
+ *  - denný dedup rieši DB: UNIQUE (product_url, recorded_day) + ON CONFLICT
+ *    DO NOTHING → zachová sa PRVÝ snapshot dňa (ranná cena sa neprepíše).
+ */
+export async function recordPriceSnapshots(
+  sql: SqlClient,
+  feed: HkFeedImportRow,
+  products: ReturnType<typeof parseHeurekaXmlDetailed>["products"]
+): Promise<void> {
+  const byUrl = new Map<string, { price: number; currency: SupportedCurrency }>();
+  for (const product of products) {
+    const amount = parsePriceValue(product.price);
+    if (amount === null) continue;
+    const currency = resolveProductCurrency(
+      product.price,
+      product.currencyCode ?? feed.currency_code,
+      feed.domain
+    );
+    if (!currency) continue;
+    if (!byUrl.has(product.url)) byUrl.set(product.url, { price: amount, currency });
+  }
+  if (byUrl.size === 0) return;
+
+  const entries = Array.from(byUrl.entries());
+  for (let i = 0; i < entries.length; i += DB_BATCH_SIZE) {
+    const chunk = entries.slice(i, i + DB_BATCH_SIZE);
+    const urls = chunk.map(([url]) => url);
+    const domains = chunk.map(() => feed.domain);
+    const feedSlugs = chunk.map(() => feed.id);
+    const prices = chunk.map(([, v]) => v.price.toFixed(2));
+    const currencies = chunk.map(([, v]) => v.currency);
+    const sources = chunk.map(() => "heureka");
+
+    await sql`
+      INSERT INTO product_price_history (product_url, domain, feed_slug, price, currency, source)
+      SELECT * FROM UNNEST(
+        ${urls}::text[], ${domains}::text[], ${feedSlugs}::text[],
+        ${prices}::numeric[], ${currencies}::text[], ${sources}::text[]
+      )
+      ON CONFLICT (product_url, recorded_day) DO NOTHING
+    `;
+  }
+}
+
 export async function importOneFeed(
   sql: SqlClient,
   runId: string,
@@ -763,6 +814,17 @@ export async function importOneFeed(
     }
 
     const productCount = parseResult.truncated ? 0 : await upsertProducts(sql, feed, filtered);
+
+    // Cenový snapshot len pre reálne naimportované produkty. Izolovaný try/catch:
+    // zlyhanie histórie nesmie zhodiť/označiť zdravý feed ako error (§19/§31).
+    if (!parseResult.truncated && productCount > 0) {
+      try {
+        await recordPriceSnapshots(sql, feed, filtered);
+      } catch (snapshotErr) {
+        console.error(`[price-history] snapshot feed ${feed.id}:`, snapshotErr);
+      }
+    }
+
     const durationMs = Date.now() - startedAt;
     const status: HkImportRunFeedStatus =
       parseResult.truncated ? "truncated" : productCount > 0 ? "success" : "empty";

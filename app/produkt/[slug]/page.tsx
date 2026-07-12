@@ -18,6 +18,8 @@ import { getBestPurchaseCopy, getOtherOffersCopy } from "@/lib/heureka/best-purc
 import { getOfferOutbound } from "@/lib/heureka/affiliate";
 import { outboundClickType } from "@/lib/outbound-ui";
 import type { HkProduct } from "@/lib/heureka/types";
+import { getProductPriceStats } from "@/lib/heureka/price-history";
+import ProductPriceHistory from "@/components/ProductPriceHistory";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getOffersByExactDomain, exactDomainKey, type ExactDomainOffer } from "@/lib/shop-offers";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -103,9 +105,11 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const product = await getProductById(id);
   if (!product) notFound();
 
-  const [related, bestPurchase] = await Promise.all([
+  const [related, bestPurchase, priceStats] = await Promise.all([
     getRelatedProducts(product, 4),
     getBestPurchase(product),
+    // História cien tejto ponuky (product.url) — V1: aktuálna/min/max/pokles od maxima
+    getProductPriceStats(product.url),
   ]);
   const price = formatProductPriceLines(product);
   const currency = normalizeCurrencyCode(product.currency_code);
@@ -393,6 +397,9 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
                 )}
               </div>
             )}
+
+            {/* Cenová história (V1) — zobrazí sa len pri ≥2 snapshotoch */}
+            <ProductPriceHistory stats={priceStats} domain={product.domain} />
 
             {/* Dostupné kupóny a akcie obchodu */}
             {hasOffers && (

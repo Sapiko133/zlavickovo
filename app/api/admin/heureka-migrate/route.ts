@@ -110,6 +110,26 @@ export async function POST(req: NextRequest) {
     await sql`CREATE INDEX IF NOT EXISTS product_price_history_product_url_recorded_at_idx ON product_price_history(product_url, recorded_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS product_price_history_recorded_at_idx ON product_price_history(recorded_at)`;
 
+    // ── História cien (Vlna 2: zápisová vrstva) — dedup 1 snapshot/produkt/deň + doménový index ──
+    // recorded_day musí byť IMMUTABLE (timestamptz::date je len STABLE) → explicitné UTC.
+    await sql`
+      ALTER TABLE product_price_history
+        ADD COLUMN IF NOT EXISTS recorded_day DATE
+        GENERATED ALWAYS AS (((recorded_at AT TIME ZONE 'UTC'))::date) STORED
+    `;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS product_price_history_url_day_uidx ON product_price_history(product_url, recorded_day)`;
+    await sql`CREATE INDEX IF NOT EXISTS product_price_history_domain_recorded_idx ON product_price_history(domain, recorded_at DESC)`;
+    await sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'product_price_history_currency_check') THEN
+          ALTER TABLE product_price_history
+            ADD CONSTRAINT product_price_history_currency_check
+            CHECK (currency IN ('EUR', 'CZK'));
+        END IF;
+      END $$
+    `;
+
     // ── Popisy obchodov (AI generované offline, čítané na /kupony/[slug]) ──
     await sql`
       CREATE TABLE IF NOT EXISTS shop_descriptions (

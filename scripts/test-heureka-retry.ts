@@ -147,6 +147,8 @@ function dispatch(db: FakeDb, text: string, values: unknown[]): unknown[] {
     return [];
   }
 
+  if (text.includes("product_price_history")) return []; // cenový snapshot (full režim)
+
   if (text.includes("INSERT INTO hk_products")) {
     // Emulácia ON CONFLICT (url) DO UPDATE vrátane COALESCE semantiky pre
     // currency_code — test padne, ak sa UPSERT vráti k EXCLUDED.currency_code.
