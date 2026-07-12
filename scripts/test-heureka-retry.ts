@@ -221,10 +221,10 @@ function dispatch(db: FakeDb, text: string, values: unknown[]): unknown[] {
       mustRun(db, values[1]).status = "error";
       return [];
     }
-    if (text.includes("SET status = $?")) {
-      const [status, runId] = values as [string, string];
-      const run = mustRun(db, runId);
-      run.status = status;
+    if (text.includes("SET status = 'success'")) {
+      // finalizeRunIfDone: remaining=0 → vždy success + finished_at
+      const run = mustRun(db, values[0]);
+      run.status = "success";
       return [projectRun(run)];
     }
     if (text.includes("SELECT id, mode, status")) {

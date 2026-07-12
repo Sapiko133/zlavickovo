@@ -549,10 +549,16 @@ async function finalizeRunIfDone(
     return { ...run, status: "partial" };
   }
 
-  const finalStatus: HkImportRunStatus = run.failed_feeds > 0 ? "partial" : "success";
+  // Žiadne zostávajúce feedy = run je hotový. Musí sa finalizovať ako 'success'
+  // (nie 'partial'), inak ho getOrCreateRun znova resumuje — jeho resume dotaz
+  // filtruje status IN ('running','partial') a nekontroluje finished_at, takže
+  // partial run s checkpointom na poslednom feede by sa denne resumoval donekonečna
+  // (processedInBatch=0) a nový import by sa nikdy nezaložil. Zlyhania feedov
+  // ostávajú vo failed_feeds a per-feed error riadkoch; na ich zopakovanie slúži
+  // samostatný retry run (options.feedIds).
   const rows = (await sql`
     UPDATE hk_import_runs
-    SET status = ${finalStatus}, finished_at = now(), updated_at = now()
+    SET status = 'success', finished_at = now(), updated_at = now()
     WHERE id = ${runId}
     RETURNING id, mode, status, total_feeds, processed_feeds, successful_feeds, failed_feeds, cursor_feed_id, error_summary
   `) as HkImportRunRow[];

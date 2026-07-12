@@ -143,10 +143,10 @@ function dispatch(db: FakeDb, text: string, values: unknown[]): unknown[] {
       mustRun(db, values[1]).status = "error";
       return [];
     }
-    if (text.includes("SET status = $?")) {
-      const [status, runId] = values as [string, string];
-      const run = mustRun(db, runId);
-      run.status = status;
+    if (text.includes("SET status = 'success'")) {
+      // finalizeRunIfDone: remaining=0 → vždy success + finished_at
+      const run = mustRun(db, values[0]);
+      run.status = "success";
       return [projectRun(run)];
     }
     if (text.includes("SELECT id, mode, status")) {
@@ -258,8 +258,9 @@ async function run() {
       // počítadlá zdedené zo starého runu
       assert.equal(result.counts?.failedFeeds, 1);
       assert.equal(result.counts?.successfulFeeds, 1);
-      // failed_feeds=1 → run ostáva partial aj po dobehnutí
-      assert.equal(result.status, "partial");
+      // Run dobehol posledný feed → finalizuje sa ako success, aj keď má failed_feeds=1.
+      // Inak by ho getOrCreateRun (status IN running/partial) resumoval donekonečna.
+      assert.equal(result.status, "success");
     }
 
     // B. audit s freshRun=1 → nový run, počítadlá od nuly, bez checkpointu
