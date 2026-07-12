@@ -3,6 +3,7 @@ import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
 import { pickBestPurchase, type BestPurchase, type BestPurchaseCandidate } from "./best-purchase";
 import { normalizeEan, normalizeManufacturer, normalizeProductNo, type IdentityLevel } from "./identity";
+import { filterVariantConflicts } from "./variant";
 import {
   formatAmount as formatCurrencyAmount,
   formatPricePrimary,
@@ -254,7 +255,21 @@ export async function getBestPurchase(product: HkProduct): Promise<BestPurchase 
               LIMIT 80
             `;
 
-    return pickBestPurchase(rows as BestPurchaseCandidate[], getEurToCzkRate(), identityLevel);
+    // Variant Guard (PROJECT_VISION §8): pri silnej identite (EAN,
+    // manufacturer+productno) môžu kandidáti zdieľať identifikátor, no ísť
+    // o iné balenie/množstvo (10 g vs 25×10 g). Také odfiltrujeme, aby
+    // nevznikla falošná „Najvýhodnejšia kúpa". Pri name identite sa neaplikuje.
+    // Odstránených kandidátov pripočítame do excludedCount, nech UI neuvádza
+    // nepravdivý počet porovnaných ponúk.
+    const { kept, excludedCount: variantExcluded } = filterVariantConflicts(
+      { id: product.id, name: product.name },
+      rows as BestPurchaseCandidate[],
+      identityLevel !== "name"
+    );
+
+    const best = pickBestPurchase(kept, getEurToCzkRate(), identityLevel);
+    if (best) best.excludedCount += variantExcluded;
+    return best;
   } catch (err) {
     console.error("[heureka:db] getBestPurchase:", err);
     return null;
