@@ -43,6 +43,40 @@ import {
   assert.equal(extractVariantSignature("5 vreciek").count, 5);
 }
 
+// ── Double-count fix: total + jeho multiplikátorový rozpis sa nesčíta ──
+{
+  // headline total aj rozpis uvádzajú to isté množstvo → jedna hodnota
+  assert.equal(extractVariantSignature("40 g (10×4 g)").weight, 40);
+  assert.equal(extractVariantSignature("100 g (25×4 g)").weight, 100);
+  assert.equal(extractVariantSignature("45 g 15×3 g").weight, 45);
+  assert.equal(extractVariantSignature("30 ml 3×10 ml").volume, 30);
+  assert.equal(extractVariantSignature("2×250 ml 500 ml").volume, 500);
+  // samotný multiplikátor bez headline totalu zostáva funkčný
+  assert.equal(extractVariantSignature("25×10 g").weight, 250);
+  // reálne Samahan varianty: total = rozpis → linkovateľné s čistým totalom
+  assert.equal(extractVariantSignature("Samahan 40g 10x4g").weight, 40);
+  assert.equal(extractVariantSignature("Samahan 400g 100 x 4g").weight, 400);
+  assert.equal(extractVariantSignature("Samahan 100 x 4g").weight, 400); // len rozpis → 400
+}
+
+// ── Konzistentné total vs rozpis: rovnaké čisté množstvo → bez konfliktu ──
+{
+  assert.equal(variantsConflict("Samahan 100 g", "Samahan 25×4 g"), false); // 100 = 100
+  assert.equal(variantsConflict("Samahan 400 g", "Samahan 100×4 g"), false); // 400 = 400
+  assert.equal(variantsConflict("Samahan 40 g", "Samahan 10×4 g"), false); // 40 = 40
+  // reálne Samahan URL sa navzájom neblokujú
+  assert.equal(variantsConflict("Samahan 400g 100 x 4g", "Samahan 400 g"), false);
+  assert.equal(variantsConflict("Samahan 400g 100 x 4g", "Samahan 100 x 4g"), false);
+}
+
+// ── Nekonzistentný názov: headline total prebíja rozpis, konflikt sa zachová ──
+{
+  // 100 g headline vs 10×4 g rozpis (=40) → berieme 100 g, s čistým 10×4 g je konflikt
+  assert.equal(variantsConflict("Samahan 100 g", "Samahan 10×4 g"), true); // 100 vs 40
+  // headline total ostáva pre porovnanie s odlišným balením
+  assert.equal(extractVariantSignature("100 g (10×4 g)").weight, 100); // nie 140, nie 40
+}
+
 // ── Desatinná čiarka aj bodka sa spracujú rovnako ──
 {
   assert.equal(extractVariantSignature("4,7g").weight, extractVariantSignature("4.7g").weight);

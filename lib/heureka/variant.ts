@@ -105,33 +105,56 @@ function normalizeVariantText(raw: string): string {
   return normalizeSearchText(protectedDecimals).replace(/·/g, ".");
 }
 
-function addTo(sig: VariantSignature, dim: VariantDimension, value: number): void {
-  sig[dim] = (sig[dim] ?? 0) + value;
+function addTo(acc: Partial<Record<VariantDimension, number>>, dim: VariantDimension, value: number): void {
+  acc[dim] = (acc[dim] ?? 0) + value;
 }
 
 /**
- * Extrahuje normalizovaný podpis množstva z názvu produktu. Multiplikátorové
- * výskyty sa spracujú a odstránia zo vstupu ako prvé, aby sa ich amount
- * (napr. „10 g" v „25 × 10 g") nezapočítal druhýkrát ako samostatné množstvo.
- * Viac výskytov tej istej dimenzie sa sčíta.
+ * Extrahuje normalizovaný podpis množstva z názvu produktu.
+ *
+ * Množstvá zbierame do dvoch samostatných vedier podľa PÔVODU:
+ *  - `multiplier` — súčin z multiplikátora „25 × 10 g" → 250 g. Textový rozsah,
+ *    ktorý multiplikátor spotreboval (aj jeho amount „10 g"), sa zo vstupu
+ *    vymaže, takže sa už nikdy nezapočíta druhýkrát ako samostatný token.
+ *  - `single` — samostatný explicitný total „40 g", „500 ml", „30 kapsúl".
+ *
+ * KOMBINÁCIA (oprava double-count): samostatný explicitný total je záväzné
+ * čisté množstvo produktu; multiplikátorový rozpis tej istej dimenzie ten istý
+ * total iba ROZPISUJE — nie je to ďalšie množstvo. Preto ich NIKDY nesčítame:
+ *  - „40 g (10×4 g)" → single 40, multiplier 40 → 40 (nie 80),
+ *  - „100 g (25×4 g)" → 100 (nie 200),
+ *  - „2×250 ml 500 ml" → 500 (nie 1000),
+ *  - „25×10 g" (bez samostatného totalu) → multiplier 250.
+ *
+ * Samostatný total má prednosť pred multiplikátorom: keď súhlasia, výsledok je
+ * ich spoločná hodnota (deduplikácia); keď si protirečia (nekonzistentný názov
+ * „100 g (10×4 g)"), konzervatívne berieme headline total „100 g" a NEsčítame
+ * na 140 g — inak by sme legitímnu zhodu s čistým „100 g" falošne rozbili.
  */
 export function extractVariantSignature(name: string): VariantSignature {
-  const sig: VariantSignature = { weight: null, volume: null, count: null };
   const text = normalizeVariantText(name);
 
+  const multiplier: Partial<Record<VariantDimension, number>> = {};
   const remainder = text.replace(MULTIPLIER_RE, (_m, mult: string, amount: string, unit: string) => {
     const spec = UNITS[unit.toLowerCase()];
-    if (spec) addTo(sig, spec.dim, Number(mult) * Number(amount) * spec.factor);
+    if (spec) addTo(multiplier, spec.dim, Number(mult) * Number(amount) * spec.factor);
     return " ";
   });
 
+  const single: Partial<Record<VariantDimension, number>> = {};
   let m: RegExpExecArray | null;
   SINGLE_RE.lastIndex = 0;
   while ((m = SINGLE_RE.exec(remainder)) !== null) {
     const spec = UNITS[m[2].toLowerCase()];
-    if (spec) addTo(sig, spec.dim, Number(m[1]) * spec.factor);
+    if (spec) addTo(single, spec.dim, Number(m[1]) * spec.factor);
   }
 
+  const sig: VariantSignature = { weight: null, volume: null, count: null };
+  const dims: VariantDimension[] = ["weight", "volume", "count"];
+  for (const dim of dims) {
+    // Samostatný total vyhráva (deduplikuje / prebíja rozpis); inak multiplikátor.
+    sig[dim] = single[dim] ?? multiplier[dim] ?? null;
+  }
   return sig;
 }
 
