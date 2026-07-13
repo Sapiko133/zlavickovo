@@ -136,3 +136,65 @@ jobs:
 
           echo "::error::Dosiahnutý MAX_ITERATIONS=$MAX_ITERATIONS, ale needsNextRequest je stále true. Import nedokončený."
           exit 1
+
+      # Retencia cenovej histórie. Samostatný krok: beží IBA ak predchádzajúci
+      # import skončil úspešne (default success()). Import a cleanup sú oddelené
+      # kroky — zlyhanie cleanupu neoznačí import spätne za neúspešný, ale pre MVP
+      # zhodí celý workflow (exit 1), aby sa retencia potichu nezastavila.
+      - name: Cleanup price history (retention 120d)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          CLEANUP_ENDPOINT: "https://www.zlavickovo.sk/api/admin/price-history-cleanup"
+          CLEANUP_MAX_RETRIES: "3"
+          CLEANUP_RETRY_SLEEP: "20"
+          CLEANUP_MAX_TIME: "320"
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET secret nie je nastavený v repozitári."
+            exit 1
+          fi
+
+          attempt=0
+          http_code="000"
+          while [ "$attempt" -lt "$CLEANUP_MAX_RETRIES" ]; do
+            attempt=$((attempt + 1))
+            # -sS: ticho ale ukáž chyby. Authorization hlavička sa NIKDY nevypisuje
+            # (set -x je vypnutý), curl ju do stdout nepíše.
+            http_code=$(curl -sS -o cleanup.json -w '%{http_code}' \
+              --max-time "$CLEANUP_MAX_TIME" \
+              -X POST \
+              -H "Authorization: Bearer ${CRON_SECRET}" \
+              "$CLEANUP_ENDPOINT" || echo "000")
+
+            # 2xx → hotovo. 409/5xx/sieť → obmedzený retry. Ostatné 4xx → tvrdé zlyhanie.
+            if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
+              break
+            fi
+
+            if [ "$http_code" = "409" ] || [ "$http_code" = "000" ] || { [ "$http_code" -ge 500 ] 2>/dev/null; }; then
+              echo "cleanup attempt=$attempt: HTTP $http_code (dočasné) — retry o ${CLEANUP_RETRY_SLEEP}s"
+              if [ "$attempt" -lt "$CLEANUP_MAX_RETRIES" ]; then
+                sleep "$CLEANUP_RETRY_SLEEP"
+                continue
+              fi
+            fi
+            break
+          done
+
+          # Logujeme iba HTTP status a bezpečné polia z odpovede (žiadny secret).
+          deleted=$(jq -r '.deletedRows // "n/a"' cleanup.json 2>/dev/null || echo "n/a")
+          batches=$(jq -r '.batches // "n/a"' cleanup.json 2>/dev/null || echo "n/a")
+          has_more=$(jq -r '.hasMore // "n/a"' cleanup.json 2>/dev/null || echo "n/a")
+          duration=$(jq -r '.durationMs // "n/a"' cleanup.json 2>/dev/null || echo "n/a")
+
+          echo "── cleanup http=$http_code deletedRows=$deleted batches=$batches hasMore=$has_more durationMs=$duration"
+
+          if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
+            echo "✅ Cleanup cenovej histórie hotový."
+            exit 0
+          fi
+
+          echo "::error::Cleanup cenovej histórie zlyhal (HTTP $http_code). Import prebehol úspešne, zlyhala len retencia."
+          exit 1

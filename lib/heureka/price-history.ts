@@ -90,6 +90,87 @@ export async function getBiggestPriceDropsByDomain(
   }
 }
 
+export interface PriceHistoryDailyRows {
+  day: string;   // recorded_day (YYYY-MM-DD)
+  rows: number;
+}
+
+export interface PriceHistoryStats {
+  totalRows: number;
+  distinctProducts: number;
+  distinctDays: number;
+  oldestRecordedAt: string | null;
+  newestRecordedAt: string | null;
+  latestRecordedDay: string | null;
+  latestDayRows: number;
+  rowsOlderThan120Days: number;
+  // Približný rast: počet riadkov za posledných 7 recorded_day (vzostupne).
+  last7Days: PriceHistoryDailyRows[];
+}
+
+// Rovnaká retenčná hranica ako v price-history-retention (monitoring meria backlog).
+const RETENTION_DAYS = 120;
+
+/**
+ * Read-only agregovaná štatistika cenovej histórie pre admin monitoring.
+ * Používa výhradne agregácie a existujúce indexy — NIKDY nenačíta riadky do
+ * Node.js. Pri prázdnej tabuľke vracia nuly a null timestampy.
+ */
+export async function getPriceHistoryStats(
+  sqlClient?: SqlClient
+): Promise<PriceHistoryStats> {
+  const sql = sqlClient ?? getDb();
+
+  const [agg] = (await sql`
+    SELECT
+      count(*)::bigint                                          AS total_rows,
+      count(DISTINCT product_url)::bigint                       AS distinct_products,
+      count(DISTINCT recorded_day)::int                         AS distinct_days,
+      min(recorded_at)                                          AS oldest_recorded_at,
+      max(recorded_at)                                          AS newest_recorded_at,
+      max(recorded_day)                                         AS latest_recorded_day,
+      count(*) FILTER (
+        WHERE recorded_day = (SELECT max(recorded_day) FROM product_price_history)
+      )::bigint                                                 AS latest_day_rows,
+      count(*) FILTER (
+        WHERE recorded_at < now() - make_interval(days => ${RETENTION_DAYS}::int)
+      )::bigint                                                 AS rows_older_than_retention
+    FROM product_price_history
+  `) as {
+    total_rows: string | number;
+    distinct_products: string | number;
+    distinct_days: number;
+    oldest_recorded_at: string | Date | null;
+    newest_recorded_at: string | Date | null;
+    latest_recorded_day: string | Date | null;
+    latest_day_rows: string | number;
+    rows_older_than_retention: string | number;
+  }[];
+
+  const daily = (await sql`
+    SELECT recorded_day::text AS day, count(*)::int AS rows
+    FROM product_price_history
+    WHERE recorded_day >= (SELECT max(recorded_day) FROM product_price_history) - 6
+    GROUP BY recorded_day
+    ORDER BY recorded_day ASC
+  `) as { day: string; rows: number }[];
+
+  const toIso = (v: string | Date | null): string | null =>
+    v === null ? null : v instanceof Date ? v.toISOString() : String(v);
+
+  return {
+    totalRows: Number(agg?.total_rows ?? 0),
+    distinctProducts: Number(agg?.distinct_products ?? 0),
+    distinctDays: Number(agg?.distinct_days ?? 0),
+    oldestRecordedAt: toIso(agg?.oldest_recorded_at ?? null),
+    newestRecordedAt: toIso(agg?.newest_recorded_at ?? null),
+    latestRecordedDay: toIso(agg?.latest_recorded_day ?? null),
+    latestDayRows: Number(agg?.latest_day_rows ?? 0),
+    rowsOlderThan120Days: Number(agg?.rows_older_than_retention ?? 0),
+    last7Days: daily.map((d) => ({ day: d.day, rows: Number(d.rows) })),
+  };
+}
+
 export interface ProductPriceStats {
   current: number;
   min: number;

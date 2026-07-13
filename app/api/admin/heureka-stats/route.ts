@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { getPriceHistoryStats } from "@/lib/heureka/price-history";
 import { NextRequest } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -44,6 +45,9 @@ export async function GET(req: NextRequest) {
       ) t
     `) as { n: number }[];
 
+    // Monitoring cenovej histórie (read-only agregácie, existujúce indexy).
+    const priceHistory = await getPriceHistoryStats(sql);
+
     return Response.json({
       ok: true,
       total: totals.total,
@@ -53,6 +57,7 @@ export async function GET(req: NextRequest) {
       withProductno: totals.with_productno,
       uniqueEan: totals.unique_ean,
       eanInMultipleShops: multi.n,
+      priceHistory,
     });
   } catch (err: any) {
     return Response.json({ ok: false, error: err?.message ?? String(err) }, { status: 500 });
