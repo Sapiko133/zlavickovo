@@ -34,6 +34,7 @@ const DOMAIN_MAP: Record<string, string> = {
   "pantarhei": "pantarhei.sk",
   "panta rhei": "pantarhei.sk",
   "invia": "invia.sk",
+  "aukro": "aukro.cz",
   "rohlik": "rohlik.cz",
   "belda": "belda.sk",
   "belda sport": "belda.sk",

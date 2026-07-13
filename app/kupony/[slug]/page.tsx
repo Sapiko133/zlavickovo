@@ -38,6 +38,10 @@ const SHOP_NAME_OVERRIDES: Record<string, string> = {
   czc: "CZC.cz",
   belda: "Belda Sport",
   "kojenecke-obleceni": "Kojenecké oblečenie",
+  // CJ advertiser "AUKRO CZ/SK" → kanonický slug by bol "aukro-czsk" (škaredý
+  // názov + rozbité favicon). Kurátorský slug "aukro" + správne meno; CTA
+  // resolvuje getShopAffiliateUrl → getCjShopUrl("Aukro") na CJ tracking link.
+  aukro: "Aukro",
 };
 
 const TOP_SLUGS = [
