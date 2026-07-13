@@ -187,6 +187,22 @@ export async function getCjShopUrl(shopName: string): Promise<string | null> {
   return hit ? hit.affiliateLink : null;
 }
 
+/**
+ * Read-only množina joined CJ advertiser ID z existujúcej shops cache.
+ * Používa sa ako cross-check joined/active vzťahu pri Product Feed discovery
+ * (Product Feed API sám relationship status nemusí poskytovať). NIKDY nezapisuje
+ * do Redis — pri cache miss vráti prázdnu množinu (§27: discovery nesmie zapisovať).
+ */
+export async function getJoinedCjAdvertiserIds(): Promise<Set<string>> {
+  try {
+    const cached = await redis.get<CjShop[]>(SHOP_CACHE_KEY);
+    if (Array.isArray(cached)) {
+      return new Set(cached.map((s) => String(s.advertiserId)).filter(Boolean));
+    }
+  } catch {}
+  return new Set();
+}
+
 export async function importAndCacheCjCoupons(): Promise<number> {
   const coupons = await fetchCjCoupons();
   if (coupons.length > 0) {
