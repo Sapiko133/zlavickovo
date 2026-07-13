@@ -29,22 +29,8 @@ type Props = { params: Promise<{ slug: string }> };
 
 const BASE = "https://www.zlavickovo.sk";
 
-// ISR: stránka sa generuje on-demand pri prvom requeste a cachuje sa 3600 s.
-// Render-path volania (kupóny, produkty, cenová história) sú read-only Redis/DB
-// za withTimeout fallbackmi — stránka nepotrebuje per-request dynamiku.
-// NEPRIDÁVAŤ force-dynamic: ruší ISR a renderuje pri každom requeste (Vercel CPU).
 export const revalidate = 3600;
-
-// ZÁMERNE prázdne — pri builde negenerujeme žiadnu shop stránku (Redis v build
-// prostredí Vercelu chýba → prerender by šiel naživo a padal na timeoute).
-// Prázdne pole + dynamicParams (default true) registruje route ako on-demand ISR:
-// prvý request slug vygeneruje a nacachuje na `revalidate` (3600 s), ďalšie requesty
-// idú z cache (0 DB/Redis/CPU) až do revalidácie. BEZ tohto exportu Next 16 route
-// s explicitným `revalidate` degraduje na plne dynamickú (SSR pri každom requeste).
-// Sitemap (app/sitemap.ts) naďalej vymenúva všetky shop URL — indexácia zostáva.
-export async function generateStaticParams() {
-  return [];
-}
+export const dynamic = "force-dynamic";
 
 // Správne obchodné meno pre slugy, ktoré nie sú v žiadnom feede
 // a kapitalizácia zo slugu by vyrobila nezmysel ("Czc" namiesto "CZC.cz")
