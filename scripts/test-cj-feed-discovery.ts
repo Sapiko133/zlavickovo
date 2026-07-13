@@ -17,10 +17,18 @@
  *  B. nesprávny secret → 401
  *  C. chýbajúce CJ credentials → 503
  *  D. CJ API auth chyba (401 z CJ) → bezpečný 502, token sa NEvypíše
+ *  E. joined zdroj nedostupný (cache miss) → 503 joinedAdvertisersUnavailable,
+ *     discovery sa NESPUSTÍ (žiadne CJ volanie)
+ *  F. joined zdroj nedostupný (Redis chyba) → 503 joinedAdvertisersUnavailable
+ *
+ * getJoinedCjAdvertiserIds (rozlíšenie 3 stavov):
+ *  G. cache hit s poľom → available:true (aj prázdne pole = reálne 0 joinov)
+ *  H. cache miss (null)  → available:false
+ *  I. Redis chyba        → available:false
  *
  * BEZPEČNOSŤ:
  *  - token sa neobjaví v odpovedi ani v console.error
- *  - žiadny DB/Redis zápis (route číta iba read-only cache; bez env → prázdne)
+ *  - žiadny DB/Redis zápis (route číta iba read-only cache)
  *
  * Spustenie: npx tsx scripts/test-cj-feed-discovery.ts
  */
@@ -96,7 +104,43 @@ function jsonResponse(obj: unknown, status = 200): any {
     status,
     json: async () => obj,
     text: async () => JSON.stringify(obj),
+    headers: { get: () => null },
   };
+}
+
+// Emuluje odpoveď Upstash REST klienta. Klient (readYourWrites/auto-pipeline) volá
+// /pipeline a očakáva ARRAY [{ result }] s responseEncoding "base64".
+// get → base64(JSON.stringify(value)); null = cache miss; "bad" = neplatný JSON (chyba).
+const UPSTASH_HOST = "fake-upstash.local";
+function upstashResponse(value: unknown | null, mode: "ok" | "bad" = "ok"): any {
+  if (mode === "bad") {
+    // Platný HTTP 200 ale nevalidný JSON → klient hodí parse chybu (simulácia Redis chyby).
+    return { ok: true, status: 200, text: async () => "<<not-json>>", headers: { get: () => null } };
+  }
+  const result =
+    value === null ? null : Buffer.from(JSON.stringify(value), "utf8").toString("base64");
+  return {
+    ok: true,
+    status: 200,
+    text: async () => JSON.stringify([{ result }]),
+    headers: { get: () => null },
+  };
+}
+
+// Global fetch router pre endpoint testy: Upstash volania vs CJ GraphQL volania.
+interface RouterState { cjCalls: number }
+function makeGlobalFetch(
+  redisValue: unknown | null,
+  cjResponse: () => any,
+  state: RouterState,
+  redisMode: "ok" | "bad" = "ok"
+) {
+  return (async (input: any) => {
+    const url = String(typeof input === "string" ? input : input?.url ?? input);
+    if (url.includes(UPSTASH_HOST)) return upstashResponse(redisValue, redisMode);
+    state.cjCalls++; // všetko ostatné = CJ Product Feed GraphQL
+    return cjResponse();
+  }) as any;
 }
 
 // Generátor produktu s dobrými dátami (SK, EUR, EAN, link, in-stock, new).
@@ -284,21 +328,37 @@ async function run() {
   }
 
   // ── ENDPOINT auth / bezpečnosť ──
-  const { POST } = await import("../app/api/admin/cj-feed-discovery/route.ts");
-  const url = "https://www.zlavickovo.sk/api/admin/cj-feed-discovery";
-  const makeReq = (headers: Record<string, string>) =>
-    new Request(url, { method: "POST", headers }) as any;
-
+  // getJoinedCjAdvertiserIds číta redis; aby bol scenár deterministický (bez siete),
+  // nakonfigurujeme klienta na fiktívny Upstash host a odpovede emulujeme cez global
+  // fetch router (Upstash volania vs CJ GraphQL). Env MUSÍ byť nastavené pred prvým
+  // importom lib/redis, preto route/cj importujeme až tu, dynamicky.
   const orig = {
     CRON_SECRET: process.env.CRON_SECRET,
     CJ_PERSONAL_ACCESS_TOKEN: process.env.CJ_PERSONAL_ACCESS_TOKEN,
     CJ_COMPANY_ID: process.env.CJ_COMPANY_ID,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   };
+  process.env.UPSTASH_REDIS_REST_URL = `https://${UPSTASH_HOST}`;
+  process.env.UPSTASH_REDIS_REST_TOKEN = "fake-token";
+
+  const { POST } = await import("../app/api/admin/cj-feed-discovery/route.ts");
+  const { getJoinedCjAdvertiserIds } = await import("../lib/cj.ts");
+  const url = "https://www.zlavickovo.sk/api/admin/cj-feed-discovery";
+  const makeReq = (headers: Record<string, string>) =>
+    new Request(url, { method: "POST", headers }) as any;
+
   const SECRET = "test-secret";
   const TOKEN = "SUPER-SECRET-PAT-123";
   process.env.CRON_SECRET = SECRET;
   delete process.env.CJ_PERSONAL_ACCESS_TOKEN;
   delete process.env.CJ_COMPANY_ID;
+
+  const withFetch = async (fetchImpl: any, fn: () => Promise<void>) => {
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    try { await fn(); } finally { globalThis.fetch = origFetch; }
+  };
 
   // A. bez secretu → 401
   {
@@ -325,30 +385,115 @@ async function run() {
     assert.equal(c?.companyId, "1");
   }
 
-  // D. CJ API auth chyba → bezpečný 502, token sa NEvypíše
+  const joinedShops = [
+    { advertiserId: "1234567", advertiserName: "X", affiliateLink: "", commission: "", source: "cj" },
+  ];
+
+  // D. CJ API auth chyba → bezpečný 502, token sa NEvypíše.
+  //    Joined je dostupné (redis vráti pole), takže route sa dostane k CJ volaniu.
   {
     process.env.CJ_PERSONAL_ACCESS_TOKEN = TOKEN;
     process.env.CJ_COMPANY_ID = "1234567";
 
-    const origFetch = globalThis.fetch;
     const origError = console.error;
     const logged: string[] = [];
     console.error = (...args: unknown[]) => { logged.push(args.map(String).join(" ")); };
-    // CJ vráti 401
-    globalThis.fetch = (async () => jsonResponse({ errors: [{ message: "unauthorized" }] }, 401)) as any;
+    const state: RouterState = { cjCalls: 0 };
+    // CJ vráti 401 (auth chyba)
+    const fetchImpl = makeGlobalFetch(
+      joinedShops,
+      () => jsonResponse({ errors: [{ message: "unauthorized" }] }, 401),
+      state
+    );
 
     try {
-      const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
-      assert.equal(res.status, 502, "CJ auth chyba → 502");
-      const body = await res.json();
-      assert.equal(body.ok, false);
-      const bodyStr = JSON.stringify(body);
-      assert.ok(!bodyStr.includes(TOKEN), "token sa nesmie objaviť v odpovedi");
-      assert.ok(!logged.join(" ").includes(TOKEN), "token sa nesmie objaviť v logu");
+      await withFetch(fetchImpl, async () => {
+        const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
+        assert.equal(res.status, 502, "CJ auth chyba → 502");
+        const body = await res.json();
+        assert.equal(body.ok, false);
+        const bodyStr = JSON.stringify(body);
+        assert.ok(!bodyStr.includes(TOKEN), "token sa nesmie objaviť v odpovedi");
+        assert.ok(!logged.join(" ").includes(TOKEN), "token sa nesmie objaviť v logu");
+        assert.ok(state.cjCalls > 0, "route sa dostala k CJ volaniu (joined dostupné)");
+      });
     } finally {
-      globalThis.fetch = origFetch;
       console.error = origError;
     }
+  }
+
+  // E. joined zdroj nedostupný (cache miss = null) → 503 joinedAdvertisersUnavailable,
+  //    discovery sa NESMIE spustiť (žiadny CJ GraphQL request), token nesmie uniknúť.
+  {
+    process.env.CJ_PERSONAL_ACCESS_TOKEN = TOKEN;
+    process.env.CJ_COMPANY_ID = "1234567";
+    const state: RouterState = { cjCalls: 0 };
+    const fetchImpl = makeGlobalFetch(null, () => jsonResponse({ data: {} }), state);
+
+    await withFetch(fetchImpl, async () => {
+      const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
+      assert.equal(res.status, 503, "joined nedostupné → 503");
+      const body = await res.json();
+      assert.equal(body.ok, false);
+      assert.equal(body.error, "joinedAdvertisersUnavailable");
+      assert.equal(state.cjCalls, 0, "discovery sa nesmie spustiť s prázdnym filtrom");
+      assert.ok(!JSON.stringify(body).includes(TOKEN), "token nesmie uniknúť");
+    });
+  }
+
+  // F. joined zdroj nedostupný (Redis chyba) → tiež 503 (nie falošné ok=true, totalFeeds=0)
+  {
+    process.env.CJ_PERSONAL_ACCESS_TOKEN = TOKEN;
+    process.env.CJ_COMPANY_ID = "1234567";
+    const state: RouterState = { cjCalls: 0 };
+    // redisMode "bad" → Upstash klient hodí parse chybu = Redis zlyhanie
+    const fetchImpl = makeGlobalFetch(null, () => jsonResponse({ data: {} }), state, "bad");
+
+    await withFetch(fetchImpl, async () => {
+      const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
+      assert.equal(res.status, 503, "Redis chyba → 503");
+      const body = await res.json();
+      assert.equal(body.error, "joinedAdvertisersUnavailable");
+      assert.equal(state.cjCalls, 0, "discovery sa nespustí pri chybe joined zdroja");
+    });
+  }
+
+  // G/H/I. getJoinedCjAdvertiserIds rozlišuje 3 stavy (priamy unit test).
+  {
+    // G. cache hit s poľom → available:true (aj prázdne = reálne 0 joinov)
+    await withFetch(
+      makeGlobalFetch(
+        [
+          { advertiserId: "111", advertiserName: "A", affiliateLink: "", commission: "", source: "cj" },
+          { advertiserId: "", advertiserName: "B", affiliateLink: "", commission: "", source: "cj" },
+        ],
+        () => jsonResponse({}),
+        { cjCalls: 0 }
+      ),
+      async () => {
+        const g = await getJoinedCjAdvertiserIds();
+        assert.equal(g.available, true);
+        assert.ok(g.available && g.ids.has("111"), "advertiserId sa načíta");
+        assert.ok(g.available && !g.ids.has(""), "prázdne ID sa odfiltruje");
+      }
+    );
+
+    // G2. prázdne pole = reálne 0 joinov → available:true, size 0
+    await withFetch(makeGlobalFetch([], () => jsonResponse({}), { cjCalls: 0 }), async () => {
+      const gEmpty = await getJoinedCjAdvertiserIds();
+      assert.equal(gEmpty.available, true, "prázdne pole = reálne 0 joinov (available)");
+      assert.equal(gEmpty.available && gEmpty.ids.size, 0);
+    });
+
+    // H. cache miss (null) → available:false
+    await withFetch(makeGlobalFetch(null, () => jsonResponse({}), { cjCalls: 0 }), async () => {
+      assert.equal((await getJoinedCjAdvertiserIds()).available, false, "cache miss → unavailable");
+    });
+
+    // I. Redis chyba → available:false
+    await withFetch(makeGlobalFetch(null, () => jsonResponse({}), { cjCalls: 0 }, "bad"), async () => {
+      assert.equal((await getJoinedCjAdvertiserIds()).available, false, "Redis chyba → unavailable");
+    });
   }
 
   // obnov env

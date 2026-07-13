@@ -59,14 +59,23 @@ export async function POST(req: NextRequest) {
     const maxFeeds = clampInt(searchParams.get("maxFeeds"), maxFeedCeil, 1, maxFeedCeil);
 
     // Read-only cross-check joined vzťahu z existujúcej CJ shops cache (bez zápisu).
-    const joinedAdvertiserIds = await getJoinedCjAdvertiserIds();
+    const joined = await getJoinedCjAdvertiserIds();
+    if (!joined.available) {
+      // Zdroj joinov je nedostupný (cache miss / Redis chyba). Discovery NESMIE
+      // pokračovať s prázdnym filtrom — vrátil by falošný ok=true, totalFeeds=0,
+      // hoci publisher môže mať aktívnych CJ advertiserov. Bezpečný 503.
+      return Response.json(
+        { ok: false, error: "joinedAdvertisersUnavailable" },
+        { status: 503 }
+      );
+    }
 
     const result = await discoverFeeds({
       token: creds.token,
       companyId: creds.companyId,
       checkpoint,
       maxFeeds,
-      joinedAdvertiserIds,
+      joinedAdvertiserIds: joined.ids,
     });
 
     return Response.json(result);

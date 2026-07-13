@@ -188,19 +188,42 @@ export async function getCjShopUrl(shopName: string): Promise<string | null> {
 }
 
 /**
+ * Výsledok read-only lookupu joined CJ advertiserov. Zámerne rozlišuje tri stavy,
+ * aby volajúci nezamenil "žiadni joined" so "zdroj joinov nedostupný":
+ *   - available: true, ids neprázdne  → úspešne načítaní joined advertiseri
+ *   - available: true, ids prázdne    → cache existuje, ale reálne 0 joinov
+ *   - available: false                → cache miss / Redis chyba (nedostupné)
+ */
+export type JoinedCjAdvertisers =
+  | { available: true; ids: Set<string> }
+  | { available: false };
+
+/**
  * Read-only množina joined CJ advertiser ID z existujúcej shops cache.
  * Používa sa ako cross-check joined/active vzťahu pri Product Feed discovery
  * (Product Feed API sám relationship status nemusí poskytovať). NIKDY nezapisuje
- * do Redis — pri cache miss vráti prázdnu množinu (§27: discovery nesmie zapisovať).
+ * do Redis (§27: discovery nesmie zapisovať).
+ *
+ * BEZPEČNOSŤ: pri cache miss alebo Redis chybe vráti { available: false }, NIE
+ * prázdnu množinu — inak by discovery vyfiltroval všetko a vrátil falošný
+ * ok=true, totalFeeds=0, hoci publisher má aktívnych CJ advertiserov. Prázdna
+ * množina je vyhradená iba pre reálny stav "cache existuje, 0 joinov".
  */
-export async function getJoinedCjAdvertiserIds(): Promise<Set<string>> {
+export async function getJoinedCjAdvertiserIds(): Promise<JoinedCjAdvertisers> {
   try {
     const cached = await redis.get<CjShop[]>(SHOP_CACHE_KEY);
     if (Array.isArray(cached)) {
-      return new Set(cached.map((s) => String(s.advertiserId)).filter(Boolean));
+      return {
+        available: true,
+        ids: new Set(cached.map((s) => String(s.advertiserId)).filter(Boolean)),
+      };
     }
-  } catch {}
-  return new Set();
+    // cache miss (null/undefined) — nevieme rozlíšiť "0 joinov" od "cache nenaplnená"
+    return { available: false };
+  } catch {
+    // Redis/cache/auth zlyhanie — nesmie vyzerať ako "0 joinov"
+    return { available: false };
+  }
 }
 
 export async function importAndCacheCjCoupons(): Promise<number> {
