@@ -31,13 +31,57 @@ function clampInt(raw: string | null, fallback: number, min: number, max: number
   return Math.min(max, Math.max(min, Math.floor(n)));
 }
 
-export async function POST(req: NextRequest) {
-  // 1) Autorizácia
-  const secret = process.env.CRON_SECRET;
+/**
+ * Autorizácia proti CRON_SECRET — rovnaká schéma ako /api/cron/import-heureka,
+ * /api/admin/heureka-migrate a /api/admin/price-history-cleanup
+ * (Authorization: Bearer <CRON_SECRET>).
+ *
+ * Jediný rozdiel oproti tým routám: okraje env hodnoty aj prijatého tokenu sa
+ * TRIMNÚ. Striktné porovnanie `authHeader !== \`Bearer ${secret}\`` bez trimu je
+ * krehké — jediný trailing newline/medzera (napr. pri vložení secretu do Vercel
+ * env alebo do shell premennej `Bearer $(cat secret)`) spôsobí falošný 401,
+ * hoci hodnota je inak správna. Toto bola príčina 401 v produkcii.
+ *
+ * Diagnostika NIKDY neobsahuje hodnotu secretu, jeho časť, hash ani CJ token —
+ * iba boolean/dĺžky, ktoré nič neprezradia.
+ */
+type AuthResult = { ok: true } | { ok: false; response: Response };
+
+function authorizeCron(req: NextRequest): AuthResult {
+  const secret = process.env.CRON_SECRET?.trim() ?? "";
   const authHeader = req.headers.get("authorization");
-  if (!secret || authHeader !== `Bearer ${secret}`) {
-    return Response.json({ ok: false, error: "Unauthorized" }, { status: 401 });
+  const bearerPrefixPresent = authHeader?.startsWith("Bearer ") ?? false;
+  const receivedToken = bearerPrefixPresent
+    ? authHeader!.slice("Bearer ".length).trim()
+    : "";
+
+  if (secret.length > 0 && receivedToken === secret) {
+    return { ok: true };
   }
+
+  return {
+    ok: false,
+    response: Response.json(
+      {
+        ok: false,
+        error: "unauthorized",
+        diagnostics: {
+          authorizationHeaderPresent: authHeader !== null,
+          bearerPrefixPresent,
+          cronSecretConfigured: secret.length > 0,
+          receivedTokenLength: receivedToken.length,
+          expectedTokenLength: secret.length,
+        },
+      },
+      { status: 401 }
+    ),
+  };
+}
+
+export async function POST(req: NextRequest) {
+  // 1) Autorizácia (Bearer CRON_SECRET, trimované okraje — pozri authorizeCron)
+  const auth = authorizeCron(req);
+  if (!auth.ok) return auth.response;
 
   // 2) CJ produktové credentials (NIE CJ_API_KEY/CJ_WEBSITE_ID)
   const creds = getCjProductCredentials();

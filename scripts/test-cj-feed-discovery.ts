@@ -360,22 +360,61 @@ async function run() {
     try { await fn(); } finally { globalThis.fetch = origFetch; }
   };
 
-  // A. bez secretu → 401
+  // A. bez secretu → 401 + bezpečná diagnostika (žiadny header, žiadny únik)
   {
     const res = await POST(makeReq({}));
     assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.error, "unauthorized");
+    assert.equal(body.diagnostics.authorizationHeaderPresent, false);
+    assert.equal(body.diagnostics.bearerPrefixPresent, false);
+    assert.equal(body.diagnostics.cronSecretConfigured, true);
+    assert.equal(body.diagnostics.receivedTokenLength, 0);
+    assert.equal(body.diagnostics.expectedTokenLength, SECRET.length);
+    assert.ok(!JSON.stringify(body).includes(SECRET), "secret sa nesmie objaviť v 401 odpovedi");
   }
-  // B. nesprávny secret → 401
+  // B. nesprávny secret → 401; diagnostika prezradí len dĺžky, nie hodnotu.
   {
     const res = await POST(makeReq({ authorization: "Bearer wrong" }));
     assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.diagnostics.bearerPrefixPresent, true);
+    assert.equal(body.diagnostics.receivedTokenLength, "wrong".length);
+    assert.ok(!JSON.stringify(body).includes(SECRET), "secret sa nesmie objaviť v 401 odpovedi");
   }
-  // C. chýbajúce CJ credentials → 503
+  // B2. správny secret bez "Bearer " prefixu → 401 (schéma vyžaduje Bearer).
+  {
+    const res = await POST(makeReq({ authorization: SECRET }));
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.diagnostics.authorizationHeaderPresent, true);
+    assert.equal(body.diagnostics.bearerPrefixPresent, false);
+  }
+  // C. správny Bearer CRON_SECRET → autentifikácia PREJDE (401 sa nevráti);
+  //    ďalej padne na chýbajúce CJ credentials → 503. To dokazuje, že auth prešiel.
   {
     const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
-    assert.equal(res.status, 503);
+    assert.equal(res.status, 503, "správny token prejde auth, padne až na chýbajúce credentials");
     const body = await res.json();
     assert.equal(body.ok, false);
+  }
+  // C2. Bearer token s okrajovým newline/medzerou sa bezpečne trimne → auth PREJDE
+  //     (nie 401). Toto je regresný test na produkčnú príčinu 401.
+  {
+    const res = await POST(makeReq({ authorization: `Bearer  ${SECRET}\n` }));
+    assert.notEqual(res.status, 401, "okrajový whitespace/newline v tokene nesmie spôsobiť 401");
+    assert.equal(res.status, 503, "po trime prejde auth, padne až na chýbajúce credentials");
+  }
+  // C3. Okrajový whitespace/newline v samotnej env hodnote CRON_SECRET sa trimne.
+  {
+    process.env.CRON_SECRET = `  ${SECRET}\n`;
+    try {
+      const res = await POST(makeReq({ authorization: `Bearer ${SECRET}` }));
+      assert.notEqual(res.status, 401, "trailing newline v env CRON_SECRET nesmie spôsobiť 401");
+      assert.equal(res.status, 503);
+    } finally {
+      process.env.CRON_SECRET = SECRET;
+    }
   }
 
   // getCjProductCredentials helper
