@@ -41,7 +41,9 @@ export function buildHeurekaSearchUrl(query: string, options?: HeurekaUrlOptions
   const cleanQuery = query.trim();
 
   if (cleanQuery) {
-    url.searchParams.set("h[frm][q]", cleanQuery);
+    // Aktuálny vyhľadávací parameter Heureky je h[fraze] (starý h[frm][q] sa
+    // ignoruje → odkaz padol na homepage). Overené na www.heureka.sk formulári.
+    url.searchParams.set("h[fraze]", cleanQuery);
   }
 
   return buildHeurekaUrl(url.toString(), options);

@@ -16,13 +16,13 @@ function countParam(url: string, param: string): number {
   const parsed = new URL(url);
 
   assert.equal(parsed.hostname, "www.heureka.sk");
-  assert.equal(parsed.searchParams.get("h[frm][q]"), "iPhone 16");
+  assert.equal(parsed.searchParams.get("h[fraze]"), "iPhone 16");
   assert.equal(parsed.searchParams.get("haff"), "71186");
   assert.equal(countParam(url, "haff"), 1);
   assert.equal(parsed.searchParams.get("utm_source"), "zlavickovo");
   assert.equal(parsed.searchParams.get("utm_medium"), "affiliate");
   assert.equal(parsed.searchParams.has("positionid"), false);
-  assert.match(url, /h%5Bfrm%5D%5Bq%5D=iPhone\+16/);
+  assert.match(url, /h%5Bfraze%5D=iPhone\+16/);
 }
 
 {
@@ -72,14 +72,14 @@ const EXPECTED_HAFF = "71186";
   // Bez affiliate_url → Heureka vyhľadávanie s haff (EAN má prednosť pred názvom)
   const fallback = new URL(getProductOutboundUrl({ affiliate_url: null, ean: "8588001234567", name: "iPhone 16" }));
   assert.equal(fallback.hostname, "www.heureka.sk");
-  assert.equal(fallback.searchParams.get("h[frm][q]"), "8588001234567");
+  assert.equal(fallback.searchParams.get("h[fraze]"), "8588001234567");
   assert.equal(fallback.searchParams.get("haff"), EXPECTED_HAFF);
   assert.equal(fallback.searchParams.get("utm_source"), "zlavickovo");
   assert.equal(fallback.searchParams.get("utm_medium"), "affiliate");
   assert.equal(fallback.searchParams.has("positionid"), false);
 
   const byName = new URL(getProductOutboundUrl({ affiliate_url: null, ean: "", name: "iPhone 16" }));
-  assert.equal(byName.searchParams.get("h[frm][q]"), "iPhone 16");
+  assert.equal(byName.searchParams.get("h[fraze]"), "iPhone 16");
   assert.equal(byName.searchParams.get("haff"), EXPECTED_HAFF);
 
   const home = new URL(buildServerHeurekaUrl());

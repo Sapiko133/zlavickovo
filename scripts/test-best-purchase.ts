@@ -66,7 +66,7 @@ function countParam(url: string, param: string): number {
   assert.equal(parsed.searchParams.get("utm_source"), "zlavickovo");
   assert.equal(parsed.searchParams.get("utm_medium"), "affiliate");
   // EAN má prednosť pred názvom
-  assert.equal(parsed.searchParams.get("h[frm][q]"), "8588001234567");
+  assert.equal(parsed.searchParams.get("h[fraze]"), "8588001234567");
 }
 
 // ── 6: EUR a CZK sa neporovnávajú ako surové čísla ──
