@@ -214,9 +214,20 @@ export async function getRelatedProducts(product: HkProduct, limit = 4): Promise
       SELECT id, name, price, currency_code, url, img_url, domain, category, affiliate_url, updated_at
       FROM hk_products
       WHERE domain = ${product.domain} AND id != ${product.id}
-      ORDER BY updated_at DESC LIMIT ${limit}
+      ORDER BY updated_at DESC LIMIT ${limit * 6}
     `;
-    return rows as HkProduct[];
+    // Dedup variantov + vylúč veľkostné varianty AKTUÁLNEHO produktu (§8) —
+    // "ďalšie produkty" nesmú byť tá istá topánka v iných veľkostiach.
+    const seen = new Set<string>([variantBaseKey(product.name)]);
+    const out: HkProduct[] = [];
+    for (const r of rows as HkProduct[]) {
+      const key = variantBaseKey(r.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch (err) {
     console.error("[heureka:db] getRelatedProducts:", err);
     return [];
