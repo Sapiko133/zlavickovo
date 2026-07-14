@@ -117,13 +117,13 @@ export async function computePipelineHealth(sqlClient?: SqlClient): Promise<Pipe
 
   const ph = await getPriceHistoryStats(sql);
 
-  let phAgeDays: number | null = null;
-  if (ph.latestRecordedDay) {
-    const latest = new Date(ph.latestRecordedDay);
-    const now = new Date();
-    const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
-    phAgeDays = Math.floor((dayUTC(now) - dayUTC(latest)) / 86_400_000);
-  }
+  // Vek posledného snapshotu počítame priamo v SQL (TZ-safe) — DATE stĺpec cez
+  // JS Date parsovanie posúval o deň (local-midnight → UTC), čo dávalo off-by-one.
+  const [phAge] = (await sql`
+    SELECT ((now() AT TIME ZONE 'UTC')::date - max(recorded_day)) AS age_days
+    FROM product_price_history
+  `) as { age_days: number | string | null }[];
+  const phAgeDays = phAge?.age_days == null ? null : Number(phAge.age_days);
 
   return evaluatePipelineHealth({
     productTotal: prod?.total ?? 0,
