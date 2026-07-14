@@ -1,5 +1,6 @@
 import { refreshDognetCache, refreshDognetCampaignsCache } from "@/lib/dognet";
 import { refreshEhubCache, refreshEhubShopsCache } from "@/lib/ehub";
+import { refreshCjShopsCache } from "@/lib/cj";
 import { invalidateKnownShopsCache } from "@/lib/all-shops";
 import { NextRequest } from "next/server";
 
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   // Dognet coupons + campaigns bežia SEKVENČNE v jednom bloku (paralelne by dvojnásobná
   // záťaž na Dognet API rate-limitovala pagination kampaní → neúplný cache).
   // eHub (iné API) ide paralelne popri Dognet bloku.
-  const [dognetPair, ehubCoupons, ehubShops] = await Promise.allSettled([
+  const [dognetPair, ehubCoupons, ehubShops, cjShops] = await Promise.allSettled([
     (async () => {
       const coupons = await refreshDognetCache();
       const campaigns = await refreshDognetCampaignsCache();
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
     })(),
     refreshEhubCache(),
     refreshEhubShopsCache(),
+    refreshCjShopsCache(),
   ]);
   const dognet = dognetPair.status === "fulfilled" ? dognetPair.value.coupons : { count: 0, error: String((dognetPair as PromiseRejectedResult).reason) };
   const dognetCampaigns = dognetPair.status === "fulfilled" ? dognetPair.value.campaigns : { count: 0, error: String((dognetPair as PromiseRejectedResult).reason) };
@@ -38,5 +40,6 @@ export async function GET(req: NextRequest) {
     dognetCampaigns,
     ehubCoupons: ehubCoupons.status === "fulfilled" ? ehubCoupons.value : { count: 0, error: String(ehubCoupons.reason) },
     ehubShops: ehubShops.status === "fulfilled" ? ehubShops.value : { count: 0, error: String(ehubShops.reason) },
+    cjShops: cjShops.status === "fulfilled" ? cjShops.value : { count: 0, error: String(cjShops.reason) },
   });
 }

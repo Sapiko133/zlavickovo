@@ -26,6 +26,10 @@ export interface CjShop {
 const COUPON_CACHE_KEY = "cj:coupons:v3";
 const SHOP_CACHE_KEY = "cj:shops:v3";
 const CACHE_TTL = 3600;
+// Shopy/joined advertiseri sa menia pomaly — dlhší TTL drží joined cache teplú aj
+// medzi dennými behmi refresh cronu. Bez toho vychladla za 1h a read-only
+// cross-check pri Product Feed discovery vracal 503 (joinedAdvertisersUnavailable).
+const SHOP_CACHE_TTL = 86400;
 
 function xmlField(xml: string, tag: string): string {
   return xml.match(new RegExp(`<${tag}>(.*?)</${tag}>`))?.[1]?.trim() ?? "";
@@ -161,7 +165,7 @@ export async function getCjShops(): Promise<CjShop[]> {
 
     const shops = await fetchCjShops();
     if (shops.length > 0) {
-      try { await redis.set(SHOP_CACHE_KEY, shops, { ex: CACHE_TTL }); } catch {}
+      try { await redis.set(SHOP_CACHE_KEY, shops, { ex: SHOP_CACHE_TTL }); } catch {}
     }
     return shops;
   })();
@@ -232,4 +236,18 @@ export async function importAndCacheCjCoupons(): Promise<number> {
     try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: CACHE_TTL }); } catch {}
   }
   return coupons.length;
+}
+
+/**
+ * Deterministický warmer joined CJ shops cache — pre refresh-affiliate-cache cron.
+ * Drží cj:shops:v3 teplú (24h TTL), aby read-only cross-check pri Product Feed
+ * discovery ({@link getJoinedCjAdvertiserIds}) nevracal 503. Zapisuje iba pri
+ * neprázdnom výsledku (nikdy neprepíše platnú cache prázdnou pri chybe CJ API).
+ */
+export async function refreshCjShopsCache(): Promise<{ count: number }> {
+  const shops = await fetchCjShops();
+  if (shops.length > 0) {
+    try { await redis.set(SHOP_CACHE_KEY, shops, { ex: SHOP_CACHE_TTL }); } catch {}
+  }
+  return { count: shops.length };
 }
