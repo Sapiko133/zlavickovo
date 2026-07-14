@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   findLowestPriceIndexes,
+  findLowestPriceIndexesByIdentity,
   getFormattedProductPrices,
   getFormattedProductPricesFromRaw,
   getPreferredDisplayCurrency,
@@ -146,6 +147,46 @@ const normalizeSpaces = (value: string | null | undefined) => value?.replace(/\s
     RATE
   );
   assert.deepEqual([...lowest], [1]);
+
+  // findLowestPriceIndexesByIdentity — badge IBA v rámci rovnakej EAN identity (§7/§8/§32)
+  {
+    // 1. dva rovnaké produkty (zhodný EAN), lacnejší dostane badge
+    const r = findLowestPriceIndexesByIdentity([
+      { priceNum: 20, currency: "EUR", identity: "8586001234567" },
+      { priceNum: 18, currency: "EUR", identity: "8586001234567" },
+    ]);
+    assert.deepEqual([...r].sort(), [1]);
+
+    // 2. KĽÚČOVÉ: globálne najlacnejší je INÝ produkt (bez páru) → badge NEDOSTANE;
+    //    badge ide na lacnejšiu z páru rovnakého EAN.
+    const r2 = findLowestPriceIndexesByIdentity([
+      { priceNum: 5, currency: "EUR", identity: "1111111111116" },  // iný produkt, singleton
+      { priceNum: 20, currency: "EUR", identity: "8586001234567" },
+      { priceNum: 18, currency: "EUR", identity: "8586001234567" },
+    ]);
+    assert.deepEqual([...r2].sort((a, b) => a - b), [2], "globálne najlacnejší iný produkt nedostane badge");
+
+    // 3. rôzne EAN (žiadny pár) → žiadny badge
+    const r3 = findLowestPriceIndexesByIdentity([
+      { priceNum: 10, currency: "EUR", identity: "1111111111116" },
+      { priceNum: 12, currency: "EUR", identity: "2222222222227" },
+    ]);
+    assert.equal(r3.size, 0);
+
+    // 4. položky bez EAN sa do porovnania nezaradia (žiadny badge)
+    const r4 = findLowestPriceIndexesByIdentity([
+      { priceNum: 8, currency: "EUR", identity: null },
+      { priceNum: 9, currency: "EUR", identity: "" },
+    ]);
+    assert.equal(r4.size, 0);
+
+    // 5. rovnaký EAN cez mix mien s kurzom — porovná sa normalizovane (250 Kč ≈ 10 € < 15 €)
+    const r5 = findLowestPriceIndexesByIdentity([
+      { priceNum: 15, currency: "EUR", identity: "8586001234567" },
+      { priceNum: 250, currency: "CZK", identity: "8586001234567" },
+    ], RATE);
+    assert.deepEqual([...r5], [1]);
+  }
 }
 
 console.log("Display currency tests passed.");

@@ -1,6 +1,7 @@
 import { searchHkProducts, toProductSlug, parsePriceValue, getFormattedProductPricesFromRaw } from "@/lib/heureka/query";
 import { getOfferOutbound, type OfferOutboundKind } from "@/lib/heureka/affiliate";
-import { findLowestPriceIndexes, resolveTrustedProductCurrency, type SupportedCurrency } from "@/lib/price";
+import { findLowestPriceIndexesByIdentity, resolveTrustedProductCurrency, type SupportedCurrency } from "@/lib/price";
+import { normalizeEan } from "@/lib/heureka/identity";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { buildShopOffersIndex } from "@/lib/shop-offers";
 import { normalizeSearchText } from "@/lib/search-normalize";
@@ -104,6 +105,8 @@ export async function GET(req: Request) {
       `${normalizeSearchText(name)}|${(domain || "").toLowerCase()}`;
     // Dôveryhodná mena pre badge — bez TLD heuristiky, drží sa mimo odpovede
     const trustedCurrency = new Map<ProductResult, SupportedCurrency | null>();
+    // EAN identita pre badge — drží sa mimo odpovede (badge len v rámci rovnakého produktu)
+    const productEan = new Map<ProductResult, string>();
 
     // Heureka má prioritu — má vlastnú detailnú stránku produktu
     if (hkRes.status === "fulfilled") {
@@ -131,6 +134,7 @@ export async function GET(req: Request) {
           deal: null,
         };
         trustedCurrency.set(item, resolveTrustedProductCurrency(p.price, p.currency_code, p.domain));
+        productEan.set(item, (p.ean ?? "").trim());
         merged.push(item);
       }
     }
@@ -216,11 +220,18 @@ export async function GET(req: Request) {
       }
     }
 
-    // ── Badge „NAJNIŽŠIA CENA" — iba dôveryhodné porovnanie (rovnaká mena,
-    // alebo mix EUR/CZK prepočítaný cez kurz; inak žiadny badge) ──
+    // ── Badge „NAJNIŽŠIA CENA" — IBA v rámci rovnakej EAN identity (PROJECT_VISION
+    // §7/§8/§32). Vyhľadávanie je heterogénny zoznam RÔZNYCH produktov; tvrdiť
+    // „najlacnejšie" naprieč nimi je neplatné. Badge dostane len najlacnejšia ponuka
+    // toho istého produktu (zhodný EAN vyskytujúci sa v zozname aspoň 2×), s rovnakou
+    // menovou disciplínou. Bez EAN alebo singleton = žiadny badge. ──
     const final = [...head, ...tail].slice(0, 30);
-    const lowest = findLowestPriceIndexes(
-      final.map((p) => ({ priceNum: p.priceNum, currency: trustedCurrency.get(p) ?? null }))
+    const lowest = findLowestPriceIndexesByIdentity(
+      final.map((p) => ({
+        priceNum: p.priceNum,
+        currency: trustedCurrency.get(p) ?? null,
+        identity: normalizeEan(productEan.get(p) ?? ""),
+      }))
     );
     lowest.forEach((i) => { final[i].isCheapest = true; });
 

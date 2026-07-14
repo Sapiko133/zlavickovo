@@ -306,3 +306,41 @@ export function findLowestPriceIndexes(
   });
   return lowest;
 }
+
+export type IdentityLowestInput = LowestPriceInput & {
+  /** Normalizovaný identity kľúč (napr. EAN). Prázdny/null = bez spoľahlivej identity. */
+  identity?: string | null;
+};
+
+/**
+ * Badge „NAJNIŽŠIA CENA" IBA v rámci rovnakej identity (PROJECT_VISION §7/§8/§32).
+ * Porovnávať ceny naprieč RÔZNYMI produktmi je neplatné tvrdenie „najlacnejšie" —
+ * preto badge dostane len najlacnejšia ponuka tej istej identity (napr. EAN), a to
+ * výhradne ak sa daná identita v zozname vyskytuje aspoň dvakrát (reálne porovnané
+ * ponuky). Položky bez identity alebo v singleton skupine badge NEDOSTANÚ.
+ * V každej skupine platí rovnaká menová disciplína ako {@link findLowestPriceIndexes}.
+ */
+export function findLowestPriceIndexesByIdentity(
+  items: IdentityLowestInput[],
+  eurToCzkRate: number | null = getEurToCzkRate()
+): Set<number> {
+  const groups = new Map<string, number[]>();
+  items.forEach((item, index) => {
+    const key = (item.identity ?? "").trim();
+    if (!key) return; // bez identity sa nedá tvrdiť „ten istý produkt"
+    const arr = groups.get(key);
+    if (arr) arr.push(index);
+    else groups.set(key, [index]);
+  });
+
+  const result = new Set<number>();
+  for (const indices of groups.values()) {
+    if (indices.length < 2) continue; // singleton = neporovnané v rámci identity
+    const localLowest = findLowestPriceIndexes(
+      indices.map((i) => ({ priceNum: items[i].priceNum, currency: items[i].currency })),
+      eurToCzkRate
+    );
+    localLowest.forEach((localIdx) => result.add(indices[localIdx]));
+  }
+  return result;
+}
