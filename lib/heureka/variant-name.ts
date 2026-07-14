@@ -9,7 +9,8 @@ export function variantBaseKey(name: string): string {
   const base = (name || "")
     .toLowerCase()
     .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .replace(/\b(velkost|velikost|size|vel)\b.*$/, "")
+    .replace(/\b(velkost|velikost|size|vel)\b.*$/, "")   // "... veľkosť EU: 42"
+    .replace(/\b(eur|eu)\s*\d+([.,]\d+)?\s*$/, "")        // "... EUR 20.5" (EU obuv veľkosť na konci)
     .replace(/\s+/g, " ")
     .trim();
   return base || (name || "").toLowerCase().trim();

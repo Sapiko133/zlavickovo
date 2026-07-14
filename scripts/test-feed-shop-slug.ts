@@ -4,6 +4,22 @@
  */
 import assert from "node:assert/strict";
 import { feedShopDomainForSlug } from "../lib/heureka/feed-shop-slug.ts";
+import { variantBaseKey } from "../lib/heureka/variant-name.ts";
+
+// variantBaseKey: EU/EUR obuv veľkosti na konci sa zlúčia
+assert.equal(
+  variantBaseKey("ARNO 505 farebné dievčenské papučky EUR 20.5"),
+  variantBaseKey("ARNO 505 farebné dievčenské papučky EUR 21")
+);
+// dievčenské vs chlapčenské sa NEzlúčia
+assert.notEqual(
+  variantBaseKey("ARNO 505 farebné dievčenské papučky EUR 21"),
+  variantBaseKey("ARNO 505 farebné chlapčenské papučky EUR 21")
+);
+// "EU 42" tiež
+assert.equal(variantBaseKey("Hoka obuv Clifton EU 42"), variantBaseKey("Hoka obuv Clifton EU 44"));
+// model číslo (bez EUR/EU prefixu) sa NEstripne
+assert.notEqual(variantBaseKey("iPhone 15"), variantBaseKey("iPhone 16"));
 
 // .cz-only shop → base slug vedie na .cz doménu
 assert.equal(feedShopDomainForSlug("tokrahome"), "tokrahome.cz");
