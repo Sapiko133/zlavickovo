@@ -22,6 +22,21 @@ const MAX_DROP_PCT = 90;
 const WINDOW_DAYS = 90;
 
 /**
+ * Kľúč pre zlúčenie variantov toho istého produktu v zozname poklesov (§8/§18):
+ * bez diakritiky, bez veľkostného sufixu ("... veľkosť 38"). Rovnaká topánka vo
+ * viacerých veľkostiach sa tak v zozname poklesov nezobrazí viackrát.
+ */
+function dropVariantKey(name: string): string {
+  const base = (name || "")
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/\b(velkost|velikost|size|vel)\b.*$/, "") // od veľkostného markera po koniec
+    .replace(/\s+/g, " ")
+    .trim();
+  return base || name.toLowerCase().trim();
+}
+
+/**
  * Najväčšie poklesy cien pre jednu doménu obchodu.
  *
  * Porovnáva poslednú zaznamenanú cenu produktu s jeho najvyššou cenou
@@ -69,20 +84,30 @@ export async function getBiggestPriceDropsByDomain(
         AND round((p.old_price - l.new_price) / p.old_price * 100) BETWEEN ${MIN_DROP_PCT} AND ${MAX_DROP_PCT}
         AND hp.name IS NOT NULL
       ORDER BY (p.old_price - l.new_price) / p.old_price DESC
-      LIMIT ${limit}
+      LIMIT ${limit * 8}
     ` as any[];
 
-    return rows.map((r) => ({
-      productUrl: r.product_url,
-      name: r.name,
-      imgUrl: r.img_url ?? "",
-      affiliateUrl: r.affiliate_url ?? null,
-      domain: r.domain,
-      oldPrice: r.old_price,
-      newPrice: r.new_price,
-      dropPct: r.drop_pct,
-      currency: r.currency ?? "EUR",
-    }));
+    // Zlúč varianty toho istého produktu (najväčší pokles per produkt) a vezmi top N.
+    const seen = new Set<string>();
+    const drops: PriceDrop[] = [];
+    for (const r of rows) {
+      const key = dropVariantKey(r.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      drops.push({
+        productUrl: r.product_url,
+        name: r.name,
+        imgUrl: r.img_url ?? "",
+        affiliateUrl: r.affiliate_url ?? null,
+        domain: r.domain,
+        oldPrice: r.old_price,
+        newPrice: r.new_price,
+        dropPct: r.drop_pct,
+        currency: r.currency ?? "EUR",
+      });
+      if (drops.length >= limit) break;
+    }
+    return drops;
   } catch (err) {
     // Chýbajúca tabuľka / prázdna história nesmie zhodiť stránku obchodu.
     console.error("[price-history] getBiggestPriceDropsByDomain:", err);
