@@ -692,6 +692,56 @@ const _FEEDS: StaticFeedDef[] = [
     category: "zdravie",
     affiliateUrl: null,
   },
+  // Discovery 2026-07 (3. dávka — Affial panel Kampaně, 130 kampaní)
+  {
+    id: "arno-cz",
+    url: "https://www.arno.cz/feed/heureka",
+    domain: "arno.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "tokrahome-cz",
+    url: "https://www.tokrahome.cz/heureka/export/products.xml",
+    domain: "tokrahome.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "zdravibezchemie-cz",
+    url: "https://www.zdravibezchemie.cz/heureka/export/products.xml",
+    domain: "zdravibezchemie.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "boruvkovykopecek-cz",
+    url: "https://www.boruvkovykopecek.cz/heureka/export/products.xml",
+    domain: "boruvkovykopecek.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "nupreme-com",
+    url: "https://www.nupreme.com/heureka/export/products.xml",
+    domain: "nupreme.com",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "bagniaristore-cz",
+    url: "https://www.bagniaristore.cz/heureka/export/products.xml",
+    domain: "bagniaristore.cz",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "clovecinahra-sk",
+    url: "https://www.clovecinahra.sk/heureka/export/products.xml",
+    domain: "clovecinahra.sk",
+    category: "hobby",
+    affiliateUrl: null,
+  },
 ];
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
