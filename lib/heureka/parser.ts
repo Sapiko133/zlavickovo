@@ -42,6 +42,19 @@ export function decodeEntities(s: string): string {
   return out;
 }
 
+/**
+ * Vyčistí cenu z feedu: čistý desatinný float s 3+ desatinnými miestami (feed
+ * artefakt s plávajúcou presnosťou, napr. "35.989999" = 35,99) zaokrúhli na 2
+ * desatinné. Surgické — netýka sa "1299", "12,99 EUR", "35.99" ani iných formátov.
+ */
+export function normalizePrice(raw: string): string {
+  const s = raw.trim();
+  if (/^\d+\.\d{3,}$/.test(s)) {
+    return (Math.round(parseFloat(s) * 100) / 100).toFixed(2);
+  }
+  return s;
+}
+
 // Bezpečné čítanie skalárneho poľa — vráti "" ak je hodnota objekt (napr. nested XML)
 type XmlRecord = Record<string, unknown>;
 
@@ -105,7 +118,7 @@ function parseProducts(items: XmlRecord[], feedCategory: string): ParsedProduct[
       const rawCategory = String(
         getValue(item, "CATEGORY_FULL") ?? getValue(item, "CATEGORYTEXT") ?? getValue(item, "categorytext") ?? ""
       ).trim();
-      const price = String(getValue(item, "PRICE_VAT") ?? getValue(item, "PRICE") ?? getValue(item, "price") ?? "").trim();
+      const price = normalizePrice(String(getValue(item, "PRICE_VAT") ?? getValue(item, "PRICE") ?? getValue(item, "price") ?? ""));
       const explicitCurrency =
         pickStr(item, "CURRENCY_CODE", "CURRENCY", "PRICE_CURRENCY", "currency_code", "currency");
       return {
