@@ -13,6 +13,35 @@ function stripHtml(s: string): string {
   return s.replace(/<[^>]+>/g, "").trim();
 }
 
+const NAMED_ENTITIES: Record<string, string> = {
+  amp: "&", quot: '"', apos: "'", lt: "<", gt: ">", nbsp: " ",
+};
+
+function decodeOnce(s: string): string {
+  return s
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      const cp = parseInt(h, 16);
+      return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : _;
+    })
+    .replace(/&#(\d+);/g, (_, d) => {
+      const cp = parseInt(d, 10);
+      return cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : _;
+    })
+    .replace(/&(amp|quot|apos|lt|gt|nbsp);/g, (m, n) => NAMED_ENTITIES[n] ?? m);
+}
+
+/**
+ * Dekóduje HTML entity v texte feedu (názvy sú často dvojito escapované:
+ * `&amp;#039;` → po XML parse `&#039;` → tu `'`). Max 2 prechody kvôli
+ * dvojitému escapovaniu, bez rizika nekonečného rozbaľovania.
+ */
+export function decodeEntities(s: string): string {
+  if (!s || !s.includes("&")) return s;
+  let out = decodeOnce(s);
+  if (out.includes("&")) out = decodeOnce(out);
+  return out;
+}
+
 // Bezpečné čítanie skalárneho poľa — vráti "" ak je hodnota objekt (napr. nested XML)
 type XmlRecord = Record<string, unknown>;
 
@@ -80,10 +109,10 @@ function parseProducts(items: XmlRecord[], feedCategory: string): ParsedProduct[
       const explicitCurrency =
         pickStr(item, "CURRENCY_CODE", "CURRENCY", "PRICE_CURRENCY", "currency_code", "currency");
       return {
-        name: String(getValue(item, "PRODUCTNAME") ?? getValue(item, "NAME") ?? getValue(item, "productname") ?? getValue(item, "name") ?? "").trim(),
-        description: stripHtml(
+        name: decodeEntities(String(getValue(item, "PRODUCTNAME") ?? getValue(item, "NAME") ?? getValue(item, "productname") ?? getValue(item, "name") ?? "").trim()),
+        description: decodeEntities(stripHtml(
           String(getValue(item, "DESCRIPTION") ?? getValue(item, "description") ?? "")
-        ).slice(0, 300),
+        )).slice(0, 300),
         price,
         currencyCode: normalizeCurrencyCode(explicitCurrency) ?? detectCurrencyFromPriceText(price),
         url: String(getValue(item, "URL") ?? getValue(item, "url") ?? "").trim(),
