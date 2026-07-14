@@ -86,10 +86,10 @@ function makeFakeFetch(feeds: FakeFeed[], state: FakeState) {
       });
     }
 
-    // products query
+    // products query (schéma: filter partnerIds + stránkovanie limit)
     state.productCalls++;
-    const advId = String(body.variables.advertiserIds[0]);
-    const maxResults = Number(body.variables.maxResults);
+    const advId = String(body.variables.partnerIds[0]);
+    const maxResults = Number(body.variables.limit);
     state.maxResultsSeen.push(maxResults);
     const feed = feeds.find((f) => f.advertiserId === advId);
     const list = (feed?.products ?? []).slice(0, maxResults);

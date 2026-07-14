@@ -6,8 +6,8 @@
  *   Auth:     Authorization: Bearer <Personal Access Token (PAT)>
  *   Argument: companyId (~7 číslic)
  *   Query:    shoppingProductFeeds (metadata katalógov v sieti — cold discovery),
- *             products (reálne produkty IBA od joined advertiserov)
- *   Pagination: maxResults (1..1000) + offset
+ *             products (reálne produkty IBA od joined advertiserov; filter partnerIds)
+ *   Pagination: limit (1..1000) + offset
  *
  * POZOR — rozsah Fázy CJ-1:
  *   - IBA discovery + audit. Nič sa neimportuje do DB, nevytvára sa cj_products,
@@ -160,40 +160,46 @@ export function getCjProductCredentials(
 }
 
 // ── GraphQL vrstva ───────────────────────────────────────────────────────────
+// POZOR: názvy zodpovedajú AKTUÁLNEJ CJ Product Feed schéme (typ ProductFeed):
+// feedLanguage→language, feedCurrency→currency, feedTargetCountry→advertiserCountry,
+// feedProductCount→productCount, feedLastUpdated→lastUpdated. Parsovanie nižšie drží
+// aj staré aliasy (spätne kompatibilné s fixtúrami testov).
 const FEEDS_QUERY = `
 query CjProductFeedDiscovery($companyId: ID!) {
   shoppingProductFeeds(companyId: $companyId) {
     resultList {
+      adId
       advertiserId
       advertiserName
       feedName
-      feedLanguage
-      feedCurrency
-      feedTargetCountry
-      feedProductCount
-      feedLastUpdated
+      language
+      currency
+      advertiserCountry
+      productCount
+      lastUpdated
     }
   }
 }`.trim();
 
+// POZOR: CJ schéma `products` filtruje advertisera cez partnerIds (NIE advertiserIds)
+// a stránkuje cez limit (NIE maxResults). price/salePrice sú objekty AmountWithCurrency
+// { amount, currency }. Súčasná schéma NEPOSKYTUJE gtin/currency(top)/availability/
+// condition/saleType — tie sa preto nevyžadujú (parsovanie ich číta, ak by pribudli).
+// disableTotalCount: true — vzorkovanie totalCount nepotrebuje a jeho výpočet cez
+// milióny položiek veľkého advertisera prekračoval 15s timeout (→ falošné 502).
 const PRODUCTS_QUERY = `
-query CjProductSample($companyId: ID!, $advertiserIds: [ID!], $maxResults: Int!, $offset: Int!) {
-  products(companyId: $companyId, advertiserIds: $advertiserIds, maxResults: $maxResults, offset: $offset) {
-    totalCount
+query CjProductSample($companyId: ID!, $partnerIds: [ID!], $limit: Int!, $offset: Int!) {
+  products(companyId: $companyId, partnerIds: $partnerIds, limit: $limit, offset: $offset, disableTotalCount: true) {
     resultList {
       advertiserId
       advertiserName
       title
-      price
-      salePrice
-      currency
-      gtin
       brand
       link
       imageLink
-      availability
-      condition
-      saleType
+      targetCountry
+      price { amount currency }
+      salePrice { amount currency }
     }
   }
 }`.trim();
@@ -290,9 +296,9 @@ function parseFeedMeta(raw: unknown): CjFeedMeta {
   return {
     advertiserId: str(pick(o, ["advertiserId", "advertiser-id"])),
     advertiserName: str(pick(o, ["advertiserName", "advertiser-name"])),
-    feedId: str(pick(o, ["feedId", "feed-id", "id", "feedName"])),
+    feedId: str(pick(o, ["feedId", "feed-id", "adId", "id", "feedName"])),
     feedName: str(pick(o, ["feedName", "feed-name", "name"])),
-    market: str(pick(o, ["feedTargetCountry", "targetCountry", "country"])).toUpperCase(),
+    market: str(pick(o, ["feedTargetCountry", "targetCountry", "advertiserCountry", "country"])).toUpperCase(),
     currency: str(pick(o, ["feedCurrency", "currency"])).toUpperCase(),
     language: str(pick(o, ["feedLanguage", "language"])).toLowerCase(),
     estimatedProductCount: count !== null && Number.isFinite(count) ? count : null,
@@ -514,7 +520,7 @@ async function fetchProducts(
   const capped = Math.min(maxResults, MAX_PRODUCTS_PER_FEED);
   const data = await cjGraphql<Record<string, unknown>>(
     PRODUCTS_QUERY,
-    { companyId: opts.companyId, advertiserIds: [advertiserId], maxResults: capped, offset: 0 },
+    { companyId: opts.companyId, partnerIds: [advertiserId], limit: capped, offset: 0 },
     { token: opts.token, fetchImpl: opts.fetchImpl, timeoutMs: opts.timeoutMs }
   );
   return asArray(data.products).slice(0, capped).map(normalizeProduct);
