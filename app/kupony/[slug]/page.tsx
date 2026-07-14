@@ -13,6 +13,7 @@ import ShopPriceDrops from "@/components/ShopPriceDrops";
 import ShopProducts from "@/components/ShopProducts";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
+import { feedShopDomainForSlug } from "@/lib/heureka/feed-shop-slug";
 import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
 import { getShopProducts, getProductsByCategory } from "@/lib/heureka/query";
 import { withTimeout } from "@/lib/with-timeout";
@@ -63,6 +64,8 @@ async function isValidShopSlug(slug: string): Promise<boolean> {
   if (TOP_SLUGS.includes(baseSlug)) return true;
   if (SHOP_NAME_OVERRIDES[baseSlug]) return true;
   if (findAffialShop(slug) || findAffialShop(baseSlug)) return true;
+  // Obchody z Heureka feedov (majú produkty → §18 shop stránka)
+  if (feedShopDomainForSlug(slug) || feedShopDomainForSlug(baseSlug)) return true;
 
   let shops: KnownShop[];
   try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
@@ -191,7 +194,7 @@ export default async function ShopPage({ params }: Props) {
   let coupons: any[] = await withTimeout(getCouponsByShop(shopName), 8000, []);
 
   // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
-  const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
+  const shopDomain = getShopDomain(capitalized) || feedShopDomainForSlug(slug) || feedShopDomainForSlug(baseSlug) || `${baseSlug}.sk`;
   const shopAffiliateUrl: string | null =
     affiliateUrlFromCoupons(coupons) ??
     affialShop?.affiliateUrl ??
