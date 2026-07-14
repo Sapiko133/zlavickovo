@@ -235,3 +235,34 @@ jobs:
 
           echo "::error::Pipeline health KRITICKÝ (HTTP $http_code, status=$status): $reasons"
           exit 1
+
+      # Notifikácie sledovania ceny (§16/§23). Beží po importe (default success):
+      # ceny sú čerstvé a pipeline zdravý (kritický health vyššie by tento krok
+      # preskočil). Pošle upozornenia na produkty, ktorých cena klesla na cieľ.
+      - name: Notifikácie sledovania ceny
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          NOTIFY_ENDPOINT: "https://www.zlavickovo.sk/api/cron/price-watch-notify"
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET secret nie je nastavený v repozitári."
+            exit 1
+          fi
+
+          http_code=$(curl -sS -o notify.json -w '%{http_code}' --max-time 90 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$NOTIFY_ENDPOINT" || echo "000")
+
+          checked=$(jq -r '.checked // "n/a"' notify.json 2>/dev/null || echo "n/a")
+          sent=$(jq -r '.sent // "n/a"' notify.json 2>/dev/null || echo "n/a")
+          failed=$(jq -r '.failed // "n/a"' notify.json 2>/dev/null || echo "n/a")
+          echo "── price-watch notify http=$http_code checked=$checked sent=$sent failed=$failed"
+
+          if [ "$http_code" -ge 200 ] 2>/dev/null && [ "$http_code" -lt 300 ] 2>/dev/null; then
+            echo "✅ Notifikácie sledovania ceny spracované."
+            exit 0
+          fi
+          echo "::error::Notifikácie sledovania ceny zlyhali (HTTP $http_code)."
+          exit 1

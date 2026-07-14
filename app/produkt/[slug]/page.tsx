@@ -20,6 +20,7 @@ import { outboundClickType } from "@/lib/outbound-ui";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getProductPriceStats } from "@/lib/heureka/price-history";
 import ProductPriceHistory from "@/components/ProductPriceHistory";
+import PriceWatchForm from "@/components/PriceWatchForm";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getOffersByExactDomain, exactDomainKey, type ExactDomainOffer } from "@/lib/shop-offers";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -400,6 +401,12 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
 
             {/* Cenová história (V1) — zobrazí sa len pri ≥2 snapshotoch */}
             <ProductPriceHistory stats={priceStats} domain={product.domain} />
+
+            {/* Sledovanie ceny (§16) — upozornenie emailom pri poklese */}
+            <PriceWatchForm
+              productUrl={product.url}
+              currency={priceStats?.currency ?? normalizeCurrencyCode(product.currency_code) ?? "EUR"}
+            />
 
             {/* Dostupné kupóny a akcie obchodu */}
             {hasOffers && (

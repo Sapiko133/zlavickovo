@@ -159,11 +159,14 @@ export async function POST(req: NextRequest) {
         base_price          NUMERIC(12,2),
         currency            TEXT NOT NULL DEFAULT 'EUR',
         active              BOOLEAN NOT NULL DEFAULT true,
+        unsub_token         TEXT,
         created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
         last_notified_at    TIMESTAMPTZ,
         last_notified_price NUMERIC(12,2)
       )
     `;
+    await sql`ALTER TABLE price_watches ADD COLUMN IF NOT EXISTS unsub_token TEXT`;
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS price_watches_unsub_token_uidx ON price_watches(unsub_token) WHERE unsub_token IS NOT NULL`;
     // Jeden watch na (email, produkt); opätovné vytvorenie aktualizuje podmienky.
     await sql`CREATE UNIQUE INDEX IF NOT EXISTS price_watches_email_url_uidx ON price_watches(email, product_url)`;
     await sql`CREATE INDEX IF NOT EXISTS price_watches_active_idx ON price_watches(product_url) WHERE active`;
