@@ -1,5 +1,6 @@
 import { getDb } from "@/lib/db";
 import { normalizeCurrencyCode, type SupportedCurrency } from "@/lib/price";
+import { variantBaseKey } from "./variant-name";
 
 type SqlClient = ReturnType<typeof getDb>;
 
@@ -20,21 +21,6 @@ export interface PriceDrop {
 const MIN_DROP_PCT = 5;
 const MAX_DROP_PCT = 90;
 const WINDOW_DAYS = 90;
-
-/**
- * Kľúč pre zlúčenie variantov toho istého produktu v zozname poklesov (§8/§18):
- * bez diakritiky, bez veľkostného sufixu ("... veľkosť 38"). Rovnaká topánka vo
- * viacerých veľkostiach sa tak v zozname poklesov nezobrazí viackrát.
- */
-function dropVariantKey(name: string): string {
-  const base = (name || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[̀-ͯ]/g, "")
-    .replace(/\b(velkost|velikost|size|vel)\b.*$/, "") // od veľkostného markera po koniec
-    .replace(/\s+/g, " ")
-    .trim();
-  return base || name.toLowerCase().trim();
-}
 
 /**
  * Najväčšie poklesy cien pre jednu doménu obchodu.
@@ -91,7 +77,7 @@ export async function getBiggestPriceDropsByDomain(
     const seen = new Set<string>();
     const drops: PriceDrop[] = [];
     for (const r of rows) {
-      const key = dropVariantKey(r.name);
+      const key = variantBaseKey(r.name);
       if (seen.has(key)) continue;
       seen.add(key);
       drops.push({

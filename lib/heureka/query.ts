@@ -3,6 +3,7 @@ import { normalizeSearchText, searchMatchRank } from "@/lib/search-normalize";
 import type { HkProduct, HkFeedRow } from "./types";
 import { pickBestPurchase, type BestPurchase, type BestPurchaseCandidate } from "./best-purchase";
 import { normalizeEan, normalizeManufacturer, normalizeProductNo, type IdentityLevel } from "./identity";
+import { variantBaseKey } from "./variant-name";
 import { filterVariantConflicts } from "./variant";
 import {
   formatAmount as formatCurrencyAmount,
@@ -102,9 +103,20 @@ export async function getShopProducts(domain: string, limit = 12): Promise<HkPro
         CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
         abs(price_rank - 0.55),
         updated_at DESC
-      LIMIT ${limit}
+      LIMIT ${limit * 6}
     `;
-    return rows as HkProduct[];
+    // Zlúč veľkostné varianty toho istého produktu (§8/§18) — nezobrazuj tú istú
+    // topánku 4× v rôznych veľkostiach. Prvý (najlepšie zoradený) variant vyhráva.
+    const seen = new Set<string>();
+    const out: HkProduct[] = [];
+    for (const r of rows as HkProduct[]) {
+      const key = variantBaseKey(r.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch (err) {
     console.error("[heureka:db] getShopProducts:", err);
     return [];
@@ -141,9 +153,20 @@ export async function getProductsByCategory(category: string, limit = 12): Promi
         CASE WHEN img_url <> '' THEN 0 ELSE 1 END,
         abs(price_rank - 0.55),
         updated_at DESC
-      LIMIT ${limit}
+      LIMIT ${limit * 6}
     `;
-    return rows as HkProduct[];
+    // Zlúč veľkostné varianty toho istého produktu (§8/§18) — nezobrazuj tú istú
+    // topánku 4× v rôznych veľkostiach. Prvý (najlepšie zoradený) variant vyhráva.
+    const seen = new Set<string>();
+    const out: HkProduct[] = [];
+    for (const r of rows as HkProduct[]) {
+      const key = variantBaseKey(r.name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(r);
+      if (out.length >= limit) break;
+    }
+    return out;
   } catch (err) {
     console.error("[heureka:db] getProductsByCategory:", err);
     return [];
