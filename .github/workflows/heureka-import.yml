@@ -198,3 +198,40 @@ jobs:
 
           echo "::error::Cleanup cenovej histórie zlyhal (HTTP $http_code). Import prebehol úspešne, zlyhala len retencia."
           exit 1
+
+      # Stráž zdravia pipeline (PROJECT_VISION §19/§31). Beží po úspešnom importe:
+      # kontroluje VÝSTUP, nie len či request prešiel. HTTP 503 = kritický stav
+      # (import nebežal / história sa nehromadí / výpadok dát) → zhodí job (red X +
+      # GitHub email), takže tiché zlyhanie výstupu sa stane hlučným.
+      - name: Kontrola zdravia pipeline (výstup importu)
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          HEALTH_ENDPOINT: "https://www.zlavickovo.sk/api/admin/pipeline-health"
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET secret nie je nastavený v repozitári."
+            exit 1
+          fi
+
+          http_code=$(curl -sS -o health.json -w '%{http_code}' --max-time 60 \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            "$HEALTH_ENDPOINT" || echo "000")
+
+          status=$(jq -r '.status // "unknown"' health.json 2>/dev/null || echo "unparseable")
+          reasons=$(jq -r '.reasons[]?' health.json 2>/dev/null | paste -sd '; ' - || echo "")
+          echo "── pipeline health http=$http_code status=$status"
+          [ -n "$reasons" ] && echo "   $reasons"
+
+          # 200 = ok/warn (warn len upozorní, nezhodí beh). Čokoľvek iné = kritické.
+          if [ "$http_code" = "200" ]; then
+            if [ "$status" = "warn" ]; then
+              echo "::warning::Pipeline health WARN — $reasons"
+            fi
+            echo "✅ Pipeline zdravý (status=$status)."
+            exit 0
+          fi
+
+          echo "::error::Pipeline health KRITICKÝ (HTTP $http_code, status=$status): $reasons"
+          exit 1
