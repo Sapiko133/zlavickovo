@@ -670,6 +670,28 @@ const _FEEDS: StaticFeedDef[] = [
     category: "potraviny",
     affiliateUrl: null,
   },
+  // Discovery 2026-07 (2. dávka — domény z kupónových cache)
+  {
+    id: "tozax-cz",
+    url: "https://www.tozax.cz/heureka/export/products.xml",
+    domain: "tozax.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "olaola-cz",
+    url: "https://www.olaola.cz/feed/heureka",
+    domain: "olaola.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "avita-cz",
+    url: "https://www.avita.cz/heureka/export/products.xml",
+    domain: "avita.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
 ];
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
