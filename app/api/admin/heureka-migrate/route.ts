@@ -147,6 +147,42 @@ export async function POST(req: NextRequest) {
     `;
     await sql`CREATE INDEX IF NOT EXISTS shop_descriptions_updated_idx ON shop_descriptions(updated_at DESC)`;
 
+    // ── Sledovanie ceny (§16) — uloženie podmienok; vyhodnotenie lib/heureka/price-watch ──
+    await sql`
+      CREATE TABLE IF NOT EXISTS price_watches (
+        id                  BIGSERIAL PRIMARY KEY,
+        email               TEXT NOT NULL,
+        product_url         TEXT NOT NULL,
+        domain              TEXT NOT NULL DEFAULT '',
+        target_price        NUMERIC(12,2),
+        target_drop_pct     INT,
+        base_price          NUMERIC(12,2),
+        currency            TEXT NOT NULL DEFAULT 'EUR',
+        active              BOOLEAN NOT NULL DEFAULT true,
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+        last_notified_at    TIMESTAMPTZ,
+        last_notified_price NUMERIC(12,2)
+      )
+    `;
+    // Jeden watch na (email, produkt); opätovné vytvorenie aktualizuje podmienky.
+    await sql`CREATE UNIQUE INDEX IF NOT EXISTS price_watches_email_url_uidx ON price_watches(email, product_url)`;
+    await sql`CREATE INDEX IF NOT EXISTS price_watches_active_idx ON price_watches(product_url) WHERE active`;
+    await sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'price_watches_currency_check') THEN
+          ALTER TABLE price_watches
+            ADD CONSTRAINT price_watches_currency_check CHECK (currency IN ('EUR', 'CZK'));
+        END IF;
+        -- aspoň jedna podmienka: cieľová cena alebo percentuálny pokles
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'price_watches_condition_check') THEN
+          ALTER TABLE price_watches
+            ADD CONSTRAINT price_watches_condition_check
+            CHECK (target_price IS NOT NULL OR target_drop_pct IS NOT NULL);
+        END IF;
+      END $$
+    `;
+
     // Seed feedov
     for (const f of HEUREKA_FEEDS) {
       await sql`
@@ -164,7 +200,7 @@ export async function POST(req: NextRequest) {
     return Response.json({
       ok: true,
       message: "Migrácia dokončená",
-      tables: ["hk_feeds", "hk_products", "product_price_history", "shop_descriptions"],
+      tables: ["hk_feeds", "hk_products", "product_price_history", "shop_descriptions", "price_watches"],
       feeds: HEUREKA_FEEDS.map((f) => f.id),
     });
   } catch (err: any) {
