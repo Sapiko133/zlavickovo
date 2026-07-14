@@ -9,6 +9,7 @@ import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { feedManager } from "@/lib/feeds/FeedManager";
 import { getFormattedProductPricesFromRaw, searchHkProducts, toProductSlug } from "@/lib/heureka/query";
+import { variantBaseKey } from "@/lib/heureka/variant-name";
 import { getOfferOutbound, type OfferOutboundKind } from "@/lib/heureka/affiliate";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 
@@ -80,8 +81,16 @@ export async function GET(req: Request) {
               };
             })
             .sort((a, b) => skCollator.compare(a.name, b.name))
-            .slice(0, 5)
         : [];
+
+    // Dedup variantov toho istého produktu (§8) — nezobrazuj tú istú topánku 2× v rôznych veľkostiach
+    const seenVariant = new Set<string>();
+    const dedupProducts = products.filter((p) => {
+      const key = `${(p.domain || "").toLowerCase()}|${variantBaseKey(p.name)}`;
+      if (seenVariant.has(key)) return false;
+      seenVariant.add(key);
+      return true;
+    }).slice(0, 5);
 
     // Obchody — shop cache, max 5. Radenie: exact → startsWith → word boundary
     // → substring (normalizované, bez diakritiky — "gym beam" nájde GymBeam),
@@ -176,7 +185,7 @@ export async function GET(req: Request) {
     });
 
     return Response.json(
-      { products, shops, coupons: coupons.slice(0, 5) },
+      { products: dedupProducts, shops, coupons: coupons.slice(0, 5) },
       { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
     );
   }
