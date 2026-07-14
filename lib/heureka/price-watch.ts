@@ -99,7 +99,7 @@ export async function getTriggeredWatches(sqlClient?: SqlClient): Promise<Trigge
       p.affiliate_url AS affiliate_url
     FROM price_watches w
     JOIN hk_products p ON p.url = w.product_url
-    WHERE w.active
+    WHERE w.active AND w.confirmed
   `) as any[];
 
   const triggered: TriggeredWatch[] = [];
@@ -146,13 +146,15 @@ export interface CreateWatchInput {
 }
 
 export type CreateWatchResult =
-  | { ok: true; basePrice: number; currency: SupportedCurrency; unsubToken: string }
+  | { ok: true; basePrice: number; currency: SupportedCurrency; confirmed: boolean; confirmToken: string }
   | { ok: false; error: "product_not_found" | "product_price_unavailable" | "no_condition" };
 
 /**
  * Vytvorí/aktualizuje watch. Base price + mena sa berú z AKTUÁLNEJ ceny produktu
  * (nie od používateľa — §17 žiadne fiktívne ceny). Jeden watch na (email, produkt).
- * unsub_token pre bezpečné odhlásenie (§23) sa zachová pri update.
+ * Watch je `confirmed=false` kým sa nepotvrdí email (§23 súhlas, §27 anti-abuse);
+ * upozornenia dostávajú iba potvrdené watche. Tokeny (unsub/confirm) sa pri update
+ * zachovajú, potvrdený watch sa opätovným uložením nerozpotvrdí.
  */
 export async function createOrUpdateWatch(
   input: CreateWatchInput,
@@ -173,22 +175,42 @@ export async function createOrUpdateWatch(
   const targetDropPct = input.targetDropPct ?? null;
   if (targetPrice === null && targetDropPct === null) return { ok: false, error: "no_condition" };
 
-  const token = randomUUID();
-  await sql`
+  const unsubToken = randomUUID();
+  const confirmToken = randomUUID();
+  const [row] = (await sql`
     INSERT INTO price_watches
-      (email, product_url, domain, target_price, target_drop_pct, base_price, currency, active, unsub_token)
+      (email, product_url, domain, target_price, target_drop_pct, base_price, currency, active, confirmed, unsub_token, confirm_token)
     VALUES
       (${input.email}, ${input.productUrl}, ${product.domain ?? ""}, ${targetPrice}, ${targetDropPct},
-       ${basePrice.toFixed(2)}, ${currency}, true, ${token})
+       ${basePrice.toFixed(2)}, ${currency}, true, false, ${unsubToken}, ${confirmToken})
     ON CONFLICT (email, product_url) DO UPDATE SET
       target_price    = EXCLUDED.target_price,
       target_drop_pct = EXCLUDED.target_drop_pct,
       base_price      = EXCLUDED.base_price,
       currency        = EXCLUDED.currency,
       active          = true,
-      unsub_token     = COALESCE(price_watches.unsub_token, EXCLUDED.unsub_token)
-  `;
-  return { ok: true, basePrice, currency, unsubToken: token };
+      unsub_token     = COALESCE(price_watches.unsub_token, EXCLUDED.unsub_token),
+      confirm_token   = COALESCE(price_watches.confirm_token, EXCLUDED.confirm_token)
+    RETURNING confirmed, confirm_token
+  `) as any[];
+
+  return {
+    ok: true,
+    basePrice,
+    currency,
+    confirmed: row?.confirmed === true,
+    confirmToken: row?.confirm_token ?? confirmToken,
+  };
+}
+
+/** Potvrdenie watchu (double opt-in, §23). Vráti true ak sa niečo potvrdilo. */
+export async function confirmWatchByToken(token: string, sqlClient?: SqlClient): Promise<boolean> {
+  if (!token) return false;
+  const sql = sqlClient ?? getDb();
+  const rows = (await sql`
+    UPDATE price_watches SET confirmed = true WHERE confirm_token = ${token} AND NOT confirmed RETURNING id
+  `) as any[];
+  return rows.length > 0;
 }
 
 /** Odhlásenie watchu podľa tokenu (§23). Vráti true ak sa niečo deaktivovalo. */

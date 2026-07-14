@@ -40,7 +40,11 @@ export default function PriceWatchForm({ productUrl, currency = "EUR" }: Props) 
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         setState("ok");
-        setMsg(`Hotovo! Upozorníme ťa emailom, keď cena klesne na ${target} ${symbol} alebo nižšie.`);
+        setMsg(
+          data.status === "active"
+            ? `Hotovo! Upozorníme ťa emailom, keď cena klesne na ${target} ${symbol} alebo nižšie.`
+            : `Skoro hotovo! Poslali sme ti potvrdzovací email — klikni v ňom na odkaz a začneme sledovať cenu (${target} ${symbol}).`
+        );
       } else {
         setState("error");
         setMsg(data.error === "product_not_found" ? "Produkt sa nenašiel." : "Nepodarilo sa uložiť sledovanie.");

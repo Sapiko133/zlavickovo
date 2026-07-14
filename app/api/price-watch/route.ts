@@ -1,7 +1,9 @@
 import { createOrUpdateWatch } from "@/lib/heureka/price-watch";
-import { isValidEmail } from "@/lib/email";
+import { isValidEmail, sendEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+const BASE = "https://www.zlavickovo.sk";
 
 /**
  * Vytvorenie sledovania ceny (§16). Verejný endpoint — používateľ zadá email +
@@ -53,8 +55,28 @@ export async function POST(req: Request) {
       const status = result.error === "product_not_found" ? 404 : 400;
       return Response.json({ ok: false, error: result.error }, { status });
     }
-    // Token sa NEVRACIA klientovi — slúži len do odhlasovacích odkazov v emaili.
-    return Response.json({ ok: true, basePrice: result.basePrice, currency: result.currency });
+
+    // Double opt-in (§23 súhlas, §27): watch je aktívny až po potvrdení. Ak už bol
+    // potvrdený (opätovné uloženie), nepýtame potvrdenie znovu.
+    if (!result.confirmed) {
+      const confirmUrl = `${BASE}/api/price-watch/confirm?token=${encodeURIComponent(result.confirmToken)}`;
+      await sendEmail({
+        to: email,
+        subject: "Potvrď sledovanie ceny na Zľavičkovo",
+        text:
+          `Ahoj,\n\nchceš dostať upozornenie, keď cena tohto produktu klesne. Potvrď prosím ` +
+          `sledovanie kliknutím na odkaz:\n\n${confirmUrl}\n\n` +
+          `Ak si o sledovanie nežiadal/a, tento email ignoruj — bez potvrdenia ti nič nepošleme.`,
+      });
+    }
+
+    // Tokeny sa NEVRACAJÚ klientovi — slúžia len do odkazov v emaili.
+    return Response.json({
+      ok: true,
+      status: result.confirmed ? "active" : "pending_confirmation",
+      basePrice: result.basePrice,
+      currency: result.currency,
+    });
   } catch (err: any) {
     return Response.json({ ok: false, error: "server_error" }, { status: 500 });
   }
