@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 // Bezpečné hranice pre verejné query parametre. retentionDays NIE je verejne
-// nastaviteľný — produkčná retencia ostáva pevných 120 dní (§27 bezpečnosť:
+// nastaviteľný — produkčná retencia ostáva pevných 30 dní (§27 bezpečnosť:
 // interné endpointy nesmú byť zneužiteľné na manipuláciu dát).
 const BATCH_SIZE_MIN = 1_000;
 const BATCH_SIZE_MAX = 50_000;

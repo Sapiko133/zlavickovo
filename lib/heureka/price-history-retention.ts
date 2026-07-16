@@ -2,9 +2,11 @@ import { getDb } from "@/lib/db";
 
 type SqlClient = ReturnType<typeof getDb>;
 
-// Produkčná retencia cenovej histórie. História rastie ~87 000 riadkov/deň,
-// takže staré snapshoty treba mazať, inak tabuľka neobmedzene rastie.
-export const RETENTION_DAYS = 120;
+// Produkčná retencia cenovej histórie. História rastie ~90 000 riadkov/deň,
+// takže staré snapshoty treba mazať, inak tabuľka neobmedzene rastie. Znížené
+// zo 120 na 30 dní (2026-07-16) — pri Neon 512 MB strope bola 120d retencia
+// priveľa (~10M riadkov strop). 30 dní stačí na cenové trendy [[neon-db-storage]].
+export const RETENTION_DAYS = 30;
 
 // Postgres nemá DELETE ... LIMIT, preto mažeme po bezpečných dávkach cez id
 // subquery. Jedna dávka = jeden HTTP round-trip na Neon; menšie dávky = kratšie

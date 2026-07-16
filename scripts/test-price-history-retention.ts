@@ -195,7 +195,7 @@ async function run() {
     assert.equal(stats.distinctDays, 1);
     assert.equal(stats.latestRecordedDay, "2026-07-12");
     assert.equal(stats.latestDayRows, 87404);
-    assert.equal(stats.rowsOlderThan120Days, 0);
+    assert.equal(stats.rowsOlderThanRetention, 0);
     assert.equal(stats.last7Days.length, 1);
     assert.equal(stats.last7Days[0].rows, 87404);
   }

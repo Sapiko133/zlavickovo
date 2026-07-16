@@ -114,13 +114,13 @@ export interface PriceHistoryStats {
   newestRecordedAt: string | null;
   latestRecordedDay: string | null;
   latestDayRows: number;
-  rowsOlderThan120Days: number;
+  rowsOlderThanRetention: number;
   // Približný rast: počet riadkov za posledných 7 recorded_day (vzostupne).
   last7Days: PriceHistoryDailyRows[];
 }
 
 // Rovnaká retenčná hranica ako v price-history-retention (monitoring meria backlog).
-const RETENTION_DAYS = 120;
+const RETENTION_DAYS = 30;
 
 /**
  * Read-only agregovaná štatistika cenovej histórie pre admin monitoring.
@@ -177,7 +177,7 @@ export async function getPriceHistoryStats(
     newestRecordedAt: toIso(agg?.newest_recorded_at ?? null),
     latestRecordedDay: toIso(agg?.latest_recorded_day ?? null),
     latestDayRows: Number(agg?.latest_day_rows ?? 0),
-    rowsOlderThan120Days: Number(agg?.rows_older_than_retention ?? 0),
+    rowsOlderThanRetention: Number(agg?.rows_older_than_retention ?? 0),
     last7Days: daily.map((d) => ({ day: d.day, rows: Number(d.rows) })),
   };
 }
