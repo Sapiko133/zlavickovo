@@ -919,6 +919,59 @@ const _FEEDS: StaticFeedDef[] = [
     category: "sport",
     affiliateUrl: null,
   },
+  // ===== Affial CSV recovery + pattern discovery 2026-07-16 (scripts/discover-affial-feeds.ts) =====
+  // 2. kolo s reálnymi limitmi importu (60 s / 60 MB): recovered false-negatívy
+  // (irisimo/beldasport/designpropaganda) + štandardné Heureka cesty pre obchody,
+  // ktorých CSV URL 404/timeout/zlý formát.
+  {
+    id: "irisimo-sk",
+    url: "https://www.irisimo.sk/export/heureka",
+    domain: "irisimo.sk",
+    category: "moda",
+    affiliateUrl: null,
+  },
+  {
+    id: "designpropaganda-cz",
+    url: "https://www.designpropaganda.cz/heurekacz.xml",
+    domain: "designpropaganda.cz",
+    category: "byvanie",
+    affiliateUrl: "https://www.designpropaganda.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=20a6b859",
+  },
+  {
+    id: "beldasport-cz",
+    url: "https://www.beldasport.cz/heureka/export/products.xml",
+    domain: "beldasport.cz",
+    category: "sport",
+    affiliateUrl: null,
+  },
+  {
+    id: "eshopmania-cz",
+    url: "https://www.eshopmania.cz/heureka/export/products.xml",
+    domain: "eshopmania.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "herbavia-cz",
+    url: "https://www.herbavia.cz/heureka/export/products.xml",
+    domain: "herbavia.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "decohouse-cz",
+    url: "https://www.decohouse.cz/heureka/export/products.xml",
+    domain: "decohouse.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "clovecinahra-cz",
+    url: "https://www.clovecinahra.cz/heureka/export/products.xml",
+    domain: "clovecinahra.cz",
+    category: "ine",
+    affiliateUrl: null,
+  },
 ];
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
