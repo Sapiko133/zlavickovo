@@ -742,6 +742,183 @@ const _FEEDS: StaticFeedDef[] = [
     category: "hobby",
     affiliateUrl: null,
   },
+  // ===== Affial CSV export 2026-07-16 (24 feedov, validované scripts/validate-affial-feeds.ts) =====
+  // Vyradené: alkohol (drinkcentrum.*), vape (vaporism.cz), elektrické obojky pre psy,
+  // zahraničné trhy (.hu/.pl), 404/timeout/nepodporovaný formát feedy.
+  // zdravie
+  {
+    id: "namaximum-cz",
+    url: "https://greenmedical.venalio.com/feeds/heureka?websiteLanguageId=2&secretKey=6rh8m9v0idfjbx4jhdkw7n4wo4wi75y1rt70y12x",
+    domain: "namaximum.cz",
+    category: "zdravie",
+    affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fnamaximum.cz%2F",
+  },
+  {
+    id: "namaximum-sk",
+    url: "https://greenmedical.venalio.com/feeds/heureka?websiteLanguageId=1&secretKey=gfcqk793m9iifpodwnssfh9s7sdnfqryy2zshrfw",
+    domain: "namaximum.sk",
+    category: "zdravie",
+    affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fnamaximum.sk%2F",
+  },
+  {
+    id: "chiashake-cz",
+    url: "https://www.chiashake.cz/feed-heureka-2lkmu0rfo9.xml",
+    domain: "chiashake.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "chiashake-sk",
+    url: "https://www.chiashake.sk/feed-heureka-2lkmu0rfo9.xml",
+    domain: "chiashake.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "mixslim-cz",
+    url: "https://www.mixslim.cz/feed-heureka-2lkmu0rfo9.xml",
+    domain: "mixslim.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "mixslim-sk",
+    url: "https://www.mixslim.sk/feed-heureka-2lkmu0rfo9.xml",
+    domain: "mixslim.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "powerlogy-cz",
+    url: "https://powerlogy.cz/wp-content/uploads/wpallexport/exports/d35fe88e772017e42c6beccdc8137dea/current-CRON-heureka-xml-feed.xml",
+    domain: "powerlogy.cz",
+    category: "zdravie",
+    affiliateUrl: "https://powerlogy.cz/?utm_medium=affiliate&utm_campaign=affial.com&utm_source=pap&a_aid=6202d95ce406b&a_bid=98b6eb54",
+  },
+  {
+    id: "skinny-cz",
+    url: "https://www.skinny.cz/heureka/export/products.xml",
+    domain: "skinny.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "paleomarket-cz",
+    url: "https://paleomarket.cz/wp-content/xml/heureka_1.xml",
+    domain: "paleomarket.cz",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "vianutra-sk",
+    url: "https://vianutra.com/wp-content/uploads/xml/heureka_1.xml",
+    domain: "vianutra.sk",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "simplymix-com",
+    url: "https://www.simplymix.com/heureka/export/products.xml",
+    domain: "simplymix.com",
+    category: "zdravie",
+    affiliateUrl: null,
+  },
+  {
+    id: "neohack-sk",
+    url: "https://storage.feedyio.com/neohack.myshopify.com/671212466f8a0b6c4bb94f68.xml",
+    domain: "neohack.sk",
+    category: "zdravie",
+    affiliateUrl: "https://login.affial.com/scripts/click.php?a_aid=6202d95ce406b&desturl=https%3A%2F%2Fwww.neohack.sk%2F",
+  },
+  {
+    id: "raciolka-cz",
+    url: "https://www.raciolka.cz/data-xml/modul-heureka/heureka-read.php?shop=1&type=productscz&token=d450d47880",
+    domain: "raciolka.cz",
+    category: "zdravie",
+    affiliateUrl: "https://login.affial.com/scripts/8m338kc?a_aid=6202d95ce406b&a_bid=3843b610",
+  },
+  // krasa
+  {
+    id: "wetyzo-cz",
+    url: "https://www.wetyzo.cz/heureka/export/products.xml",
+    domain: "wetyzo.cz",
+    category: "krasa",
+    affiliateUrl: null,
+  },
+  // byvanie
+  {
+    id: "kreativnastena-sk",
+    url: "https://kreativnastena.sk/erp/impexp/specialexport/heureka/",
+    domain: "kreativnastena.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "remoska-eu",
+    url: "https://shop.remoska.eu/heureka/export/products.xml",
+    domain: "remoska.eu",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "drevona-sk",
+    url: "https://feeds.mergado.com/drevona-sk-heureka-sk-2-11827febc2dd0115753d06ae58e8140f.xml",
+    domain: "drevona.sk",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  {
+    id: "fotoobrazyzplatna-cz",
+    url: "https://www.fotoobrazyzplatna.cz/export/heureka.xml?lang=cs",
+    domain: "fotoobrazyzplatna.cz",
+    category: "byvanie",
+    affiliateUrl: null,
+  },
+  // deti
+  {
+    id: "dadaboom-cz",
+    url: "https://www.dadaboom.cz/feed-heureka-tl7hkzvm56.xml",
+    domain: "dadaboom.cz",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  {
+    id: "ponnie-eu",
+    url: "https://www.ponnie.eu/cz/feed-heureka-6cnf7vmpez.xml",
+    domain: "ponnie.eu",
+    category: "deti",
+    affiliateUrl: null,
+  },
+  // ine
+  {
+    id: "jshop-cz",
+    url: "https://www.jshop.cz/xml/heureka2.xml",
+    domain: "jshop.cz",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  {
+    id: "24365-cz",
+    url: "https://feeds.mergado.com/sapro-heureka-cz-produktovy-cz-1-a5e24c5f285390452ffb508ce6d1fd59.xml",
+    domain: "24365.cz",
+    category: "ine",
+    affiliateUrl: null,
+  },
+  // sport
+  {
+    id: "florbal4u-com",
+    url: "https://feeds.mergado.com/florbal4u-com-heureka-sk-2-3c5da768a57cc465690aa1463fdda2b1.xml",
+    domain: "florbal4u.com",
+    category: "sport",
+    affiliateUrl: null,
+  },
+  {
+    id: "florbal4u-cz",
+    url: "https://feeds.mergado.com/florbal4u-cz-heureka-cz-33d6ee3fba451e6099fb745aa90dce25.xml",
+    domain: "florbal4u.cz",
+    category: "sport",
+    affiliateUrl: null,
+  },
 ];
 
 export const HEUREKA_FEEDS: HkFeedDef[] = _FEEDS.map((f) => ({
