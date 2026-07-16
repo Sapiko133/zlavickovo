@@ -61,6 +61,18 @@ function createMockSql(log: RecordedQuery[], store: SnapshotStore) {
     const text = strings.join("$?");
     log.push({ text, values });
 
+    // Posledná cena produktu (snapshot-len-pri-zmene): vráť z aktuálneho store.
+    if (text.includes("DISTINCT ON (product_url)")) {
+      const urls = (values[0] as string[]) ?? [];
+      const latest = new Map<string, string>();
+      for (const r of store.rows) {
+        if (urls.includes(r.url)) latest.set(r.url, r.price); // insert-order → posledná vyhrá
+      }
+      return Promise.resolve(
+        [...latest.entries()].map(([product_url, price]) => ({ product_url, price: Number(price) }))
+      );
+    }
+
     if (text.includes("INSERT INTO product_price_history")) {
       const urls = values[0] as string[];
       const prices = values[3] as string[];
@@ -200,6 +212,25 @@ async function run() {
 
     assert.equal(store.rows.length, 1, "ON CONFLICT DO NOTHING — jeden riadok na deň");
     assert.equal(store.rows[0].price, "19.90", "zachovaná PRVÁ cena dňa");
+  }
+
+  // E2. snapshot LEN pri zmene ceny: nezmenená cena → žiadny INSERT dotaz
+  {
+    const store = createSnapshotStore();
+    const f = feed();
+
+    const log1: RecordedQuery[] = [];
+    await recordPriceSnapshots(createMockSql(log1, store), f, [product("https://test.sk/chg", "10.00")]);
+    assert.equal(snapshotInserts(log1).length, 1, "prvý snapshot sa zapíše (bez histórie)");
+    assert.equal(store.rows.length, 1);
+
+    const log2: RecordedQuery[] = [];
+    await recordPriceSnapshots(createMockSql(log2, store), f, [product("https://test.sk/chg", "10.00")]);
+    assert.equal(snapshotInserts(log2).length, 0, "nezmenená cena → žiadny INSERT dotaz");
+
+    const log3: RecordedQuery[] = [];
+    await recordPriceSnapshots(createMockSql(log3, store), f, [product("https://test.sk/chg", "12.50")]);
+    assert.equal(snapshotInserts(log3).length, 1, "zmenená cena → nový INSERT dotaz");
   }
 
   // ── READ: getProductPriceStats ──

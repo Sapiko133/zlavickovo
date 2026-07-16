@@ -8,9 +8,9 @@ interface ProductPriceHistoryProps {
 }
 
 /**
- * Produktový detail V1 — Cenová história (90 dní).
- * Renderuje LEN aktuálnu cenu, 90-dňové minimum, maximum a pokles od maxima.
- * Graf a priebeh cien (points[]) sú odložené do V2.
+ * Produktový detail V1 — Cenová história (30 dní).
+ * Renderuje LEN aktuálnu cenu, 30-dňové minimum, maximum a pokles od maxima.
+ * Kompletný graf vývoja ceny naprieč trhom poskytuje Heureka (HeurekaPriceChart).
  * Zobrazí sa iba ak existuje štatistika (≥2 snapshoty) — inak vráti null.
  */
 export default function ProductPriceHistory({ stats, domain }: ProductPriceHistoryProps) {
@@ -38,7 +38,7 @@ export default function ProductPriceHistory({ stats, domain }: ProductPriceHisto
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
         <div style={{ fontSize: 13, fontWeight: 800, color: T.textPrimary }}>
-          📊 Cenová história (90 dní)
+          📊 Cenová história (30 dní)
         </div>
         {hasDrop && (
           <span
@@ -62,11 +62,11 @@ export default function ProductPriceHistory({ stats, domain }: ProductPriceHisto
           <div style={{ fontSize: 15, color: T.textPrimary, fontWeight: 900 }}>{current}</div>
         </div>
         <div style={{ background: T.bgAlt, borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, marginBottom: 4 }}>Min. za 90 dní</div>
+          <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, marginBottom: 4 }}>Min. za 30 dní</div>
           <div style={{ fontSize: 15, color: T.greenDark, fontWeight: 900 }}>{min}</div>
         </div>
         <div style={{ background: T.bgAlt, borderRadius: 10, padding: "10px 12px" }}>
-          <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, marginBottom: 4 }}>Max. za 90 dní</div>
+          <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 700, marginBottom: 4 }}>Max. za 30 dní</div>
           <div style={{ fontSize: 15, color: T.textPrimary, fontWeight: 900 }}>{max}</div>
         </div>
       </div>

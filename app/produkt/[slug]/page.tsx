@@ -20,6 +20,7 @@ import { outboundClickType } from "@/lib/outbound-ui";
 import type { HkProduct } from "@/lib/heureka/types";
 import { getProductPriceStats } from "@/lib/heureka/price-history";
 import ProductPriceHistory from "@/components/ProductPriceHistory";
+import HeurekaPriceChart from "@/components/HeurekaPriceChart";
 import PriceWatchForm from "@/components/PriceWatchForm";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getOffersByExactDomain, exactDomainKey, type ExactDomainOffer } from "@/lib/shop-offers";
@@ -399,8 +400,16 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
               </div>
             )}
 
-            {/* Cenová história (V1) — zobrazí sa len pri ≥2 snapshotoch */}
+            {/* Cenová história (V1) — naše min/max za 30 dní, len pri ≥2 snapshotoch */}
             <ProductPriceHistory stats={priceStats} domain={product.domain} />
+
+            {/* Kompletný graf vývoja ceny → Heureka (monetizované, §17/§33) */}
+            <HeurekaPriceChart
+              ean={product.ean}
+              name={product.name}
+              productSlug={slug}
+              shopSlug={shopSlug}
+            />
 
             {/* Sledovanie ceny (§16) — upozornenie emailom pri poklese */}
             <PriceWatchForm

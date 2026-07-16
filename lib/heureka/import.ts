@@ -704,10 +704,14 @@ async function upsertProducts(
 }
 
 /**
- * Denný snapshot cien do product_price_history. Volá sa LEN pre reálne
- * naimportované produkty full/retry behu (nie audit, nie truncated/empty).
+ * Snapshot cien do product_price_history — LEN PRI ZMENE CENY. Volá sa LEN pre
+ * reálne naimportované produkty full/retry behu (nie audit, nie truncated/empty).
  *
  * Pravidlá:
+ *  - snapshot sa zapíše iba ak sa cena LÍŠI od posledného zaznamenaného snapshotu
+ *    produktu (alebo produkt históriu nemá) — nie denne pre všetkých ~165k
+ *    produktov. Šetrí ~95 % zápisov (Neon storage/compute); plný graf vývoja
+ *    ceny naprieč trhom aj tak poskytuje Heureka (PROJECT_VISION §17, §33),
  *  - jeden snapshot na produkt (dedup podľa url v rámci feedu),
  *  - cena musí byť parsovateľná a > 0, mena spoľahlivo EUR/CZK — inak sa
  *    snapshot nezapíše (žiadne fiktívne ceny, PROJECT_VISION §17),
@@ -733,15 +737,34 @@ export async function recordPriceSnapshots(
   }
   if (byUrl.size === 0) return;
 
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   const entries = Array.from(byUrl.entries());
   for (let i = 0; i < entries.length; i += DB_BATCH_SIZE) {
     const chunk = entries.slice(i, i + DB_BATCH_SIZE);
-    const urls = chunk.map(([url]) => url);
-    const domains = chunk.map(() => feed.domain);
-    const feedSlugs = chunk.map(() => feed.id);
-    const prices = chunk.map(([, v]) => v.price.toFixed(2));
-    const currencies = chunk.map(([, v]) => v.currency);
-    const sources = chunk.map(() => "heureka");
+    const chunkUrls = chunk.map(([url]) => url);
+
+    // Posledná zaznamenaná cena každého produktu v chunku — snapshot zapíšeme
+    // LEN ak sa cena zmenila. Používa index (product_url, recorded_day).
+    const lastRows = (await sql`
+      SELECT DISTINCT ON (product_url) product_url, price::float8 AS price
+      FROM product_price_history
+      WHERE product_url = ANY(${chunkUrls}::text[])
+      ORDER BY product_url, recorded_day DESC, recorded_at DESC
+    `) as { product_url: string; price: number }[];
+    const lastByUrl = new Map(lastRows.map((r) => [r.product_url, round2(r.price)]));
+
+    const changed = chunk.filter(([url, v]) => {
+      const last = lastByUrl.get(url);
+      return last === undefined || last !== round2(v.price);
+    });
+    if (changed.length === 0) continue;
+
+    const urls = changed.map(([url]) => url);
+    const domains = changed.map(() => feed.domain);
+    const feedSlugs = changed.map(() => feed.id);
+    const prices = changed.map(([, v]) => v.price.toFixed(2));
+    const currencies = changed.map(([, v]) => v.currency);
+    const sources = changed.map(() => "heureka");
 
     await sql`
       INSERT INTO product_price_history (product_url, domain, feed_slug, price, currency, source)

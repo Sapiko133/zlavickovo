@@ -20,7 +20,9 @@ export interface PriceDrop {
 // akceptuj len poklesy v rozumnom rozsahu a s nenulovou cieľovou cenou.
 const MIN_DROP_PCT = 5;
 const MAX_DROP_PCT = 90;
-const WINDOW_DAYS = 90;
+// Zosúladené s retenciou (30 dní) — staršie snapshoty cleanup maže, okno nesmie
+// sľubovať dáta, ktoré v tabuľke nie sú.
+const WINDOW_DAYS = 30;
 
 /**
  * Najväčšie poklesy cien pre jednu doménu obchodu.
