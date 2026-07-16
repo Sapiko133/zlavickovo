@@ -584,14 +584,7 @@ function closeTruncatedXml(xml: string): string {
 async function fetchXml(url: string, modeConfig: HeurekaImportModeConfig): Promise<FetchXmlResult> {
   const res = await fetch(url, {
     signal: AbortSignal.timeout(modeConfig.feedTimeoutMs),
-    // Prehliadačový User-Agent — niektoré feed servery (irisimo.sk, jshop.cz)
-    // blokujú non-browser UA / datacenter IP a vracajú 403 alebo HTML bot-challenge
-    // (unsupported_format). Browser UA býva najčastejší fix.
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      Accept: "application/xml,text/xml,*/*",
-    },
+    headers: { "User-Agent": "Zlavickovo/1.0 (+https://zlavickovo.sk)" },
     next: { revalidate: 0 },
   });
 
