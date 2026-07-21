@@ -41,8 +41,13 @@ function domainFromUrl(url: string): string {
   }
 }
 
+const SUBDOMAIN_PREFIXES = new Set(["www", "obchod", "shop", "eshop", "e-shop", "m", "store", "sk", "cz", "eu"]);
+
 function nameFromDomain(domain: string): string {
-  const base = domain.replace(/^www\./, "").split(".")[0].replace(/-/g, " ");
+  const parts = domain.replace(/^www\./, "").split(".");
+  // odstráň subdoménové prefixy (obchod.itcomplet.sk → itcomplet, shop.festina.sk → festina)
+  while (parts.length > 2 && SUBDOMAIN_PREFIXES.has(parts[0])) parts.shift();
+  const base = (parts[0] || domain).replace(/-/g, " ");
   return base.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
