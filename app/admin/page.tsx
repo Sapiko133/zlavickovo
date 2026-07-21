@@ -41,8 +41,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const SECTIONS = [
+    { href: "/admin/clanky",    icon: "📝", title: "Články",           desc: "Auto výpredaje + manuálne články, publikovať/skryť" },
     { href: "/admin/featured",  icon: "⭐", title: "Featured obchody", desc: "Správa odporúčaných obchodov na hlavnej stránke" },
-    { href: "/admin/kupony",    icon: "🏷️", title: "Kupóny",           desc: "Prehľad aktívnych kupónov z Dognet a Affial" },
+    { href: "/admin/kupony",    icon: "🏷️", title: "Kupóny",           desc: "Sieťové + manuálne kupóny obchodov" },
     { href: "/admin/letaky",    icon: "🗞️", title: "Letáky",           desc: "Správa a prehľad letákov" },
     { href: "/admin/obchody",   icon: "🏪", title: "Obchody",          desc: "Zoznam všetkých obchodov" },
     { href: "/admin/feedy",     icon: "📡", title: "Feed provideri",   desc: "AWIN, Dognet, CJ — správa produktových feedov" },

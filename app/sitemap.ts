@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { getAllKnownShops, getStaticKnownShops } from "@/lib/all-shops";
 import { isAdultShop } from "@/lib/shop-categories";
-import { getAllPosts } from "@/lib/blog";
+import { getPublishedArticles } from "@/lib/articles";
 import { LETAKY } from "@/lib/letaky";
 import { getTopProductIds, toProductSlug } from "@/lib/heureka/query";
 
@@ -57,12 +57,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   let blogUrls: MetadataRoute.Sitemap = [];
   try {
-    const posts = getAllPosts();
-    blogUrls = posts.map(p => ({
-      url: `${BASE}/blog/${p.slug}`,
-      lastModified: new Date(p.date),
-      changeFrequency: "monthly" as const,
-      priority: 0.5,
+    const articles = await getPublishedArticles();
+    blogUrls = articles.map(a => ({
+      url: `${BASE}/blog/${a.slug}`,
+      lastModified: new Date(a.updatedAt || a.date),
+      changeFrequency: a.type === "sale" ? "daily" as const : "monthly" as const,
+      priority: a.type === "sale" ? 0.7 : 0.5,
     }));
   } catch {}
 

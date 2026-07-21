@@ -55,10 +55,11 @@ export default function Nav() {
   const t = useTranslations("nav");
 
   const NAV_LINKS = [
-    { label: t("shops"),   href: "/obchody" },
-    { label: t("coupons"), href: "/kupony" },
     { label: t("leaflets"),href: "/akcie" },
+    { label: t("coupons"), href: "/kupony" },
+    { label: t("shops"),   href: "/obchody" },
     { label: "Letáky",     href: "/letaky" },
+    { label: t("blog"),    href: "/blog" },
   ];
 
   const [menuOpen, setMenuOpen]   = useState(false);

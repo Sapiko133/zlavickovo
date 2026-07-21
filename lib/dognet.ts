@@ -7,6 +7,7 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE, type AkciaType } from "@/lib/akcie";
 import { createShopMatcher } from "@/lib/shop-match";
+import { getManualCouponsByShop } from "@/lib/manual-coupons";
 import { cleanDognetShopName } from "@/lib/shop-name";
 import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
 
@@ -311,8 +312,11 @@ export async function getCouponsByShop(shopName: string) {
       source: "static-akcia" as const,
     }));
 
+  // Manuálne kupóny z adminu (najvyššia priorita — zobrazujú sa vždy)
+  const manual = await getManualCouponsByShop(shopName).catch(() => []);
+
   const seenCodes = new Set(
-    [...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
+    [...manual, ...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)
   );
   const uniqueEhub = ehub.filter(
     (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
@@ -322,7 +326,7 @@ export async function getCouponsByShop(shopName: string) {
     (c: any) => !c.code || !seenCodes.has(c.code.toUpperCase())
   );
 
-  return [...dognet, ...uniqueEhub, ...cj, ...uniqueAffialXml, ...affialStatic, ...staticAkcie];
+  return [...manual, ...dognet, ...uniqueEhub, ...cj, ...uniqueAffialXml, ...affialStatic, ...staticAkcie];
 }
 
 export async function getLatestCoupons(limit = 6) {
