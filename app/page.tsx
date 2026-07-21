@@ -148,6 +148,9 @@ export default async function Home() {
           .home-layout { grid-template-columns: 1fr !important; }
           .home-sidebar { position: static !important; }
         }
+        @media(max-width: 620px) {
+          .article-card-featured { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <Nav />
@@ -181,8 +184,13 @@ export default async function Home() {
           </div>
 
           {articles.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 20 }}>
-              {articles.map((a) => <ArticleCard key={a.slug} article={a} />)}
+            <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+              <ArticleCard article={articles[0]} featured />
+              {articles.length > 1 && (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 22 }}>
+                  {articles.slice(1).map((a) => <ArticleCard key={a.slug} article={a} />)}
+                </div>
+              )}
             </div>
           ) : (
             <div style={{ padding: "48px 24px", textAlign: "center", color: "#9ca3af", background: "#f8f9fa", borderRadius: 16, border: "1px solid #eceff3", fontSize: 14 }}>

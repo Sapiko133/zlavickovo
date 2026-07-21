@@ -169,6 +169,20 @@ async function SaleArticle({ article }: { article: Article }) {
           </TrackedLink>
         )}
 
+        {/* Obsah článku */}
+        {article.content && (
+          <>
+            <style>{`
+              .sale-body h2 { font-size: 22px; font-weight: 800; margin: 32px 0 12px; letter-spacing: -0.3px; color: #1d1d1f; }
+              .sale-body p  { font-size: 15px; line-height: 1.8; color: #444; margin: 0 0 16px; max-width: 760px; }
+              .sale-body ul { padding-left: 22px; margin: 0 0 18px; max-width: 760px; }
+              .sale-body li { font-size: 15px; line-height: 1.75; color: #444; margin-bottom: 6px; }
+              .sale-body strong { color: #1d1d1f; }
+            `}</style>
+            <div className="sale-body" style={{ marginBottom: 40 }} dangerouslySetInnerHTML={{ __html: article.content }} />
+          </>
+        )}
+
         {/* Product grid */}
         {products.length > 0 && (
           <section style={{ marginBottom: 48 }}>

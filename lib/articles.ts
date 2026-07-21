@@ -1,5 +1,6 @@
 import { redis } from "@/lib/redis";
 import { getAllPosts, type BlogPost } from "@/lib/blog";
+import { STATIC_SALE_ARTICLES } from "@/lib/static-articles";
 
 /**
  * Jednotný článkový systém (merge blog + akcie).
@@ -78,12 +79,16 @@ async function readRedisArticles(): Promise<Article[]> {
   }
 }
 
-/** Všetky články: Redis (sale + manuálne) zlúčené so starými súborovými blog postami. */
+/**
+ * Všetky články, poradie priority (nižšie prepíše vyššie pri zhode slugu):
+ * legacy súborový blog (tip) < kurátorské STATIC_SALE_ARTICLES (sale) < Redis (auto/manuál).
+ */
 export async function getAllArticles(): Promise<Article[]> {
   const redisArticles = await readRedisArticles();
   const bySlug = new Map<string, Article>();
   for (const a of legacyTipArticles()) bySlug.set(a.slug, a);
-  for (const a of redisArticles) bySlug.set(a.slug, a); // Redis prepíše legacy pri zhode slugu
+  for (const a of STATIC_SALE_ARTICLES) bySlug.set(a.slug, a);
+  for (const a of redisArticles) bySlug.set(a.slug, a);
   return Array.from(bySlug.values()).sort((a, b) => b.date.localeCompare(a.date));
 }
 
@@ -98,6 +103,8 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
     const a = await redis.hget<Article>(ARTICLES_KEY, slug);
     if (a && typeof a === "object" && a.slug) return a;
   } catch {}
+  const staticSale = STATIC_SALE_ARTICLES.find((a) => a.slug === slug);
+  if (staticSale) return staticSale;
   const legacy = legacyTipArticles().find((a) => a.slug === slug);
   return legacy ?? null;
 }
