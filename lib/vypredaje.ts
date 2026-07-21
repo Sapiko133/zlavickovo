@@ -1,7 +1,7 @@
 import { buildServerHeurekaSearchUrl } from "@/lib/heureka/affiliate";
 import { getSalesCoupons } from "@/lib/dognet";
 import { dognetCouponToAkcia } from "@/lib/akcie";
-import { STATIC_SALE_ARTICLES } from "@/lib/static-articles";
+import { getPublishedArticles } from "@/lib/articles";
 import { normalizeShopSlug } from "@/lib/slug";
 import type { ClickType } from "@/lib/click-types";
 
@@ -66,21 +66,29 @@ function bigShopItems(): VypredajItem[] {
   }));
 }
 
-function affialItems(): VypredajItem[] {
-  return STATIC_SALE_ARTICLES.map((a) => ({
-    id: `affial-${a.slug}`,
-    shopName: a.shopName || "",
-    domain: a.domain || "",
-    shopSlug: a.shopSlug || normalizeShopSlug(a.shopName || ""),
-    title: a.title,
-    badge: "VÝPREDAJ",
-    hasPct: false,
-    meta: "partnerský obchod",
-    ctaUrl: `/blog/${a.slug}`,
-    external: false,
-    clickType: "action_outbound",
-    source: "affial",
-  }));
+async function articleItems(): Promise<VypredajItem[]> {
+  const articles = await getPublishedArticles("sale").catch(() => []);
+  return articles.map((a) => {
+    const aff = a.affiliateUrl?.startsWith("http") ? a.affiliateUrl : "";
+    const meta = a.validTo
+      ? `platí do ${new Date(a.validTo).toLocaleDateString("sk-SK")}`
+      : "priebežná akcia";
+    return {
+      id: `article-${a.slug}`,
+      shopName: a.shopName || "",
+      domain: a.domain || "",
+      shopSlug: a.shopSlug || normalizeShopSlug(a.shopName || ""),
+      title: a.title,
+      badge: a.discountPct ? `-${a.discountPct}%` : "VÝPREDAJ",
+      hasPct: !!a.discountPct,
+      meta,
+      // priamy affiliate klik ak ho máme, inak interný článok
+      ctaUrl: aff || `/blog/${a.slug}`,
+      external: !!aff,
+      clickType: "action_outbound",
+      source: "affial",
+    };
+  });
 }
 
 async function dognetItems(): Promise<VypredajItem[]> {
@@ -119,14 +127,13 @@ export interface VypredajeData {
 }
 
 export async function getVypredaje(): Promise<VypredajeData> {
-  const dognet = await dognetItems();
+  const [dognet, articles] = await Promise.all([dognetItems(), articleItems()]);
   const big = bigShopItems();
-  const affial = affialItems();
 
-  // Dedup podľa shopSlug (Dognet reálne % má prednosť pred Heureka generickou kartou)
+  // Dedup podľa shopSlug — Dognet (reálne %) > články (scrape/affial) > Heureka veľké obchody
   const seen = new Set<string>();
   const all: VypredajItem[] = [];
-  for (const it of [...dognet, ...affial, ...big]) {
+  for (const it of [...dognet, ...articles, ...big]) {
     const key = it.shopSlug || it.id;
     if (seen.has(key)) continue;
     seen.add(key);

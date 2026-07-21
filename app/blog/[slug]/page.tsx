@@ -136,9 +136,22 @@ async function SaleArticle({ article }: { article: Article }) {
         <h1 style={{ fontSize: "clamp(24px,4vw,38px)", fontWeight: 800, letterSpacing: "-0.6px", lineHeight: 1.15, margin: "0 0 12px" }}>
           {article.title}
         </h1>
-        <p style={{ fontSize: 16, color: "#555", lineHeight: 1.7, margin: "0 0 8px", maxWidth: 760 }}>{article.perex}</p>
-        <div style={{ fontSize: 12, color: "#aaa", marginBottom: 24 }}>
-          Aktualizované {new Date(article.updatedAt).toLocaleDateString("sk-SK")}
+        <p style={{ fontSize: 16, color: "#555", lineHeight: 1.7, margin: "0 0 12px", maxWidth: 760 }}>{article.perex}</p>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700,
+            padding: "5px 12px", borderRadius: 100,
+            background: article.validTo ? "#fff7ed" : "#f0fdf4",
+            color: article.validTo ? "#c2410c" : "#166534",
+            border: `1px solid ${article.validTo ? "#fed7aa" : "#bbf7d0"}`,
+          }}>
+            ⏳ {article.validTo
+              ? `Platí do ${new Date(article.validTo).toLocaleDateString("sk-SK")}`
+              : "Priebežná akcia"}
+          </span>
+          <span style={{ fontSize: 12, color: "#aaa" }}>
+            Aktualizované {new Date(article.updatedAt).toLocaleDateString("sk-SK")}
+          </span>
         </div>
 
         {/* Hero image */}

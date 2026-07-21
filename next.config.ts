@@ -39,6 +39,9 @@ const RENAMED_SHOP_SLUGS: Record<string, string> = {
 };
 
 const nextConfig: NextConfig = {
+  // got-scraping (a jeho deps browserslist/header-generator) nechať ako runtime
+  // require v node_modules — nebundlovať cez webpack (dynamický require).
+  serverExternalPackages: ["got-scraping"],
   outputFileTracingIncludes: {
     "/": ["./public/data/**/*"],
   },

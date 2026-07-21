@@ -80,7 +80,9 @@ export default function ArticleCard({ article, featured = false }: { article: Ar
         <div style={{ fontSize: 13.5, color: "#6b7280", lineHeight: 1.55, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden" }}>{article.perex}</div>
       </div>
       <div style={{ padding: "10px 18px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #f5f5f5" }}>
-        <span style={{ fontSize: 12, color: "#9ca3af" }}>{date}</span>
+        <span style={{ fontSize: 12, color: article.validTo ? "#c2410c" : "#9ca3af", fontWeight: article.validTo ? 700 : 400 }}>
+          {article.validTo ? `⏳ do ${new Date(article.validTo).toLocaleDateString("sk-SK")}` : date}
+        </span>
         <span style={{ fontSize: 13, color: ORANGE_DARK, fontWeight: 700 }}>Čítať →</span>
       </div>
     </a>

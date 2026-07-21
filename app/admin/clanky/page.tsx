@@ -47,21 +47,42 @@ async function removeArticle(formData: FormData) {
   redirect("/admin/clanky");
 }
 
-export default async function AdminClankyPage() {
+export default async function AdminClankyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scraped?: string; aff?: string; heu?: string; scrapeError?: string }>;
+}) {
   await requireAuth();
   const articles = await getAllArticles();
+  const sp = await searchParams;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
       <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 32px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
         <a href="/admin" style={{ color: "#22C55E", textDecoration: "none", fontSize: 13 }}>← Admin</a>
         <span style={{ fontWeight: 700, fontSize: 16 }}>📝 Články</span>
-        <a href="/admin/clanky/novy" style={{ marginLeft: "auto", background: "#22C55E", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>
+        <form action="/api/admin/scrape-vypredaje" method="post" style={{ marginLeft: "auto" }}>
+          <button type="submit" style={{ background: "#F1592A", color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            🔄 Scrapnúť vasekupony.sk
+          </button>
+        </form>
+        <a href="/admin/clanky/novy" style={{ background: "#22C55E", color: "#fff", textDecoration: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 700 }}>
           + Nový článok
         </a>
       </div>
 
       <div style={{ maxWidth: 900, margin: "28px auto", padding: "0 24px" }}>
+        {sp.scraped && (
+          <div style={{ marginBottom: 16, padding: "12px 16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, fontSize: 13, color: "#166534" }}>
+            ✅ Scrape hotový: <strong>{sp.scraped}</strong> výpredajov z vasekupony.sk
+            {sp.aff ? ` (${sp.aff} cez náš affiliate, ${sp.heu ?? 0} cez Heureku)` : ""}.
+          </div>
+        )}
+        {sp.scrapeError && (
+          <div style={{ marginBottom: 16, padding: "12px 16px", background: "#fef2f2", border: "1px solid #fca5a5", borderRadius: 8, fontSize: 13, color: "#dc2626" }}>
+            ⚠️ Scrape zlyhal: {sp.scrapeError}
+          </div>
+        )}
         <div style={{ marginBottom: 14, fontSize: 13, color: "#666" }}>
           Celkom <strong>{articles.length}</strong> článkov
         </div>
