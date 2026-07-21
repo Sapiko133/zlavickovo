@@ -211,14 +211,15 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
     const { name: shopName, slug: shopSlug } = resolveShop(cand.domain, cand.shopName, shopsByDomain);
     if (!shopSlug) continue;
 
+    // Monetizácia: článok vytvor len ak vieme získať REÁLNY affiliate link
+    // (Dognet tracking z kupónu alebo joined program). Bez neho obchod preskoč —
+    // nechceme písať články pre obchody, na ktoré nemáme affiliate.
+    const ctaUrl = cand.ctaUrl || (await getShopAffiliateUrl(shopName).catch(() => null));
+    if (!ctaUrl) continue;
+
     const discountPct = maxDropPct >= 5 ? maxDropPct : cand.discountPct ?? null;
     const slug = `${shopSlug}-vypredaj-${ym}`;
     generatedSlugs.add(slug);
-
-    const ctaUrl =
-      cand.ctaUrl ||
-      (await getShopAffiliateUrl(shopName).catch(() => null)) ||
-      `https://${cand.domain}`;
 
     const image = products.find((p) => p.imgUrl)?.imgUrl;
     const pctLabel = discountPct ? ` – zľavy až -${discountPct}%` : "";
