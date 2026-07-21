@@ -35,7 +35,7 @@ export default async function AkciePage() {
             🏷️ Akcie a výpredaje
           </h1>
           <p style={{ fontSize: 15, color: "#666", margin: 0 }}>
-            Aktuálne výpredaje obchodov so zľavnenými produktmi. Aktualizované automaticky každých 6 hodín.
+            Aktuálne výpredaje obchodov so zľavnenými produktmi. Aktualizované automaticky každý deň.
           </p>
         </div>
       </div>
