@@ -1,4 +1,4 @@
-import { getCoupons, getCouponsByShop } from "@/lib/dognet";
+import { getCoupons, getCouponsByShop, getToken } from "@/lib/dognet";
 import { getEhubCoupons, getEhubShops } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
 
@@ -7,6 +7,31 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const source = searchParams.get("source");
+
+  // Správny feed endpoint: POST /campaigns/feeds/filter
+  if (source === "dognet-feeds") {
+    try {
+      const token = await getToken();
+      const res = await fetch("https://api.app.dognet.com/api/v1/campaigns/feeds/filter?page=1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ "per-page": 5 }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const j = await res.json();
+      const items = j.data ?? j.feeds ?? j ?? [];
+      const first = Array.isArray(items) ? items[0] : items;
+      return Response.json({
+        status: res.status,
+        topKeys: Object.keys(j),
+        total: j.total ?? j.meta?.total ?? (Array.isArray(items) ? items.length : null),
+        itemKeys: first ? Object.keys(first) : [],
+        sample: Array.isArray(items) ? items.slice(0, 5) : items,
+      });
+    } catch (e: any) {
+      return Response.json({ error: e?.message ?? "failed" });
+    }
+  }
 
   if (source === "ehub") {
     const [shops, coupons] = await Promise.all([
