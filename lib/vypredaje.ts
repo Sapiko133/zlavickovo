@@ -83,7 +83,7 @@ async function articleItems(): Promise<VypredajItem[]> {
       hasPct: !!a.discountPct,
       meta,
       // priamy affiliate klik ak ho máme, inak interný článok
-      ctaUrl: aff || `/blog/${a.slug}`,
+      ctaUrl: aff || `/akcie/${a.slug}`,
       external: !!aff,
       clickType: "action_outbound",
       source: "affial",

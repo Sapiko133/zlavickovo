@@ -22,7 +22,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 const BASE = "https://www.zlavickovo.sk";
 const GREEN = "#22C55E";
-const ORANGE_DARK = "#EA580C";
+const GREEN_DARK = "#16A34A";
 
 export async function generateStaticParams() {
   // Statické len legacy/tip články; sale články sa generujú on-demand (ISR).
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${a.title} | Zlavickovo.sk`,
     description: a.perex,
-    alternates: { canonical: `${BASE}/blog/${slug}` },
+    alternates: { canonical: `${BASE}/akcie/${slug}` },
     openGraph: {
       title: a.title,
       description: a.perex,
@@ -98,7 +98,7 @@ async function SaleArticle({ article }: { article: Article }) {
     image: article.imageUrl ? [article.imageUrl] : undefined,
     author: { "@type": "Organization", name: "Zlavickovo" },
     publisher: { "@type": "Organization", name: "Zlavickovo", url: BASE },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${BASE}/blog/${article.slug}` },
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${BASE}/akcie/${article.slug}` },
   };
 
   return (
@@ -125,7 +125,7 @@ async function SaleArticle({ article }: { article: Article }) {
           <ShopFavicon domain={article.domain || ""} name={article.shopName || ""} size={52} />
           <div>
             {article.discountPct ? (
-              <span style={{ display: "inline-block", fontSize: 12, fontWeight: 800, color: "#fff", background: ORANGE_DARK, borderRadius: 100, padding: "3px 12px", marginBottom: 6 }}>
+              <span style={{ display: "inline-block", fontSize: 12, fontWeight: 800, color: "#fff", background: GREEN_DARK, borderRadius: 100, padding: "3px 12px", marginBottom: 6 }}>
                 AŽ -{article.discountPct}%
               </span>
             ) : null}
@@ -240,7 +240,7 @@ async function SaleArticle({ article }: { article: Article }) {
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 18px", letterSpacing: "-0.3px" }}>📰 Ďalšie akcie</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 16 }}>
               {related.map((r) => (
-                <a key={r.slug} href={`/blog/${r.slug}`} className="rel-card"
+                <a key={r.slug} href={`/akcie/${r.slug}`} className="rel-card"
                   style={{ display: "flex", flexDirection: "column", textDecoration: "none", color: "#1d1d1f", background: "#fff", borderRadius: 14, border: "1.5px solid #eceff3", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)", transition: "transform .15s, box-shadow .15s" }}>
                   {r.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -296,7 +296,7 @@ function SaleProductCard({ product, shopSlug, domain }: { product: SaleProduct; 
           ) : (
             <span style={{ fontSize: 12, color: "#aaa" }}>Cena na webe</span>
           )}
-          <div style={{ fontSize: 12, color: ORANGE_DARK, fontWeight: 700, marginTop: 6 }}>Kúpiť →</div>
+          <div style={{ fontSize: 12, color: GREEN_DARK, fontWeight: 700, marginTop: 6 }}>Kúpiť →</div>
         </div>
       </div>
     </TrackedLink>
@@ -304,7 +304,7 @@ function SaleProductCard({ product, shopSlug, domain }: { product: SaleProduct; 
 }
 
 // ─────────────────────────────────────────────────────────────
-// TIP ČLÁNOK — evergreen (pôvodný blog layout)
+// TIP ČLÁNOK — evergreen
 // ─────────────────────────────────────────────────────────────
 async function TipArticle({ article }: { article: Article }) {
   const shopSlug = article.shopName ? normalizeShopSlug(article.shopName) : null;
@@ -351,7 +351,7 @@ async function TipArticle({ article }: { article: Article }) {
           <div style={{ background: "#f9fafb", borderRadius: 16, padding: "20px", border: "1px solid #e5e7eb" }}>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16 }}>Ďalšie články</div>
             {others.map((p) => (
-              <a key={p.slug} href={`/blog/${p.slug}`} style={{ display: "block", padding: "10px 0", borderBottom: "1px solid #e5e7eb", textDecoration: "none" }}>
+              <a key={p.slug} href={`/akcie/${p.slug}`} style={{ display: "block", padding: "10px 0", borderBottom: "1px solid #e5e7eb", textDecoration: "none" }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#1d1d1f", lineHeight: 1.4 }}>{p.title}</div>
               </a>
             ))}

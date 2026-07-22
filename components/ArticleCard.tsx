@@ -44,7 +44,7 @@ export default function ArticleCard({ article, featured = false }: { article: Ar
   // ── Veľká featured karta (hero) ──
   if (featured) {
     return (
-      <a href={`/blog/${article.slug}`} className="article-card article-card-featured"
+      <a href={`/akcie/${article.slug}`} className="article-card article-card-featured"
         style={{ display: "grid", gridTemplateColumns: "minmax(0,42%) 1fr", textDecoration: "none", color: "#1d1d1f", background: "#fff", borderRadius: 18, border: "1.5px solid #eceff3", overflow: "hidden", boxShadow: "0 4px 18px rgba(0,0,0,0.06)", transition: "transform .18s, box-shadow .18s, border-color .15s", minHeight: 240 }}>
         <div style={{ position: "relative", background: "#f8f9fa", minHeight: 220 }}>{badge}{media(240, 64)}</div>
         <div style={{ padding: "26px 28px", display: "flex", flexDirection: "column" }}>
@@ -66,7 +66,7 @@ export default function ArticleCard({ article, featured = false }: { article: Ar
 
   // ── Bežná karta ──
   return (
-    <a href={`/blog/${article.slug}`} className="article-card"
+    <a href={`/akcie/${article.slug}`} className="article-card"
       style={{ display: "flex", flexDirection: "column", textDecoration: "none", color: "#1d1d1f", background: "#fff", borderRadius: 16, border: "1.5px solid #eceff3", overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.05)", transition: "transform .18s, box-shadow .18s, border-color .15s" }}>
       <div style={{ position: "relative", height: 190, background: "#f8f9fa", overflow: "hidden" }}>{badge}{media(190, 48)}</div>
       <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column" }}>

@@ -11,7 +11,6 @@ const LINKS = [
   { label: "Obchody",   href: "/obchody" },
   { label: "Akcie",     href: "/akcie" },
   { label: "Letáky",    href: "/letaky" },
-  { label: "Blog",      href: "/blog" },
 ];
 
 const LEGAL = [

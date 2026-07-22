@@ -1,17 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { buildHeurekaSearchUrl, buildHeurekaUrl } from "@/lib/heureka/affiliate-url";
 
-const HEUREKA_BASE = "https://www.heureka.sk/?h[frm][q]=";
-
-export default function HeurekaSearch({ shopName }: { shopName?: string }) {
+export default function HeurekaSearch({ shopName, heurekaHaffId }: { shopName?: string; heurekaHaffId?: string }) {
   const [query, setQuery] = useState("");
+  const heurekaHomeUrl = buildHeurekaUrl(undefined, { affiliateId: heurekaHaffId ?? null });
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
     const q = query.trim();
     if (!q) return;
-    const url = HEUREKA_BASE + encodeURIComponent(q);
+    const url = buildHeurekaSearchUrl(q, { affiliateId: heurekaHaffId ?? null });
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
@@ -61,7 +61,7 @@ export default function HeurekaSearch({ shopName }: { shopName?: string }) {
 
       <div style={{ marginTop: 10, fontSize: 11, color: "var(--text2)" }}>
         Powered by{" "}
-        <a href="https://www.heureka.sk" target="_blank" rel="noopener noreferrer" style={{ color: "#FF6600", textDecoration: "none", fontWeight: 600 }}>
+        <a href={heurekaHomeUrl} target="_blank" rel="noopener noreferrer" style={{ color: "#FF6600", textDecoration: "none", fontWeight: 600 }}>
           Heureka.sk
         </a>
         {" "}— porovnávač cien

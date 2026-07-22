@@ -47,10 +47,16 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     // aj -cz variant — stránka obchodu deklaruje cs alternate /kupony/[slug]-cz
-    return Object.entries(RENAMED_SHOP_SLUGS).flatMap(([from, to]) => [
+    const shopRedirects = Object.entries(RENAMED_SHOP_SLUGS).flatMap(([from, to]) => [
       { source: `/kupony/${from}`, destination: `/kupony/${to}`, permanent: true },
       { source: `/kupony/${from}-cz`, destination: `/kupony/${to}-cz`, permanent: true },
     ]);
+    // Blog zrušený → články žijú na /akcie/[slug]
+    const blogRedirects = [
+      { source: "/blog", destination: "/akcie", permanent: true },
+      { source: "/blog/:slug", destination: "/akcie/:slug", permanent: true },
+    ];
+    return [...shopRedirects, ...blogRedirects];
   },
 };
 

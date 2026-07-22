@@ -7,9 +7,10 @@ import type { Metadata } from "next";
 
 export const revalidate = 3600;
 
-const ORANGE = "#F1592A";
-const ORANGE_DARK = "#D94418";
-const PINK = "#DB2777";
+// Zelená značka webu (žiadna oranžová téma) — primárna #22C55E, tmavá #16A34A
+const ORANGE = "#22C55E";
+const ORANGE_DARK = "#16A34A";
+const PINK = "#16A34A";
 
 export const metadata: Metadata = {
   title: "Výpredaje v e-shopoch až -80 % | Zlavickovo.sk",
@@ -28,7 +29,7 @@ function Cta({ item, block = false }: { item: VypredajItem; block?: boolean }) {
     padding: "12px 22px", borderRadius: 100,
     background: `linear-gradient(180deg, ${ORANGE} 0%, ${ORANGE_DARK} 100%)`,
     color: "#fff", fontWeight: 800, fontSize: 14, textDecoration: "none",
-    boxShadow: "0 4px 12px rgba(241,89,42,0.30)", whiteSpace: "nowrap",
+    boxShadow: "0 4px 12px rgba(34,197,94,0.30)", whiteSpace: "nowrap",
     width: block ? "100%" : undefined,
   };
   const label = item.external ? "Pozri zľavu →" : "Zobraziť →";
@@ -92,7 +93,7 @@ export default async function VypredajePage() {
       <Nav />
 
       {/* HERO */}
-      <div style={{ background: `linear-gradient(120deg, ${ORANGE_DARK} 0%, ${ORANGE} 60%, #F97316 100%)`, padding: "48px 20px 44px", textAlign: "center", color: "#fff" }}>
+      <div style={{ background: `linear-gradient(120deg, ${ORANGE_DARK} 0%, ${ORANGE} 60%, #4ADE80 100%)`, padding: "48px 20px 44px", textAlign: "center", color: "#fff" }}>
         <h1 style={{ fontSize: "clamp(30px, 5vw, 48px)", fontWeight: 900, margin: "0 0 12px", letterSpacing: "-1px", textShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>Výpredaje</h1>
         <p style={{ fontSize: "clamp(14px, 2vw, 18px)", margin: 0, opacity: 0.95 }}>
           Viac ako {total} overených výpredajov a akcií v e-shopoch — až do -80 %
@@ -144,7 +145,7 @@ export default async function VypredajePage() {
             </div>
           )}
 
-          <div style={{ marginTop: 22, padding: "14px 18px", borderRadius: 10, background: "#fff7ed", border: "1px solid #fed7aa", fontSize: 12, color: "#9a3412" }}>
+          <div style={{ marginTop: 22, padding: "14px 18px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534" }}>
             ℹ️ Ceny a dostupnosť sa môžu meniť. Pri veľkých obchodoch ťa odkaz prevedie na porovnanie cien na Heureke; over si aktuálne podmienky pred nákupom.
           </div>
         </main>

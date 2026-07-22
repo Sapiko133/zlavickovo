@@ -104,7 +104,7 @@ export default async function AdminClankyPage({
                 <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 100, background: a.published ? "#dcfce7" : "#fee2e2", color: a.published ? "#16a34a" : "#dc2626" }}>
                   {a.published ? "publikovaný" : "skrytý"}
                 </span>
-                <a href={`/blog/${a.slug}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, color: "#22C55E", textDecoration: "none" }}>/blog/{a.slug} ↗</a>
+                <a href={`/akcie/${a.slug}`} target="_blank" rel="noreferrer" style={{ marginLeft: "auto", fontSize: 12, color: "#22C55E", textDecoration: "none" }}>/akcie/{a.slug} ↗</a>
               </div>
 
               <form action={updateArticle} style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>

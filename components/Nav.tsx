@@ -59,7 +59,6 @@ export default function Nav() {
     { label: t("coupons"), href: "/kupony" },
     { label: t("shops"),   href: "/obchody" },
     { label: "Letáky",     href: "/letaky" },
-    { label: t("blog"),    href: "/blog" },
   ];
 
   const [menuOpen, setMenuOpen]   = useState(false);

@@ -55,11 +55,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     }));
   } catch {}
 
-  let blogUrls: MetadataRoute.Sitemap = [];
+  let articleUrls: MetadataRoute.Sitemap = [];
   try {
     const articles = await getPublishedArticles();
-    blogUrls = articles.map(a => ({
-      url: `${BASE}/blog/${a.slug}`,
+    articleUrls = articles.map(a => ({
+      url: `${BASE}/akcie/${a.slug}`,
       lastModified: new Date(a.updatedAt || a.date),
       changeFrequency: a.type === "sale" ? "daily" as const : "monthly" as const,
       priority: a.type === "sale" ? 0.7 : 0.5,
@@ -75,10 +75,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE}/kategoria`,     lastModified: new Date(), changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE}/produkty`,      lastModified: new Date(), changeFrequency: "daily",  priority: 0.8 },
 
-    { url: `${BASE}/blog`,          lastModified: new Date(), changeFrequency: "weekly", priority: 0.7 },
     ...categoryUrls,
     ...letakyUrls,
-    ...blogUrls,
+    ...articleUrls,
     ...shopUrls,
     ...productUrls,
   ];
