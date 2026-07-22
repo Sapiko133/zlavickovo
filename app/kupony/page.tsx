@@ -29,18 +29,6 @@ export const metadata: Metadata = {
 
 const PER_PAGE = 24;
 
-const SOURCE_COLORS: Record<string, string> = {
-  dognet: "#0065BD",
-  affial: "#FF6900",
-  ehub: "#00A551",
-};
-
-const SOURCE_LABELS: Record<string, string> = {
-  dognet: "Dognet",
-  affial: "Affial",
-  ehub: "eHub",
-};
-
 const TYPE_LABELS: Record<number, string> = {
   1: "Zľava", 2: "Darček", 3: "Výpredaj", 4: "Iné", 5: "Doprava zdarma",
 };
@@ -66,7 +54,6 @@ function extractDiscount(text: string): number | null {
 }
 
 function CouponGridCard({ c }: { c: UnifiedCoupon }) {
-  const srcColor = SOURCE_COLORS[c.source];
   const expiryStr = c.validTo
     ? new Date(c.validTo).toLocaleDateString("sk-SK", { day: "numeric", month: "numeric", year: "numeric" })
     : null;
@@ -94,13 +81,6 @@ function CouponGridCard({ c }: { c: UnifiedCoupon }) {
               Platí do {expiryStr}
             </div>
           )}
-        </div>
-        {/* Source badge */}
-        <div style={{
-          fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 5,
-          background: `${srcColor}15`, color: srcColor, flexShrink: 0,
-        }}>
-          {SOURCE_LABELS[c.source]}
         </div>
       </div>
 
@@ -320,7 +300,7 @@ export default async function KuponyPage({
                 🎟️ Všetky zľavové kódy a kupóny
               </h1>
               <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
-                {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií` : "Načítavam..."} z Dognet, Affial a eHub partnerov
+                {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií z overených obchodov` : "Načítavam..."}
               </p>
             </div>
           </div>

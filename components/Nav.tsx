@@ -151,6 +151,9 @@ export default function Nav() {
         .nav-cat2:hover,.nav-cat2.open { color:#22C55E;border-bottom-color:#22C55E; }
         .nav-drop-item { transition:background .08s; }
         .nav-drop-item:hover { background:#F0FDF4 !important; }
+        .nav-chip { display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:100px;background:#fff;border:1.5px solid #e5e7eb;color:#1d1d1f;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;transition:border-color .15s,color .15s,background .15s; }
+        .nav-chip:hover { border-color:#22C55E;color:#16A34A;background:#F0FDF4; }
+        @media(max-width:560px){ .nav-chip{padding:8px 14px;font-size:13px;flex:1 1 0;justify-content:center;} }
         @media(max-width:900px){.nav-row2{display:none!important}.nav-hamburger{display:flex!important}.nav-lang-d{display:none!important}}
         @media(min-width:901px){.nav-hamburger{display:none!important}}
         /* Mobil (<768px): Riadok 1 = [Logo] [☰ Menu], Riadok 2 = [Vyhľadávanie] */
@@ -302,6 +305,12 @@ export default function Nav() {
             </button>
             {catOpen && <CatDropdown onClose={() => setCatOpen(false)} />}
           </div>
+        </div>
+
+        {/* ── ROW 3: Rýchle odkazy pod hľadáčikom — VŽDY viditeľné (aj mobil) ── */}
+        <div className="nav-quick" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", borderTop: "1px solid #f2f2f2", background: "#fafafa" }}>
+          <a href="/kupony" className="nav-chip">🎟️ Kupóny</a>
+          <a href="/obchody" className="nav-chip">🏪 Všetky obchody</a>
         </div>
       </nav>
 

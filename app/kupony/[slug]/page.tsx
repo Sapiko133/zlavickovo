@@ -469,7 +469,7 @@ export default async function ShopPage({ params }: Props) {
                 boxShadow: "0 4px 16px rgba(34,197,94,0.12)",
               }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: "#16A34A", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
-                  Partnerský obchod
+                  Prejsť do obchodu
                 </div>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 16 }}>{affialShop.name}</div>
                 <TrackedLink href={affialShop.affiliateUrl} target="_blank" rel="nofollow noopener noreferrer"

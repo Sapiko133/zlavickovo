@@ -128,7 +128,6 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
   const outbound = getOfferOutbound(recommendedOffer ?? product);
   const buyUrl = outbound.url;
   const ctaIsHeureka = outbound.kind === "heureka_fallback";
-  const isMonetized = outbound.monetized;
 
   const recommendedDomain = recommendedOffer?.domain || product.domain;
   const bestPrice = recommendedOffer
@@ -477,7 +476,7 @@ export default async function ProduktPage({ params }: { params: Promise<{ slug: 
             </TrackedLink>
 
             <p style={{ fontSize: 11, color: "#bbb", marginTop: 10, margin: "10px 0 0" }}>
-              {isMonetized ? "Partnerský odkaz · " : ""}Cena overená pri poslednom importe XML feeda
+              Cena overená pri poslednom importe
             </p>
           </div>
         </div>
