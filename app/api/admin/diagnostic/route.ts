@@ -38,6 +38,28 @@ export async function GET(req: Request) {
     } catch (e: any) {
       out.error = e?.message ?? "token failed";
     }
+    // Má kampaň feed/datafeed URL? (per-campaign auto-discovery)
+    try {
+      const token = await getToken();
+      const res = await fetch("https://api.app.dognet.com/api/v1/campaigns/filter?page=1", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ "per-page": 3 }),
+        signal: AbortSignal.timeout(12000),
+      });
+      const j = await res.json();
+      const items = j.data ?? j ?? [];
+      const first = Array.isArray(items) ? items[0] : items;
+      out.campaign = {
+        status: res.status,
+        keys: first ? Object.keys(first) : [],
+        feedLike: first
+          ? Object.entries(first).filter(([k]) => /feed|xml|datafeed|export/i.test(k))
+          : [],
+      };
+    } catch (e: any) {
+      out.campaign = { error: e?.message ?? "failed" };
+    }
     return Response.json(out);
   }
 
