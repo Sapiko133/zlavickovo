@@ -5,6 +5,12 @@ import { getProductsByDomain } from "@/lib/heureka/query";
 import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
 import { getShopAffiliateUrl } from "@/lib/shop-affiliate";
 import { normalizeShopSlug } from "@/lib/slug";
+import { getAffiliateActions } from "@/lib/affiliate-actions";
+import {
+  actionContentHash,
+  buildAffiliateActionPerex,
+  buildSaleSeoContent,
+} from "@/lib/article-seo";
 import {
   getAllArticles,
   saveArticle,
@@ -35,7 +41,16 @@ const SK_MONTHS = [
   "júl", "august", "september", "október", "november", "december",
 ];
 
-function domainFromCampaign(c: any): string {
+interface SaleCouponCandidate {
+  title?: string;
+  name?: string;
+  description?: string;
+  affiliate_link?: string;
+  url?: string;
+  campaign?: { name?: string; url?: string; website_url?: string };
+}
+
+function domainFromCampaign(c: SaleCouponCandidate): string {
   const url = c.campaign?.url ?? c.campaign?.website_url ?? "";
   return String(url)
     .replace(/^https?:\/\/(www\.)?/, "")
@@ -50,7 +65,7 @@ function pctFromText(txt: string): number | null {
   return n >= 5 && n <= 90 ? n : null;
 }
 
-function couponLink(c: any): string {
+function couponLink(c: SaleCouponCandidate): string {
   if (typeof c?.affiliate_link === "string" && c.affiliate_link.startsWith("http")) return c.affiliate_link;
   if (typeof c?.url === "string" && c.url.startsWith("http")) return c.url;
   return "";
@@ -98,7 +113,7 @@ async function collectCandidates(): Promise<Candidate[]> {
 
   // 1. Dognet sale kampane
   try {
-    const sales = await getSalesCoupons(100);
+    const sales = await getSalesCoupons(100) as SaleCouponCandidate[];
     for (const c of sales) {
       const domain = domainFromCampaign(c);
       const shopName = c.campaign?.name || "";
@@ -181,6 +196,7 @@ async function buildProducts(domain: string): Promise<{ products: SaleProduct[];
 
 export interface GenerateResult {
   scannedDomains: number;
+  scannedActions: number;
   created: string[];
   deactivated: string[];
   timestamp: string;
@@ -203,6 +219,45 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
 
   const created: string[] = [];
   const generatedSlugs = new Set<string>();
+  const generatedActionSlugs = new Set<string>();
+
+  // Každá aktuálna affiliate akcia dostane vlastný stabilný detail a SEO obsah.
+  const affiliateActions = await getAffiliateActions().catch(() => []);
+  for (const action of affiliateActions) {
+    const prev = existingBySlug.get(action.articleSlug);
+    const contentHash = actionContentHash(action);
+    generatedActionSlugs.add(action.articleSlug);
+
+    // Nehýb updatedAt ani sitemap lastmod, pokiaľ sa vstupné dáta akcie nezmenili.
+    if (prev?.contentHash === contentHash && prev.published) continue;
+
+    const article: Article = {
+      slug: action.articleSlug,
+      type: "sale",
+      title: action.title.toLocaleLowerCase("sk").includes(action.shopName.toLocaleLowerCase("sk"))
+        ? action.title
+        : `${action.shopName}: ${action.title}`,
+      perex: buildAffiliateActionPerex(action),
+      shopName: action.shopName,
+      domain: action.domain,
+      shopSlug: action.shopSlug,
+      discountPct: action.discountPct,
+      products: prev?.products || [],
+      imageUrl: prev?.imageUrl,
+      affiliateUrl: action.affiliateUrl,
+      date: prev?.date ?? nowIso,
+      updatedAt: nowIso,
+      published: true,
+      source: "auto",
+      validTo: action.validTo,
+      actionKey: action.actionKey,
+      origin: "affiliate-action",
+      contentHash,
+    };
+    article.content = buildSaleSeoContent(article);
+    await saveArticle(article);
+    created.push(article.slug);
+  }
 
   for (const cand of candidates) {
     const { products, maxDropPct } = await buildProducts(cand.domain);
@@ -246,16 +301,22 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
       published: true,
       source: prev?.source === "manual" ? "manual" : "auto",
       validTo: null,
+      origin: "price-drop",
     };
+    article.content = prev?.source === "manual" && prev.content
+      ? prev.content
+      : buildSaleSeoContent(article);
 
     await saveArticle(article);
     created.push(slug);
   }
 
-  // Deaktivuj automatické sale články, ktoré v tomto behu už nekvalifikovali (akcia skončila)
+  // Každý automat deaktivuje iba vlastné články; nezasiahne scrapované ani ručné.
   const deactivated: string[] = [];
   for (const a of existing) {
-    if (a.type === "sale" && a.source === "auto" && a.published && !generatedSlugs.has(a.slug)) {
+    const missingAffiliateAction = a.origin === "affiliate-action" && !generatedActionSlugs.has(a.slug);
+    const missingPriceDrop = a.origin === "price-drop" && !generatedSlugs.has(a.slug);
+    if (a.type === "sale" && a.source === "auto" && a.published && (missingAffiliateAction || missingPriceDrop)) {
       await saveArticle({ ...a, published: false, updatedAt: nowIso, validTo: nowIso });
       deactivated.push(a.slug);
     }
@@ -263,6 +324,7 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
 
   return {
     scannedDomains: candidates.length,
+    scannedActions: affiliateActions.length,
     created,
     deactivated,
     timestamp: nowIso,

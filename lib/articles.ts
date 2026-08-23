@@ -15,6 +15,7 @@ import { STATIC_SALE_ARTICLES } from "@/lib/static-articles";
 const ARTICLES_KEY = "articles";
 
 export type ArticleType = "sale" | "tip";
+export type ArticleOrigin = "affiliate-action" | "price-drop" | "scraped" | "curated";
 
 export interface SaleProduct {
   name: string;
@@ -43,6 +44,9 @@ export interface Article {
   published: boolean;
   source: "auto" | "manual";
   validTo?: string | null;  // akcia skončila → published=false
+  actionKey?: string;       // stabilný kľúč konkrétnej affiliate akcie (sieť:id)
+  origin?: ArticleOrigin;   // ktorý automat udržiava/deaktivuje článok
+  contentHash?: string;     // zabráni prepisu updatedAt, keď sa akcia nezmenila
 }
 
 /** Staré blogové posty (súborové) → Article (type "tip"), read-only. */
