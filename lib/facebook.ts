@@ -41,14 +41,18 @@ function formatValidity(validTo?: string | null): string {
 }
 
 export function buildFacebookCaption(article: Article): string {
-  const pageUrl = `${SITE_URL}/akcie/${encodeURIComponent(article.slug)}`;
+  // Do postu ide výhradne affiliate odkaz (monetizovaný), nie priamy odkaz na obchod.
+  // Fallback na detail akcie iba ak by affiliate odkaz chýbal.
+  const target = article.affiliateUrl?.startsWith("http")
+    ? article.affiliateUrl
+    : `${SITE_URL}/akcie/${encodeURIComponent(article.slug)}`;
   const discount = article.discountPct ? ` Zľava až -${article.discountPct} %.` : "";
   const summary = article.perex.replace(/\s+/g, " ").trim().slice(0, 260);
   return [
     `🔥 ${article.title}`,
     `${summary}${discount}`,
     formatValidity(article.validTo),
-    `👉 Detaily akcie: ${pageUrl}`,
+    `👉 Ušetri tu: ${target}`,
     "#zlavy #akcie #zlavickovo",
   ].join("\n\n");
 }
