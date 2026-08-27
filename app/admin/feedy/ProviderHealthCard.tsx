@@ -1,5 +1,6 @@
 import type { CSSProperties } from "react";
 import type { FeedProviderHealth, HealthMetric, HealthStatus } from "@/lib/feeds/health";
+import ProviderRefreshButton from "./ProviderRefreshButton";
 
 const STATUS_COPY: Record<HealthStatus, { label: string; color: string; bg: string; border: string }> = {
   healthy: { label: "Zdravé", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
@@ -116,6 +117,12 @@ export default function ProviderHealthCard({ provider }: { provider: FeedProvide
           </details>
         ) : null}
       </div>
+
+      {provider.id !== "heureka" ? (
+        <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 16px" }}>
+          <ProviderRefreshButton provider={provider.id} />
+        </div>
+      ) : null}
     </article>
   );
 }

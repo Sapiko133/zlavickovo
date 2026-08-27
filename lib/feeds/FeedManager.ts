@@ -16,6 +16,18 @@ export interface ProviderImportResult {
   error?: string;
 }
 
+export type RefreshableProvider = "dognet" | "affial" | "ehub" | "cj";
+
+const REFRESHABLE_PROVIDERS: readonly RefreshableProvider[] = ["dognet", "affial", "ehub", "cj"];
+
+export function isRefreshableProvider(value: string): value is RefreshableProvider {
+  return (REFRESHABLE_PROVIDERS as readonly string[]).includes(value);
+}
+
+function emptyProviderResult(): ProviderImportResult {
+  return { count: 0, feeds: 0, status: "empty" };
+}
+
 export interface ImportResult {
   dognet: ProviderImportResult;
   affial: ProviderImportResult;
@@ -126,6 +138,44 @@ class FeedManager {
     } catch {}
 
     return result;
+  }
+
+  /**
+   * Obnoví iba jedného providera a zlúči výsledok do posledného import snapshotu
+   * bez prepísania stavu ostatných providerov. Import funkcie zapisujú do cache iba
+   * pri úspechu, takže čiastočné zlyhanie nezmaže poslednú zdravú cache.
+   */
+  async importProvider(provider: RefreshableProvider): Promise<ProviderImportResult> {
+    const importFn = {
+      dognet: importDognetFeeds,
+      affial: importAffialFeeds,
+      ehub: importEhubFeeds,
+      cj: importCjFeeds,
+    }[provider];
+
+    const [settled] = await Promise.allSettled([importFn()]);
+    const providerResult = this.importResult(settled);
+
+    try {
+      const prev = await redis.get<ImportResult>(LAST_IMPORT_KEY);
+      const base: ImportResult = prev ?? {
+        dognet: emptyProviderResult(),
+        affial: emptyProviderResult(),
+        ehub: emptyProviderResult(),
+        cj: emptyProviderResult(),
+        total: 0,
+        timestamp: new Date().toISOString(),
+      };
+      const merged: ImportResult = {
+        ...base,
+        [provider]: providerResult,
+        timestamp: new Date().toISOString(),
+      };
+      merged.total = merged.dognet.count + merged.affial.count + merged.ehub.count + merged.cj.count;
+      await redis.set(LAST_IMPORT_KEY, merged, { ex: 604800 });
+    } catch {}
+
+    return providerResult;
   }
 
 }
