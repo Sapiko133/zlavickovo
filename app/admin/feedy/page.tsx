@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { redis } from "@/lib/redis";
-import { feedManager } from "@/lib/feeds/FeedManager";
+import { getFeedProviderHealth } from "@/lib/feeds/health";
 import { getCustomFeeds } from "@/lib/feeds/AffialDiscovery";
 import AffialFeedSection from "./AffialFeedSection";
+import ProviderHealthCard from "./ProviderHealthCard";
 
 const SESSION_COOKIE = "admin_session";
 const FEEDS_KEY = "feeds:config";
@@ -92,61 +93,91 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
   if (!adminPassword || session !== adminPassword) redirect("/admin");
 
   const sp = await searchParams;
-  const [feeds, stats, customAffialFeeds] = await Promise.allSettled([
+  const [feeds, health, customAffialFeeds] = await Promise.allSettled([
     redis.get<FeedConfig[]>(FEEDS_KEY),
-    feedManager.getStats(),
+    getFeedProviderHealth(),
     getCustomFeeds(),
   ]);
 
   const feedList: FeedConfig[] = (feeds.status === "fulfilled" ? feeds.value : null) ?? [];
-  const feedStats = stats.status === "fulfilled" ? stats.value : null;
-  const lastImport = feedStats?.lastImport;
+  const providerHealth = health.status === "fulfilled" ? health.value : [];
+  const healthError = health.status === "rejected"
+    ? health.reason instanceof Error ? health.reason.message : String(health.reason)
+    : null;
   const affialCustomFeeds = (customAffialFeeds.status === "fulfilled" ? customAffialFeeds.value : null) ?? [];
   const hasLoginCredentials = !!(process.env.AFFIAL_EMAIL && process.env.AFFIAL_PASSWORD);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
-      <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "0 32px", height: 56, display: "flex", alignItems: "center", gap: 12 }}>
+      <style>{`
+        .feed-admin-header {
+          align-items: center;
+          background: #fff;
+          border-bottom: 1px solid #e8e8e8;
+          display: flex;
+          gap: 12px;
+          min-height: 56px;
+          padding: 0 32px;
+        }
+        .feed-import-note { margin-left: auto; }
+        .feed-form { grid-template-columns: 1fr 1fr; }
+        @media (max-width: 640px) {
+          .feed-admin-header {
+            align-items: flex-start;
+            flex-wrap: wrap;
+            padding: 12px 20px;
+          }
+          .feed-import-note {
+            flex-basis: 100%;
+            line-height: 1.5;
+            margin-left: 0;
+          }
+          .feed-page-container { padding-left: 20px !important; padding-right: 20px !important; }
+          .feed-form { grid-template-columns: 1fr !important; }
+          .feed-form-full { grid-column: auto !important; }
+        }
+      `}</style>
+      <div className="feed-admin-header">
         <a href="/admin" style={{ color: "#22C55E", textDecoration: "none", fontSize: 13 }}>← Admin</a>
         <span style={{ fontWeight: 700, fontSize: 16 }}>📡 Feed Management</span>
-        <div style={{ marginLeft: "auto", fontSize: 12, color: "#888" }}>
+        <div className="feed-import-note" style={{ fontSize: 12, color: "#888" }}>
           Import: <code style={{ background: "#f5f5f5", padding: "2px 6px", borderRadius: 4 }}>GET /api/cron/import-feeds</code> s Bearer CRON_SECRET
         </div>
       </div>
 
-      <div style={{ maxWidth: 1000, margin: "24px auto", padding: "0 24px" }}>
+      <div className="feed-page-container" style={{ maxWidth: 1000, margin: "24px auto", padding: "0 24px" }}>
 
         {sp.saved && <div style={{ marginBottom: 16, padding: "12px 16px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, color: "#16A34A", fontSize: 14 }}>✓ Feed uložený.</div>}
         {sp.deleted && <div style={{ marginBottom: 16, padding: "12px 16px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: 8, color: "#DC2626", fontSize: 14 }}>Feed vymazaný.</div>}
 
-        {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 24 }}>
-          {[
-            { label: "Dognet", count: feedStats?.dognet ?? 0, color: "#1d4ed8", bg: "#dbeafe" },
-            { label: "Affial", count: feedStats?.affial ?? 0, color: "#16a34a", bg: "#f0fdf4" },
-            { label: "eHub", count: feedStats?.ehub ?? 0, color: "#FF6B35", bg: "#fff3e0" },
-            { label: "CJ", count: feedStats?.cj ?? 0, color: "#9333ea", bg: "#fdf4ff" },
-            {
-              label: "Posl. import",
-              count: lastImport ? new Date(lastImport.timestamp).toLocaleTimeString("sk-SK", { hour: "2-digit", minute: "2-digit" }) : "–",
-              sub: lastImport ? new Date(lastImport.timestamp).toLocaleDateString("sk-SK") : "nikdy",
-              color: "#555",
-              bg: "#f9fafb",
-            },
-          ].map((s, i) => (
-            <div key={i} style={{ background: "#fff", border: "1px solid #e8e8e8", borderRadius: 10, padding: "14px 16px" }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "#999", marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.count}</div>
-              {"sub" in s && s.sub && <div style={{ fontSize: 11, color: "#aaa" }}>{s.sub}</div>}
-              {"sub" in s ? null : <div style={{ fontSize: 11, color: "#aaa" }}>produktov</div>}
+        <section aria-labelledby="provider-health-title" style={{ marginBottom: 24 }}>
+          <div style={{ alignItems: "end", display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "space-between", marginBottom: 12 }}>
+            <div>
+              <h1 id="provider-health-title" style={{ color: "#0f172a", fontSize: 20, fontWeight: 800, letterSpacing: "-0.02em", margin: 0 }}>
+                Stav dátových zdrojov
+              </h1>
+              <p style={{ color: "#64748b", fontSize: 13, lineHeight: 1.5, margin: "5px 0 0" }}>
+                Nula znamená skutočne prečítanú prázdnu cache. Chýbajúci kľúč alebo chyba sa zobrazujú samostatne.
+              </p>
             </div>
-          ))}
-        </div>
+            <span style={{ color: "#64748b", fontSize: 11 }}>Read-only kontrola pri otvorení stránky</span>
+          </div>
+
+          {healthError ? (
+            <div role="alert" style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, color: "#991b1b", fontSize: 13, marginBottom: 12, padding: "12px 14px" }}>
+              Diagnostiku sa nepodarilo načítať: {healthError}
+            </div>
+          ) : null}
+
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))" }}>
+            {providerHealth.map((provider) => <ProviderHealthCard key={provider.id} provider={provider} />)}
+          </div>
+        </section>
 
         {/* Add feed form */}
         <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e8e8e8", padding: "24px", marginBottom: 24 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 20px" }}>Pridať vlastný feed</h2>
-          <form action={saveFeed} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <form action={saveFeed} className="feed-form" style={{ display: "grid", gap: 14 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 4 }}>Názov *</label>
               <input name="name" required placeholder="Napr. Dognet — Zalando SK" style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8e8", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
@@ -161,7 +192,7 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
                 <option value="cj">CJ</option>
               </select>
             </div>
-            <div style={{ gridColumn: "1 / -1" }}>
+            <div className="feed-form-full" style={{ gridColumn: "1 / -1" }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: "#555", display: "block", marginBottom: 4 }}>URL feedu *</label>
               <input name="url" required placeholder="https://..." style={{ width: "100%", padding: "9px 12px", borderRadius: 8, border: "1px solid #e8e8e8", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box" }} />
             </div>
@@ -244,9 +275,9 @@ export default async function AdminFeedyPage({ searchParams }: { searchParams: P
           )}
         </div>
 
-        <div style={{ marginTop: 16, padding: "14px 16px", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, fontSize: 13, color: "#16A34A" }}>
-          💡 Automatický import prebieha každých 6 hodín cez Vercel Cron (<code>/api/cron/import-feeds</code>).
-          Zahrňuje Dognet, Affial (37 feedov) a eHub (5 datadepo feedov).
+        <div style={{ marginTop: 16, padding: "14px 16px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: 10, fontSize: 13, color: "#1e40af", lineHeight: 1.55 }}>
+          Automatický produktový import je podľa aktuálnej Vercel konfigurácie naplánovaný denne o 06:00 UTC cez <code>/api/cron/import-feeds</code>.
+          Samostatný affiliate coupon refresh beží denne o 00:00 UTC. Cache TTL a cron interval sa ešte musia zosúladiť v nasledujúcom reze.
         </div>
 
         <AffialFeedSection

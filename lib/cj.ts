@@ -1,5 +1,9 @@
 import { redis } from "@/lib/redis";
 import { createShopMatcher } from "@/lib/shop-match";
+import {
+  DAILY_REFRESH_CACHE_TTL_SECONDS,
+  PROCESS_MEMO_TTL_SECONDS,
+} from "@/lib/feeds/cache-policy";
 
 export interface CjCoupon {
   id: string;
@@ -25,11 +29,11 @@ export interface CjShop {
 
 const COUPON_CACHE_KEY = "cj:coupons:v3";
 const SHOP_CACHE_KEY = "cj:shops:v3";
-const CACHE_TTL = 3600;
+const COUPON_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 // Shopy/joined advertiseri sa menia pomaly — dlhší TTL drží joined cache teplú aj
-// medzi dennými behmi refresh cronu. Bez toho vychladla za 1h a read-only
+// medzi dennými behmi refresh cronu. Bez rezervy by read-only
 // cross-check pri Product Feed discovery vracal 503 (joinedAdvertisersUnavailable).
-const SHOP_CACHE_TTL = 86400;
+const SHOP_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 function xmlField(xml: string, tag: string): string {
   return xml.match(new RegExp(`<${tag}>(.*?)</${tag}>`))?.[1]?.trim() ?? "";
@@ -133,7 +137,7 @@ let couponsMemo: { at: number; data: Promise<CjCoupon[]> } | null = null;
 let shopsMemo: { at: number; data: Promise<CjShop[]> } | null = null;
 
 export async function getCjCoupons(): Promise<CjCoupon[]> {
-  if (couponsMemo && Date.now() - couponsMemo.at < CACHE_TTL * 1000) {
+  if (couponsMemo && Date.now() - couponsMemo.at < PROCESS_MEMO_TTL_SECONDS * 1000) {
     return couponsMemo.data;
   }
   const promise = (async () => {
@@ -144,7 +148,7 @@ export async function getCjCoupons(): Promise<CjCoupon[]> {
 
     const coupons = await fetchCjCoupons();
     if (coupons.length > 0) {
-      try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: CACHE_TTL }); } catch {}
+      try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: COUPON_CACHE_TTL }); } catch {}
     }
     return coupons;
   })();
@@ -154,7 +158,7 @@ export async function getCjCoupons(): Promise<CjCoupon[]> {
 }
 
 export async function getCjShops(): Promise<CjShop[]> {
-  if (shopsMemo && Date.now() - shopsMemo.at < CACHE_TTL * 1000) {
+  if (shopsMemo && Date.now() - shopsMemo.at < PROCESS_MEMO_TTL_SECONDS * 1000) {
     return shopsMemo.data;
   }
   const promise = (async () => {
@@ -233,7 +237,7 @@ export async function getJoinedCjAdvertiserIds(): Promise<JoinedCjAdvertisers> {
 export async function importAndCacheCjCoupons(): Promise<number> {
   const coupons = await fetchCjCoupons();
   if (coupons.length > 0) {
-    try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: CACHE_TTL }); } catch {}
+    try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: COUPON_CACHE_TTL }); } catch {}
   }
   return coupons.length;
 }

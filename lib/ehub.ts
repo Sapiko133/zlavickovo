@@ -1,9 +1,10 @@
 import { redis } from "@/lib/redis";
 import { createShopMatcher } from "@/lib/shop-match";
+import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
 
 const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v3"; // v3: + approval filter (len schválené kampane)
-const COUPONS_CACHE_TTL = 86400;
+const COUPONS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 const FETCH_TIMEOUT_MS = 10000;
 // eHub API vracia max 100 poloziek na stranku (perPage limit 1-100, default 50).
 const PER_PAGE = 100;
@@ -204,7 +205,7 @@ export async function fetchEhubShopsDirect(): Promise<EhubShop[]> {
 }
 
 const SHOPS_CACHE_KEY = "ehub:shops:v3"; // v3: + approval filter (len schválené kampane)
-const SHOPS_CACHE_TTL = 86400;
+const SHOPS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 // Read-only: returns cached shops or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 // Market filter sa aplikuje aj pri citani, aby cache nezobrazovala nerelevantne trhy.

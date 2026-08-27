@@ -1,8 +1,7 @@
 import { XMLParser } from "fast-xml-parser";
 import { redis } from "@/lib/redis";
 import { matchesSearchTokens } from "@/lib/search-normalize";
-
-const CACHE_TTL = 21600;
+import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
 
 export interface FeedProduct {
   name: string;
@@ -166,7 +165,7 @@ async function fetchAndCacheFeed(url: string, domain: string, category: string):
     const products = parseXML(xml, domain, category);
     if (products.length > 0) {
       try {
-        await redis.set(cacheKey, products, { ex: CACHE_TTL });
+        await redis.set(cacheKey, products, { ex: DAILY_REFRESH_CACHE_TTL_SECONDS });
       } catch {}
     }
     return products;

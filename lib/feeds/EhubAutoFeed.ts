@@ -1,8 +1,8 @@
 import { redis } from "@/lib/redis";
 import { matchesSearchTokens } from "@/lib/search-normalize";
+import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
 import { XMLParser } from "fast-xml-parser";
 
-const CACHE_TTL = 21600;
 const FEED_IDS_KEY = "ehub:feed_ids";
 
 const EHUB_FEEDS = [
@@ -77,7 +77,7 @@ async function fetchAndCache(feedId: string, feedUrl: string, category: string):
     const xml = await res.text();
     const products = parseXML(xml, category);
     if (products.length > 0) {
-      await redis.set(cacheKey, products, { ex: CACHE_TTL });
+      await redis.set(cacheKey, products, { ex: DAILY_REFRESH_CACHE_TTL_SECONDS });
       await redis.sadd(FEED_IDS_KEY, feedId);
     }
     return products.length;

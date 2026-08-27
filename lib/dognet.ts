@@ -10,6 +10,7 @@ import { createShopMatcher } from "@/lib/shop-match";
 import { getManualCouponsByShop } from "@/lib/manual-coupons";
 import { cleanDognetShopName } from "@/lib/shop-name";
 import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
+import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -75,7 +76,7 @@ export async function getToken(): Promise<string> {
 }
 
 const COUPONS_CACHE_KEY = "dognet:coupons:v3"; // v3: market filter SK/CZ
-const COUPONS_CACHE_TTL = 86400;
+const COUPONS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 async function _fetchDognetCoupons(): Promise<any[]> {
   const t = await getToken();
@@ -154,7 +155,7 @@ export async function refreshDognetCache(): Promise<{ count: number; error?: str
 // voucher, dostane affiliate link zostrojený z homepage kampane. Status 2/3
 // (pending / nie joined) vynechávame — tam by tracking nekreditoval.
 const CAMPAIGNS_CACHE_KEY = "dognet:joined-campaigns:v1";
-const CAMPAIGNS_CACHE_TTL = 86400;
+const CAMPAIGNS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 export interface DognetJoinedCampaign {
   name: string;

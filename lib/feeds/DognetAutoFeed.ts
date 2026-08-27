@@ -1,9 +1,9 @@
 import { getToken, getDognetChid, buildDognetTrackingUrl } from "@/lib/dognet";
 import { redis } from "@/lib/redis";
 import { matchesSearchTokens } from "@/lib/search-normalize";
+import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
 import { XMLParser } from "fast-xml-parser";
 
-const CACHE_TTL = 21600;
 const FEED_IDS_KEY = "dognet:feed_ids";
 const CUSTOM_FEEDS_KEY = "feeds:custom:dognet";
 
@@ -116,7 +116,7 @@ async function fetchAndCache(feedUrl: string, feedId: string, chid: string): Pro
     for (const p of products) {
       p.affiliateUrl = buildDognetTrackingUrl(chid, p.url) ?? p.url;
     }
-    await redis.set(cacheKey, products, { ex: CACHE_TTL });
+    await redis.set(cacheKey, products, { ex: DAILY_REFRESH_CACHE_TTL_SECONDS });
     await redis.sadd(FEED_IDS_KEY, feedId);
     return products.length;
   } catch {

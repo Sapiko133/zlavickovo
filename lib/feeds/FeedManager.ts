@@ -1,19 +1,26 @@
 import { redis } from "@/lib/redis";
 import { searchMatchRank } from "@/lib/search-normalize";
-import { importDognetFeeds, searchDognetProducts, getDognetProductCount } from "./DognetAutoFeed";
-import { importAffialFeeds, searchAffialProducts, getAffialProductCount } from "./AffialAutoFeed";
-import { importEhubFeeds, searchEhubProducts, getEhubProductCount } from "./EhubAutoFeed";
-import { importCjFeeds, searchCjProducts, getCjProductCount } from "./CjAutoFeed";
+import { importDognetFeeds, searchDognetProducts } from "./DognetAutoFeed";
+import { importAffialFeeds, searchAffialProducts } from "./AffialAutoFeed";
+import { importEhubFeeds, searchEhubProducts } from "./EhubAutoFeed";
+import { importCjFeeds, searchCjProducts } from "./CjAutoFeed";
 
 export type { FeedProduct } from "./FeedProvider";
 
 const LAST_IMPORT_KEY = "feed:last_import";
 
+export interface ProviderImportResult {
+  count: number;
+  feeds: number;
+  status: "success" | "empty" | "error";
+  error?: string;
+}
+
 export interface ImportResult {
-  dognet: { count: number; feeds: number };
-  affial: { count: number; feeds: number };
-  ehub: { count: number; feeds: number };
-  cj: { count: number; feeds: number };
+  dognet: ProviderImportResult;
+  affial: ProviderImportResult;
+  ehub: ProviderImportResult;
+  cj: ProviderImportResult;
   total: number;
   timestamp: string;
 }
@@ -38,6 +45,19 @@ function relevanceRank(product: UnifiedProduct, query: string): number {
 }
 
 class FeedManager {
+  private importResult(
+    settled: PromiseSettledResult<{ count: number; feeds: number }>
+  ): ProviderImportResult {
+    if (settled.status === "rejected") {
+      const error = settled.reason instanceof Error ? settled.reason.message : String(settled.reason);
+      return { count: 0, feeds: 0, status: "error", error: error.slice(0, 220) };
+    }
+    return {
+      ...settled.value,
+      status: settled.value.count > 0 ? "success" : "empty",
+    };
+  }
+
   async search(query: string): Promise<UnifiedProduct[]> {
     const q = query.trim();
     if (!q) return [];
@@ -91,10 +111,10 @@ class FeedManager {
     ]);
 
     const result: ImportResult = {
-      dognet: dognet.status === "fulfilled" ? dognet.value : { count: 0, feeds: 0 },
-      affial: affial.status === "fulfilled" ? affial.value : { count: 0, feeds: 0 },
-      ehub: ehub.status === "fulfilled" ? ehub.value : { count: 0, feeds: 0 },
-      cj: cj.status === "fulfilled" ? cj.value : { count: 0, feeds: 0 },
+      dognet: this.importResult(dognet),
+      affial: this.importResult(affial),
+      ehub: this.importResult(ehub),
+      cj: this.importResult(cj),
       total: 0,
       timestamp: new Date().toISOString(),
     };
@@ -108,29 +128,6 @@ class FeedManager {
     return result;
   }
 
-  async getStats(): Promise<{
-    dognet: number;
-    affial: number;
-    ehub: number;
-    cj: number;
-    lastImport: ImportResult | null;
-  }> {
-    const [dognet, affial, ehub, cj, lastImport] = await Promise.allSettled([
-      getDognetProductCount(),
-      getAffialProductCount(),
-      getEhubProductCount(),
-      getCjProductCount(),
-      redis.get<ImportResult>(LAST_IMPORT_KEY),
-    ]);
-
-    return {
-      dognet: dognet.status === "fulfilled" ? dognet.value : 0,
-      affial: affial.status === "fulfilled" ? affial.value : 0,
-      ehub: ehub.status === "fulfilled" ? ehub.value : 0,
-      cj: cj.status === "fulfilled" ? cj.value : 0,
-      lastImport: lastImport.status === "fulfilled" ? lastImport.value : null,
-    };
-  }
 }
 
 export const feedManager = new FeedManager();
