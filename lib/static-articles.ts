@@ -119,6 +119,7 @@ function buildArticle(s: AffialShop, dateIso: string): Article {
     updatedAt: dateIso,
     published: true,
     source: "manual",
+    origin: "curated",
   };
 }
 

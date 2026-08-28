@@ -1,28 +1,27 @@
 import ShopFavicon from "@/components/ShopFavicon";
+import Image from "next/image";
+import Link from "next/link";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import HeroSearch from "@/components/HeroSearch";
 import TrackedLink from "@/components/TrackedLink";
-import ArticleCard from "@/components/ArticleCard";
-import { latestArticles } from "@/lib/articles";
+import { getVypredaje, type VypredajItem } from "@/lib/vypredaje";
 import { getStaticSales } from "@/lib/static-data";
-import { AFFIAL_SHOPS, buildAffialTrackingUrl } from "@/lib/affial-shops";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { getClickStats } from "@/lib/click-log";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
-import { buildServerHeurekaUrl } from "@/lib/heureka/affiliate";
 
 export const revalidate = 3600;
 
 export const metadata = {
   title: "Zlavickovo ✂️ Akcie, výpredaje a kupóny slovenských obchodov",
-  description: "Aktuálne výpredaje a akcie obchodov so zľavnenými produktmi, kupóny a tipy na výhodnejší nákup. Nové články pravidelne.",
+  description: "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov. Nové ponuky z affiliate sietí pravidelne na jednom mieste.",
   alternates: { canonical: "https://www.zlavickovo.sk" },
   openGraph: {
     title: "Zlavickovo – Akcie, výpredaje a kupóny",
-    description: "Aktuálne výpredaje obchodov, zľavnené produkty a kupóny na jednom mieste.",
+    description: "Aktuálne akcie obchodov a zľavové kupóny na jednom mieste.",
     url: "https://www.zlavickovo.sk", type: "website", locale: "sk_SK",
   },
 };
@@ -49,7 +48,17 @@ interface CouponRow {
   discount: string | null;
 }
 
-function domainOf(c: any): string {
+interface StaticSale {
+  code?: string | null;
+  affiliate_link?: string | null;
+  url?: string | null;
+  valid_to?: string | null;
+  title?: string | null;
+  description?: string | null;
+  campaign?: { name?: string | null; url?: string | null; website_url?: string | null } | null;
+}
+
+function domainOf(c: StaticSale): string {
   return (c.campaign?.url || c.campaign?.website_url || "")
     .replace(/^https?:\/\/(www\.)?/, "")
     .replace(/\/.*$/, "");
@@ -67,9 +76,47 @@ function shopFromSlug(slug: string): { slug: string; name: string; domain: strin
   return { slug, name, domain: getShopDomain(name) || `${slug}.sk` };
 }
 
+function HomeDealCard({ item, featured = false }: { item: VypredajItem; featured?: boolean }) {
+  const card = (
+    <article className={featured ? "home-deal-card home-deal-card-featured" : "home-deal-card"}>
+      {item.imageUrl ? (
+        <div className="home-deal-image">
+          <Image
+            src={item.imageUrl}
+            alt={`Aktuálna akcia ${item.shopName}: ${item.title}`}
+            width={1200}
+            height={630}
+            sizes={featured ? "(max-width: 900px) 100vw, 520px" : "(max-width: 620px) 100vw, 320px"}
+            priority={featured}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        </div>
+      ) : (
+        <div className="home-deal-fallback">
+          <ShopFavicon domain={item.domain} name={item.shopName} size={featured ? 64 : 50} />
+        </div>
+      )}
+      <div className="home-deal-content">
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 7 }}>
+          <span style={{ color: item.hasPct ? "#16A34A" : "#475569", background: item.hasPct ? "#DCFCE7" : "#F1F5F9", padding: "4px 9px", borderRadius: 999, fontSize: 11, fontWeight: 900 }}>{item.badge}</span>
+          <span style={{ color: "#64748B", fontSize: 11 }}>{item.meta}</span>
+        </div>
+        <h3 style={{ margin: 0, color: "#0F172A", fontSize: featured ? 20 : 15, lineHeight: 1.4 }}>{item.title}</h3>
+        <div style={{ marginTop: 8, color: "#16A34A", fontSize: 12, fontWeight: 800 }}>{item.shopName} · Pozrieť akciu →</div>
+      </div>
+    </article>
+  );
+  if (item.detailUrl) return <a href={item.detailUrl} style={{ textDecoration: "none" }}>{card}</a>;
+  if (!item.external) return <a href={item.ctaUrl} style={{ textDecoration: "none" }}>{card}</a>;
+  return (
+    <TrackedLink href={item.ctaUrl} target="_blank" rel="nofollow noopener noreferrer" type={item.clickType} shopSlug={item.shopSlug} destinationDomain={item.domain} style={{ textDecoration: "none" }}>
+      {card}
+    </TrackedLink>
+  );
+}
+
 export default async function Home() {
-  const heurekaHome = buildServerHeurekaUrl();
-  const articles = await latestArticles(12);
+  const { items: currentDeals } = await getVypredaje();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -80,10 +127,10 @@ export default async function Home() {
   };
 
   // ── TOP KUPÓNY (5) — Dognet + Affial kupóny s kódom, jeden obchod raz ──
-  const sales = getStaticSales();
+  const sales = getStaticSales() as StaticSale[];
   const dognetKupony: CouponRow[] = sales
-    .filter((c: any) => c.code?.trim() && (c.affiliate_link || c.url) && notExpired(c.valid_to))
-    .map((c: any) => {
+    .filter((c) => c.code?.trim() && (c.affiliate_link || c.url) && notExpired(c.valid_to))
+    .map((c) => {
       const shopName = c.campaign?.name || "Obchod";
       return {
         shopName,
@@ -128,14 +175,14 @@ export default async function Home() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
         "@context": "https://schema.org",
         "@graph": [
-          { "@type": "Organization", "@id": "https://www.zlavickovo.sk/#organization", name: "Zlavickovo", url: "https://www.zlavickovo.sk", logo: "https://www.zlavickovo.sk/favicon.ico" },
+          { "@type": "Organization", "@id": "https://www.zlavickovo.sk/#organization", name: "Zlavickovo", url: "https://www.zlavickovo.sk" },
           {
-            "@type": "WebSite", "@id": "https://www.zlavickovo.sk/#website", name: "Zlavickovo", url: "https://www.zlavickovo.sk",
+            "@type": "WebSite", "@id": "https://www.zlavickovo.sk/#website", name: "Zlavickovo", alternateName: "Zlavickovo.sk", url: "https://www.zlavickovo.sk", inLanguage: "sk-SK",
             publisher: { "@id": "https://www.zlavickovo.sk/#organization" },
             potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: "https://www.zlavickovo.sk/hladat?q={search_term_string}" }, "query-input": "required name=search_term_string" },
           },
         ],
-      }) }} />
+      }).replace(/</g, "\\u003c") }} />
 
       <style>{`
         .sec-title { font-size: clamp(20px, 2.6vw, 26px); font-weight: 800; color: #1d1d1f; margin: 0; letter-spacing: -0.4px; }
@@ -143,6 +190,14 @@ export default async function Home() {
         .see-all { font-size: 14px; color: ${ORANGE_DARK}; text-decoration: none; font-weight: 700; }
         .see-all:hover { text-decoration: underline; }
         .article-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,0.10) !important; border-color: ${GREEN} !important; }
+        .home-deal-card { height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fff; border: 1.5px solid #e5e7eb; border-radius: 18px; box-sizing: border-box; transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+        .home-deal-card:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(15,23,42,.12); border-color: ${GREEN}; }
+        .home-deal-card-featured { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(240px, .65fr); align-items: stretch; }
+        .home-deal-image { position: relative; aspect-ratio: 1200 / 630; overflow: hidden; background: #0f172a; }
+        .home-deal-card-featured .home-deal-image { aspect-ratio: auto; min-height: 300px; }
+        .home-deal-fallback { min-height: 170px; display: grid; place-items: center; background: linear-gradient(135deg,#0f172a,#14532d); }
+        .home-deal-content { min-width: 0; padding: 18px; display: flex; flex-direction: column; justify-content: center; }
+        .home-deal-card-featured .home-deal-content { padding: 26px; }
         .side-row:hover { background: #F0FDF4 !important; }
         @media(max-width: 900px) {
           .home-layout { grid-template-columns: 1fr !important; }
@@ -150,6 +205,9 @@ export default async function Home() {
         }
         @media(max-width: 620px) {
           .article-card-featured { grid-template-columns: 1fr !important; }
+          .home-deal-card-featured { grid-template-columns: 1fr; }
+          .home-deal-card-featured .home-deal-image { aspect-ratio: 1200 / 630; min-height: 0; }
+          .home-deal-card-featured .home-deal-content { padding: 18px; }
         }
       `}</style>
 
@@ -162,7 +220,7 @@ export default async function Home() {
             Akcie, výpredaje a kupóny obchodov
           </h1>
           <p style={{ fontSize: "clamp(15px, 2vw, 19px)", color: "#cbd5e1", margin: "0 auto 26px", lineHeight: 1.55, maxWidth: 620 }}>
-            Nájdi obchod a pozri aktuálne výpredaje, zľavnené produkty a kupóny pred nákupom.
+            Nájdi obchod a pozri jeho aktuálne akcie, výpredaje a kupóny pred nákupom.
           </p>
           <div style={{ maxWidth: 620, margin: "0 auto" }}>
             <HeroSearch placeholder="Alza, Notino, Zalando, GymBeam..." ctaLabel="Hľadať" />
@@ -177,24 +235,24 @@ export default async function Home() {
         <main>
           <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
             <div>
-              <h2 className="sec-title">🔥 Najnovšie akcie</h2>
-              <p className="sec-sub">Aktuálne výpredaje obchodov a zľavnené produkty</p>
+              <h2 className="sec-title">🔥 Najnovšie akcie a výpredaje</h2>
+              <p className="sec-sub">Aktuálne akcie slovenských obchodov — over si zľavu pred nákupom</p>
             </div>
-            <a href="/akcie" className="see-all">Všetky akcie →</a>
+            <Link href="/akcie" className="see-all">Všetky akcie →</Link>
           </div>
 
-          {articles.length > 0 ? (
+          {currentDeals.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-              <ArticleCard article={articles[0]} featured />
-              {articles.length > 1 && (
+              <HomeDealCard item={currentDeals[0]} featured />
+              {currentDeals.length > 1 && (
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 22 }}>
-                  {articles.slice(1).map((a) => <ArticleCard key={a.slug} article={a} />)}
+                  {currentDeals.slice(1, 12).map((item) => <HomeDealCard key={item.id} item={item} />)}
                 </div>
               )}
             </div>
           ) : (
             <div style={{ padding: "48px 24px", textAlign: "center", color: "#9ca3af", background: "#f8f9fa", borderRadius: 16, border: "1px solid #eceff3", fontSize: 14 }}>
-              Nové akcie pripravujeme — pozri zatiaľ <a href="/kupony" style={{ color: ORANGE_DARK, fontWeight: 700 }}>kupóny</a> a <a href="/obchody" style={{ color: ORANGE_DARK, fontWeight: 700 }}>obchody</a>.
+              Nové akcie pripravujeme — pozri zatiaľ <Link href="/kupony" style={{ color: ORANGE_DARK, fontWeight: 700 }}>kupóny</Link> a <Link href="/obchody" style={{ color: ORANGE_DARK, fontWeight: 700 }}>obchody</Link>.
             </div>
           )}
         </main>
@@ -206,7 +264,7 @@ export default async function Home() {
             <div style={{ background: "#fff", border: "1.5px solid #eceff3", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
               <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span style={{ fontWeight: 800, fontSize: 15 }}>🏷️ Top kupóny</span>
-                <a href="/kupony" className="see-all" style={{ fontSize: 12 }}>Všetky →</a>
+                <Link href="/kupony" className="see-all" style={{ fontSize: 12 }}>Všetky →</Link>
               </div>
               {topCoupons.map((c) => (
                 <a key={c.shopSlug} href={`/kupony/${c.shopSlug}`} className="side-row"
@@ -226,7 +284,7 @@ export default async function Home() {
           <div style={{ background: "#fff", border: "1.5px solid #eceff3", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
             <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontWeight: 800, fontSize: 15 }}>🏪 Populárne obchody</span>
-              <a href="/obchody" className="see-all" style={{ fontSize: 12 }}>Všetky →</a>
+              <Link href="/obchody" className="see-all" style={{ fontSize: 12 }}>Všetky →</Link>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: 8, gap: 6 }}>
               {topShops.map((s) => (
@@ -241,21 +299,6 @@ export default async function Home() {
           </div>
         </aside>
       </div>
-
-      {/* HEUREKA FALLBACK */}
-      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "56px 20px 0" }}>
-        <div style={{ background: "linear-gradient(135deg, #F0FDF4 0%, #ecfdf5 100%)", border: "1.5px solid #bbf7d0", borderRadius: 20, padding: "40px 28px", textAlign: "center" }}>
-          <div style={{ fontSize: 44, marginBottom: 12 }}>🔍</div>
-          <h2 style={{ fontSize: "clamp(20px, 3vw, 26px)", fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.4px" }}>Hľadáš konkrétny produkt?</h2>
-          <p style={{ fontSize: 15, color: "#4b5563", lineHeight: 1.6, margin: "0 auto 22px", maxWidth: 480 }}>
-            Na Heureke nájdeš ponuky od stoviek overených predajcov a porovnáš ceny.
-          </p>
-          <TrackedLink href={heurekaHome} target="_blank" rel="noopener noreferrer" type="heureka_fallback" destinationDomain="heureka.sk"
-            style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "15px 32px", borderRadius: 14, background: GREEN, color: "#fff", fontWeight: 800, fontSize: 16, textDecoration: "none", boxShadow: "0 4px 18px rgba(34,197,94,0.30)" }}>
-            Hľadať na Heureke ↗
-          </TrackedLink>
-        </div>
-      </section>
 
       <div style={{ height: 80 }} />
       <Footer />
