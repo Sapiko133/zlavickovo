@@ -1,5 +1,10 @@
 # Zlavickovo.sk - Pravidlá projektu
 
+## HLAVNÁ VÍZIA (28. 8. 2026 override)
+- **ZLAVICKOVO = AKTUÁLNE ZĽAVY + AKCIE + ZĽAVOVÉ KÓDY.**
+- **HEUREKA = 0. PRODUKTOVÝ POROVNÁVAČ = 0. PRODUKTOVÝ KATALÓG = 0.**
+- Toto prepisuje všetky staršie pravidlá o Heureke, produktoch a porovnávaní cien. Detaily: `PROJECT_VISION.md`.
+
 ## TECHNICKÉ POŽIADAVKY
 - Next.js 16, TypeScript, Vercel hosting
 - Upstash Redis pre cache
@@ -17,13 +22,9 @@
 - Affiliate link sa MUSÍ otvoriť keď niekto klikne na kód
 - NIKDY nezobrazovať kód bez otvorenia affiliate linku
 
-## HEUREKA - PRAVIDLO
-- Heureka widget sa zobrazuje IBA RAZ na každej stránke
-- Klasické Heureka odkazy používajú `HEUREKA_HAFF_ID` a parameter `haff`
-- Trixam widget je samostatný systém a používa iba `HEUREKA_WIDGET_POSITION_ID`
-- Nepoužívaj `HEUREKA_HAFF_ID` ako `data-trixam-positionid`
-- NIKDY nedávať 2 Heureka boxy na jednu stránku
-- Script: //serve.affiliate.heurekashopping.sk/js/trixam.min.js
+## HEUREKA - ODSTRÁNENÁ
+- Heureka je z projektu úplne odstránená: žiadne feedy, import, hk_products/hk_feeds, cron, parsery, produktové vyhľadávanie, porovnávanie cien, haff affiliate ani fallback, žiadny widget/trixam.
+- Nepridávať späť Heureku ani produktový porovnávač.
 
 ## DIZAJN
 - Primárna farba: #22C55E (zelená)
@@ -36,23 +37,24 @@
 
 ## NAVIGÁCIA
 - Jeden zdieľaný Nav komponent na všetkých stránkach
-- Menu: Obchody | Kupóny | Akcie | Kategórie
+- Menu: Akcie | Kupóny | Obchody | Letáky | Kategórie
 - Jeden jazykový prepínač SK/CZ/EN (NIE DVA!)
 - BEZ "Obľúbené" tlačidla
 
 ## VYHĽADÁVANIE
-- Autocomplete od 1 znaku
-- Rozlíš: SHOP (obchod) / PRODUCT (produkt) / CATEGORY (kategória)
+- Autocomplete od 2 znakov
+- Rozlíš: SHOP (obchod) / COUPON alebo ACTION (zľava)
 - SHOP → presmeruj na /kupony/[slug]
 - Favicony v autocomplete dropdowne
 
 ## STRÁNKA OBCHODU /kupony/[slug]
 - Načítaj kupóny z: Dognet (ch33415) + Affial + eHub + CJ + affial-coupons.ts
-- Tab menu: Kupóny | Akcie
-- Jeden HeurekaWidget dole
+- Obchod → aktuálne kódy → aktuálne akcie/zľavy → info o obchode
+- Bez produktového gridu, bez porovnávača, bez cenovej histórie, bez Heureky
 - TopCodes sidebar vpravo
 
 ## ZAKÁZANÉ
+- Heureka a produktový porovnávač/katalóg
 - Google Custom Search API (platené)
 - Duplicitné komponenty na jednej stránke
 - Fiktívne ceny alebo skladovosť
