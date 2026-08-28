@@ -1,6 +1,5 @@
 import { gotScraping } from "got-scraping";
 import { resolveAkciaAffiliateUrls } from "@/lib/shop-affiliate";
-import { buildServerHeurekaSearchUrl } from "@/lib/heureka/affiliate";
 import { normalizeShopSlug } from "@/lib/slug";
 import { getShopDomain } from "@/lib/shop-domains";
 import { saveArticle, getAllArticles, type Article } from "@/lib/articles";
@@ -123,7 +122,7 @@ export interface ScrapeResult {
   fetched: number;   // koľko ponúk sme rozparsovali
   created: number;   // koľko článkov vzniklo/aktualizovalo sa
   monetizedAffiliate: number;
-  monetizedHeureka: number;
+  unmonetized: number;
   slugs: string[];
   timestamp: string;
 }
@@ -157,14 +156,15 @@ export async function importScrapedVypredaje(): Promise<ScrapeResult> {
   const existingBySlug = new Map(existing.map((a) => [a.slug, a]));
 
   let monetizedAffiliate = 0;
-  let monetizedHeureka = 0;
+  let unmonetized = 0;
   const slugs: string[] = [];
 
   for (let i = 0; i < deals.length; i++) {
     const d = deals[i];
     const affiliate = resolved[i]?.affiliateUrl?.startsWith("http") ? resolved[i].affiliateUrl : "";
-    const ctaUrl = affiliate || buildServerHeurekaSearchUrl(d.shopName);
-    if (affiliate) monetizedAffiliate++; else monetizedHeureka++;
+    // Bez affiliate: priamy (neplatený) odkaz na obchod. Žiadny Heureka fallback.
+    const ctaUrl = affiliate || (d.domain ? `https://${d.domain}` : "");
+    if (affiliate) monetizedAffiliate++; else unmonetized++;
 
     const { perex, content } = buildContent(d.shopName, d.discountPct, d.validTo);
     const slug = `${d.shopSlug}-vypredaj`;
@@ -187,6 +187,7 @@ export async function importScrapedVypredaje(): Promise<ScrapeResult> {
       updatedAt: nowIso,
       published: true,
       source: "auto",
+      origin: "scraped",
       validTo: d.validTo,
     };
     await saveArticle(article);
@@ -197,7 +198,7 @@ export async function importScrapedVypredaje(): Promise<ScrapeResult> {
     fetched: deals.length,
     created: slugs.length,
     monetizedAffiliate,
-    monetizedHeureka,
+    unmonetized,
     slugs,
     timestamp: nowIso,
   };

@@ -5,12 +5,23 @@ import {
   type Article,
   type SaleProduct,
 } from "@/lib/articles";
-import { formatAmount } from "@/lib/heureka/query";
 import { getCouponsByShop } from "@/lib/dognet";
 import { normalizeShopSlug } from "@/lib/slug";
+import { buildSaleSeoContent } from "@/lib/article-seo";
 import ShopFavicon from "@/components/ShopFavicon";
 import TrackedLink from "@/components/TrackedLink";
 import Footer from "@/components/Footer";
+
+// Lokálny formátovač ceny (Heureka odstránená). Zľavnené produkty na sale
+// článkoch sú vyradené; ponechané len pre spätnú kompatibilitu starých článkov.
+function formatAmount(value: number, currency?: string | null): string {
+  const c = currency === "CZK" ? "CZK" : "EUR";
+  return new Intl.NumberFormat(c === "CZK" ? "cs-CZ" : "sk-SK", {
+    style: "currency",
+    currency: c,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
 import Nav from "@/components/Nav";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
@@ -39,15 +50,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const a = await getArticleBySlug(slug);
   if (!a) return {};
   return {
-    title: `${a.title} | Zlavickovo.sk`,
+    title: a.title,
     description: a.perex,
     alternates: { canonical: `${BASE}/akcie/${slug}` },
     openGraph: {
       title: a.title,
       description: a.perex,
+      url: `${BASE}/akcie/${slug}`,
       type: "article",
       publishedTime: a.date,
-      images: a.imageUrl ? [a.imageUrl] : undefined,
+      modifiedTime: a.updatedAt,
+      locale: "sk_SK",
+      images: [{
+        url: `${BASE}/akcie/${slug}/opengraph-image`,
+        width: 1200,
+        height: 630,
+        alt: a.title,
+      }],
     },
   };
 }
@@ -61,12 +80,49 @@ export default async function ArticlePage({ params }: Props) {
   return <TipArticle article={article} />;
 }
 
+function ArticleStructuredData({ article }: { article: Article }) {
+  const pageUrl = `${BASE}/akcie/${article.slug}`;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: article.title,
+        description: article.perex,
+        datePublished: article.date,
+        dateModified: article.updatedAt,
+        image: [`${BASE}/akcie/${article.slug}/opengraph-image`],
+        author: { "@type": "Organization", name: "Zlavickovo", url: BASE },
+        publisher: { "@type": "Organization", name: "Zlavickovo", url: BASE },
+        mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Domov", item: BASE },
+          { "@type": "ListItem", position: 2, name: "Akcie", item: `${BASE}/akcie` },
+          { "@type": "ListItem", position: 3, name: article.title, item: pageUrl },
+        ],
+      },
+    ],
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+    />
+  );
+}
+
 // ─────────────────────────────────────────────────────────────
 // SALE ČLÁNOK — výpredaj jedného obchodu
 // ─────────────────────────────────────────────────────────────
 async function SaleArticle({ article }: { article: Article }) {
   const shopSlug = article.shopSlug || (article.shopName ? normalizeShopSlug(article.shopName) : "");
   const products = article.products ?? [];
+  const seoContent = article.content || buildSaleSeoContent(article);
+  const heroImageUrl = `/akcie/${article.slug}/opengraph-image`;
 
   // Kupóny obchodu (bez zobrazenia kódu — kód sa odhalí až na /kupony/[slug])
   let coupons: any[] = [];
@@ -88,22 +144,9 @@ async function SaleArticle({ article }: { article: Article }) {
       .slice(0, 4);
   } catch {}
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    headline: article.title,
-    description: article.perex,
-    datePublished: article.date,
-    dateModified: article.updatedAt,
-    image: article.imageUrl ? [article.imageUrl] : undefined,
-    author: { "@type": "Organization", name: "Zlavickovo" },
-    publisher: { "@type": "Organization", name: "Zlavickovo", url: BASE },
-    mainEntityOfPage: { "@type": "WebPage", "@id": `${BASE}/akcie/${article.slug}` },
-  };
-
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <ArticleStructuredData article={article} />
       <style>{`
         .sale-prod { transition: transform .15s, box-shadow .15s, border-color .15s; }
         .sale-prod:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important; border-color: ${GREEN} !important; }
@@ -155,12 +198,10 @@ async function SaleArticle({ article }: { article: Article }) {
         </div>
 
         {/* Hero image */}
-        {article.imageUrl && (
-          <div style={{ borderRadius: 18, overflow: "hidden", background: "#f8f9fa", marginBottom: 24, maxHeight: 360, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ borderRadius: 18, overflow: "hidden", background: "#0f172a", marginBottom: 24, maxHeight: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={article.imageUrl} alt={article.title} style={{ width: "100%", maxHeight: 360, objectFit: "contain", padding: 16 }} />
-          </div>
-        )}
+            <img src={heroImageUrl} alt={`Aktuálna akcia ${article.shopName || article.title}`} style={{ width: "100%", maxHeight: 420, objectFit: "cover" }} />
+        </div>
 
         {/* CTA */}
         {article.affiliateUrl && (
@@ -183,7 +224,7 @@ async function SaleArticle({ article }: { article: Article }) {
         )}
 
         {/* Obsah článku */}
-        {article.content && (
+        {seoContent && (
           <>
             <style>{`
               .sale-body h2 { font-size: 22px; font-weight: 800; margin: 32px 0 12px; letter-spacing: -0.3px; color: #1d1d1f; }
@@ -192,7 +233,7 @@ async function SaleArticle({ article }: { article: Article }) {
               .sale-body li { font-size: 15px; line-height: 1.75; color: #444; margin-bottom: 6px; }
               .sale-body strong { color: #1d1d1f; }
             `}</style>
-            <div className="sale-body" style={{ marginBottom: 40 }} dangerouslySetInnerHTML={{ __html: article.content }} />
+            <div className="sale-body" style={{ marginBottom: 40 }} dangerouslySetInnerHTML={{ __html: seoContent }} />
           </>
         )}
 
@@ -315,6 +356,7 @@ async function TipArticle({ article }: { article: Article }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      <ArticleStructuredData article={article} />
       <Nav />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px", display: "flex", gap: 48, alignItems: "flex-start" }}>
         <article style={{ flex: 1, minWidth: 0, maxWidth: 720 }}>

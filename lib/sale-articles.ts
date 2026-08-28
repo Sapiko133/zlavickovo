@@ -1,7 +1,4 @@
-import { getDb } from "@/lib/db";
 import { getSalesCoupons } from "@/lib/dognet";
-import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
-import { getProductsByDomain } from "@/lib/heureka/query";
 import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
 import { getShopAffiliateUrl } from "@/lib/shop-affiliate";
 import { normalizeShopSlug } from "@/lib/slug";
@@ -33,8 +30,7 @@ import {
  */
 
 const MIN_PRODUCTS = 5;
-const MAX_PRODUCTS = 20;
-const MAX_CANDIDATE_DOMAINS = 80; // strop na runtime crona (DB dotaz na doménu)
+const MAX_CANDIDATE_DOMAINS = 80; // strop na runtime crona
 
 const SK_MONTHS = [
   "január", "február", "marec", "apríl", "máj", "jún",
@@ -71,17 +67,6 @@ function couponLink(c: SaleCouponCandidate): string {
   return "";
 }
 
-function parsePriceNum(price: string): number | null {
-  const m = String(price ?? "").replace(",", ".").match(/[0-9]+\.?[0-9]*/);
-  if (!m) return null;
-  const n = parseFloat(m[0]);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function currencyForDomain(domain: string): string {
-  return /\.cz$/i.test(domain) ? "CZK" : "EUR";
-}
-
 interface Candidate {
   domain: string;
   shopName: string;
@@ -91,21 +76,9 @@ interface Candidate {
 
 /** Domény s aktivitou v cenovej histórii za posledných 30 dní. */
 async function domainsWithPriceHistory(): Promise<string[]> {
-  try {
-    const sql = getDb();
-    const rows = (await sql`
-      SELECT domain
-      FROM product_price_history
-      WHERE recorded_at >= now() - interval '30 days' AND domain <> ''
-      GROUP BY domain
-      HAVING count(*) >= 2
-      ORDER BY count(*) DESC
-      LIMIT ${MAX_CANDIDATE_DOMAINS}
-    `) as { domain: string }[];
-    return rows.map((r) => r.domain).filter(Boolean);
-  } catch {
-    return [];
-  }
+  // Cenová história (product_price_history) je odstránená; kandidáti na sale
+  // články vychádzajú výhradne z Dognet sale kampaní.
+  return [];
 }
 
 async function collectCandidates(): Promise<Candidate[]> {
@@ -149,49 +122,11 @@ function resolveShop(domain: string, fallbackName: string, shopsByDomain: Map<st
   return { name, slug: normalizeShopSlug(name || domain) };
 }
 
-async function buildProducts(domain: string): Promise<{ products: SaleProduct[]; maxDropPct: number }> {
-  const currency = currencyForDomain(domain);
-  const products: SaleProduct[] = [];
-  let maxDropPct = 0;
-  const seen = new Set<string>();
-
-  // Prednostne reálne cenové poklesy (stará/nová cena)
-  const drops = await getBiggestPriceDropsByDomain(domain, MAX_PRODUCTS).catch(() => []);
-  for (const d of drops) {
-    const key = d.name.toLowerCase().trim();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    maxDropPct = Math.max(maxDropPct, d.dropPct);
-    products.push({
-      name: d.name,
-      imgUrl: d.imgUrl,
-      oldPrice: d.oldPrice,
-      newPrice: d.newPrice,
-      currency: d.currency || currency,
-      affiliateUrl: d.affiliateUrl || d.productUrl,
-    });
-  }
-
-  // Doplň feed produktmi obchodu (bez preškrtnutej ceny), ak je poklesov málo
-  if (products.length < MAX_PRODUCTS) {
-    const feed = await getProductsByDomain(domain, MAX_PRODUCTS * 2).catch(() => []);
-    for (const p of feed) {
-      if (products.length >= MAX_PRODUCTS) break;
-      const key = p.name.toLowerCase().trim();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      products.push({
-        name: p.name,
-        imgUrl: p.img_url || "",
-        oldPrice: null,
-        newPrice: parsePriceNum(p.price),
-        currency: p.currency_code || currency,
-        affiliateUrl: p.affiliate_url || p.url,
-      });
-    }
-  }
-
-  return { products, maxDropPct };
+async function buildProducts(_domain: string): Promise<{ products: SaleProduct[]; maxDropPct: number }> {
+  // Produktový grid a cenové poklesy sú odstránené (žiadny produktový katalóg,
+  // žiadna Heureka). Sale články sú textové o výpredaji obchodu; /akcie ako
+  // živý deal listing sa prepracuje vo fáze B4.
+  return { products: [], maxDropPct: 0 };
 }
 
 export interface GenerateResult {

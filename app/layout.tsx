@@ -8,20 +8,24 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-export const viewport: Viewport = { themeColor: "#7C3AED" };
+export const viewport: Viewport = { themeColor: "#22C55E" };
 
 export const metadata: Metadata = {
   title: {
-    default: "Zlavickovo – zľavové kódy a kupóny 2026",
+    default: "Zlavickovo – akcie, výpredaje a zľavové kupóny",
     template: "%s | Zlavickovo",
   },
   description:
-    "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
-  keywords: ["zlavove kody", "kupony", "zlava", "zlavickovo", "zlavovy kod", "Slovakia"],
+    "Aktuálne akcie, výpredaje, kupóny a zľavové kódy slovenských obchodov pravidelne aktualizované na jednom mieste.",
+  applicationName: "Zlavickovo",
+  creator: "Zlavickovo",
+  publisher: "Zlavickovo",
+  category: "shopping",
+  keywords: ["akcie", "výpredaje", "zľavové kódy", "kupóny", "zľavy", "slovenské obchody"],
   openGraph: {
-    title: "Zlavickovo – zľavové kódy a kupóny 2026",
+    title: "Zlavickovo – akcie, výpredaje a zľavové kupóny",
     description:
-      "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
+      "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov na jednom mieste.",
     url: "https://www.zlavickovo.sk",
     siteName: "Zlavickovo",
     locale: "sk_SK",
@@ -29,16 +33,22 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Zlavickovo – zľavové kódy a kupóny 2026",
+    title: "Zlavickovo – akcie, výpredaje a zľavové kupóny",
     description:
-      "Nájdi aktuálne zľavové kódy a kupóny pre stovky slovenských obchodov. AI vyhľadávanie kupónov zadarmo.",
+      "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov na jednom mieste.",
   },
   alternates: {
     canonical: "https://www.zlavickovo.sk",
-    languages: {
-      sk: "https://www.zlavickovo.sk",
-      cs: "https://www.zlavickovo.sk",
-      "x-default": "https://www.zlavickovo.sk",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   metadataBase: new URL("https://www.zlavickovo.sk"),
@@ -47,8 +57,6 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const heurekaWidgetPositionId = process.env.HEUREKA_WIDGET_POSITION_ID?.trim();
-
   return (
     <html
       lang="sk"
@@ -60,13 +68,6 @@ export default function RootLayout({
           <OneSignalInit />
           {children}
         </IntlProvider>
-
-        {heurekaWidgetPositionId ? (
-          <Script
-            src="//serve.affiliate.heurekashopping.sk/js/trixam.min.js"
-            strategy="lazyOnload"
-          />
-        ) : null}
 
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-DX0G5PZ4P7"

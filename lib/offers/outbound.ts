@@ -1,20 +1,23 @@
 /**
- * Jednotný monetizačný resolver nad kanonickou ponukou (úloha 7).
+ * Jednotný monetizačný resolver nad kanonickou ponukou (jediný zdroj pravdy).
  *
- * Priorita (PROJECT_VISION §12–13, master §6):
- *   1. priamy affiliate link ponuky (deep link siete z importu feedu),
+ * Priorita (PROJECT_VISION §9):
+ *   1. priamy affiliate link ponuky (deep link siete),
  *   2. shop-level affiliate link (raz vyriešený per obchod – bez N+1),
- *   3. Heureka affiliate fallback (len s HEUREKA_HAFF_ID),
- *   4. neplatený priamy odkaz (posledná záchrana, stránka nesmie zostať bez CTA).
+ *   3. neplatený priamy odkaz (posledná záchrana, stránka nesmie zostať bez CTA).
  *
- * DÔLEŽITÉ: resolver vyberá iba OUTBOUND CESTU. Cenu ani poradie ponúk NEmení –
- * lepšia provízia nikdy nesmie prepísať najnižšiu dôveryhodnú ponuku (audit §6).
- * Delegovaním na getOfferOutbound zostáva Heureka/direct chvost jediným zdrojom pravdy.
+ * ŽIADNY Heureka fallback (Heureka je z projektu odstránená). Resolver vyberá iba
+ * OUTBOUND CESTU – cenu ani poradie ponúk nemení; lepšia provízia neprepíše
+ * najlepšiu ponuku.
  */
 
-import { getOfferOutbound, type OfferOutbound } from "@/lib/heureka/affiliate";
+export type OfferOutboundKind = "shop_affiliate" | "direct_unmonetized";
 
-export type { OfferOutbound, OfferOutboundKind } from "@/lib/heureka/affiliate";
+export interface OfferOutbound {
+  url: string;
+  kind: OfferOutboundKind;
+  monetized: boolean;
+}
 
 export interface ResolveOfferInput {
   /** Priamy affiliate/deep link konkrétnej ponuky. */
@@ -23,9 +26,6 @@ export interface ResolveOfferInput {
   shopAffiliateUrl?: string | null;
   /** Surová cieľová URL (neplatený fallback). */
   url?: string | null;
-  /** Identita pre Heureka fallback vyhľadávanie. */
-  ean?: string | null;
-  name?: string | null;
 }
 
 function cleanHttpUrl(value?: string | null): string | null {
@@ -39,7 +39,7 @@ function cleanHttpUrl(value?: string | null): string | null {
   }
 }
 
-export function resolveOfferOutbound(offer: ResolveOfferInput): OfferOutbound {
+export function resolveOfferOutbound(offer: ResolveOfferInput): OfferOutbound | null {
   // 1. priamy affiliate ponuky
   const direct = cleanHttpUrl(offer.affiliateUrl);
   if (direct) return { url: direct, kind: "shop_affiliate", monetized: true };
@@ -48,6 +48,10 @@ export function resolveOfferOutbound(offer: ResolveOfferInput): OfferOutbound {
   const shop = cleanHttpUrl(offer.shopAffiliateUrl);
   if (shop) return { url: shop, kind: "shop_affiliate", monetized: true };
 
-  // 3. + 4. Heureka fallback → neplatený priamy odkaz (jediný zdroj pravdy).
-  return getOfferOutbound({ url: offer.url, ean: offer.ean, name: offer.name });
+  // 3. neplatený priamy odkaz
+  const raw = cleanHttpUrl(offer.url);
+  if (raw) return { url: raw, kind: "direct_unmonetized", monetized: false };
+
+  // Bez žiadneho platného odkazu nemáme kam poslať používateľa.
+  return null;
 }

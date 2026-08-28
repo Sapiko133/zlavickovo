@@ -118,11 +118,9 @@ export default function ProviderHealthCard({ provider }: { provider: FeedProvide
         ) : null}
       </div>
 
-      {provider.id !== "heureka" ? (
-        <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 16px" }}>
-          <ProviderRefreshButton provider={provider.id} />
-        </div>
-      ) : null}
+      <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 16px" }}>
+        <ProviderRefreshButton provider={provider.id} />
+      </div>
     </article>
   );
 }

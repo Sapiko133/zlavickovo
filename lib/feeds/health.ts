@@ -1,11 +1,9 @@
-import { getDb } from "@/lib/db";
 import { redis } from "@/lib/redis";
 import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
-import { HEUREKA_FEEDS } from "@/lib/heureka/feeds";
 import { FEEDS as AFFIAL_PRODUCT_FEEDS } from "./AffialFeedProvider";
 import type { ImportResult, ProviderImportResult } from "./FeedManager";
 
-export type ProviderId = "heureka" | "dognet" | "affial" | "ehub" | "cj";
+export type ProviderId = "dognet" | "affial" | "ehub" | "cj";
 export type HealthStatus = "healthy" | "warning" | "missing" | "error" | "unsupported";
 export type MetricStatus = "ok" | "empty" | "missing" | "error" | "unsupported" | "static";
 
@@ -218,69 +216,6 @@ function redisProviderHealth(input: {
   };
 }
 
-async function inspectHeureka(): Promise<FeedProviderHealth> {
-  try {
-    const sql = getDb();
-    const [summary] = (await sql`
-      SELECT
-        (SELECT count(*)::int FROM hk_products) AS products,
-        count(*)::int AS feeds,
-        count(*) FILTER (WHERE coalesce(product_count, 0) > 0)::int AS feeds_with_products,
-        count(*) FILTER (WHERE coalesce(error_count, 0) > 0 OR nullif(last_error, '') IS NOT NULL)::int AS errored_feeds,
-        max(last_fetched_at) AS last_import_at
-      FROM hk_feeds
-    `) as {
-      products: number;
-      feeds: number;
-      feeds_with_products: number;
-      errored_feeds: number;
-      last_import_at: string | null;
-    }[];
-
-    const products = Number(summary?.products ?? 0);
-    const feeds = Number(summary?.feeds ?? 0);
-    const cachedFeeds = Number(summary?.feeds_with_products ?? 0);
-    const erroredFeeds = Number(summary?.errored_feeds ?? 0);
-    const productStatus: MetricStatus = products > 0 ? "ok" : "empty";
-    const status: HealthStatus = products === 0 ? "warning" : erroredFeeds > 0 ? "warning" : "healthy";
-
-    return {
-      id: "heureka",
-      label: "Heureka DB",
-      status,
-      configured: HEUREKA_FEEDS.length > 0,
-      configuredFeeds: HEUREKA_FEEDS.length,
-      cachedFeeds,
-      missingFeeds: Math.max(0, feeds - cachedFeeds),
-      cacheTtlSeconds: null,
-      products: { count: products, status: productStatus, detail: "Neon hk_products" },
-      coupons: { count: null, status: "unsupported", detail: "Heureka sa používa ako produktový zdroj" },
-      lastImportAt: summary?.last_import_at ?? null,
-      lastImportStatus: summary?.last_import_at ? (erroredFeeds > 0 ? "empty" : "success") : "never",
-      message: erroredFeeds > 0 ? `${erroredFeeds} feedov hlási chybu alebo error_count.` : "Produktová DB je dostupná.",
-      error: null,
-    };
-  } catch (error) {
-    const message = safeError(error);
-    return {
-      id: "heureka",
-      label: "Heureka DB",
-      status: "error",
-      configured: HEUREKA_FEEDS.length > 0,
-      configuredFeeds: HEUREKA_FEEDS.length,
-      cachedFeeds: null,
-      missingFeeds: null,
-      cacheTtlSeconds: null,
-      products: { count: null, status: "error", detail: message },
-      coupons: { count: null, status: "unsupported", detail: "Heureka sa používa ako produktový zdroj" },
-      lastImportAt: null,
-      lastImportStatus: "unknown",
-      message: "Neon databázu sa nepodarilo prečítať; počet produktov nie je nula, ale neznámy.",
-      error: message,
-    };
-  }
-}
-
 async function inspectCj(lastImport: ImportResult | null): Promise<FeedProviderHealth> {
   const coupons = await inspectArrayCache("cj:coupons:v3");
   const imported = providerImport(lastImport, "cj");
@@ -321,8 +256,7 @@ export async function getFeedProviderHealth(): Promise<FeedProviderHealth[]> {
     // Jednotlivé Redis kontroly nižšie vrátia explicitný error stav.
   }
 
-  const [heureka, dognetProducts, dognetCoupons, affialProducts, ehubProducts, ehubCoupons, cj] = await Promise.all([
-    inspectHeureka(),
+  const [dognetProducts, dognetCoupons, affialProducts, ehubProducts, ehubCoupons, cj] = await Promise.all([
     inspectProductCacheSet("dognet:feed_ids", "dognet_products:"),
     inspectArrayCache("dognet:coupons:v3"),
     inspectProductCacheSet("affial:feed_domains", "feed:"),
@@ -338,7 +272,6 @@ export async function getFeedProviderHealth(): Promise<FeedProviderHealth[]> {
   };
 
   return [
-    heureka,
     redisProviderHealth({
       id: "dognet",
       label: "Dognet",

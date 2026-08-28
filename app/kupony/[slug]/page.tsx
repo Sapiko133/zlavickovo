@@ -4,18 +4,11 @@ import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop } from "@/lib/affial-shops";
 import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
-import AiCoupons from "@/components/AiCoupons";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
-import HeurekaWidget from "@/components/HeurekaWidget";
 import ShopCouponList from "@/components/ShopCouponList";
-import ShopPriceDrops from "@/components/ShopPriceDrops";
-import ShopProducts from "@/components/ShopProducts";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
-import { feedShopDomainForSlug } from "@/lib/heureka/feed-shop-slug";
-import { getBiggestPriceDropsByDomain } from "@/lib/heureka/price-history";
-import { getShopProducts, getProductsByCategory } from "@/lib/heureka/query";
 import { withTimeout } from "@/lib/with-timeout";
 import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
@@ -54,8 +47,7 @@ const TOP_SLUGS = [
 /**
  * Soft 404 guard — stránka existuje len pre slug známeho obchodu.
  * Validné tvary: kanonický slug z getAllKnownShops(), kurátorské TOP_SLUGS
- * a SHOP_NAME_OVERRIDES, Affial partneri, plus "-cz" mutácia každého z nich
- * (generateMetadata inzeruje cs hreflang `${slug}-cz` pre každú SK stránku).
+ * a SHOP_NAME_OVERRIDES, Affial partneri, plus historické "-cz" mutácie.
  */
 async function isValidShopSlug(slug: string): Promise<boolean> {
   const baseSlug = slug.endsWith("-cz") ? slug.slice(0, -3) : slug;
@@ -64,12 +56,20 @@ async function isValidShopSlug(slug: string): Promise<boolean> {
   if (TOP_SLUGS.includes(baseSlug)) return true;
   if (SHOP_NAME_OVERRIDES[baseSlug]) return true;
   if (findAffialShop(slug) || findAffialShop(baseSlug)) return true;
-  // Obchody z Heureka feedov (majú produkty → §18 shop stránka)
-  if (feedShopDomainForSlug(slug) || feedShopDomainForSlug(baseSlug)) return true;
 
   let shops: KnownShop[];
   try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
   return shops.some(s => s.slug === baseSlug || s.slug === slug);
+}
+
+/** Rozlíši historickú CZ mutáciu od skutočného partnerského slugu, napr. elmich-cz. */
+async function isSyntheticCzVariant(slug: string): Promise<boolean> {
+  if (!slug.endsWith("-cz")) return false;
+  if (SHOP_NAME_OVERRIDES[slug] || findAffialShop(slug)) return false;
+
+  let shops: KnownShop[];
+  try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
+  return !shops.some(s => s.slug === slug);
 }
 
 function currentMonthYear() {
@@ -105,12 +105,6 @@ function getRelatedShopsFallback(currentSlug: string, count = 4) {
     const nameB = b.replace(/-/g, " ");
     return compareShopsByPriority({ name: nameA }, { name: nameB });
   });
-}
-
-function getFallbackProductCategories(categoryId: ReturnType<typeof resolveCategory>): string[] {
-  if (!categoryId || categoryId === "ine") return [];
-  if (categoryId === "elektronika") return ["elektronika", "hobby", "byvanie", "ine"];
-  return [categoryId];
 }
 
 /**
@@ -152,24 +146,23 @@ async function getRelatedShops(
 export async function generateMetadata({ params }: Props) {
   const { slug } = await params;
   if (!(await isValidShopSlug(slug))) notFound();
-  const isCz = slug.endsWith("-cz");
+  const isCz = await isSyntheticCzVariant(slug);
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const name = baseSlug.replace(/-/g, " ");
   const shopName = SHOP_NAME_OVERRIDES[baseSlug] ?? (name.charAt(0).toUpperCase() + name.slice(1));
   const { month, year } = currentMonthYear();
-  const pageUrl = `${BASE}/kupony/${slug}`;
+  const canonicalUrl = `${BASE}/kupony/${baseSlug}`;
 
   return {
-    title: `${shopName} kupóny a zľavy ${year} | Zlavickovo.sk`,
-    description: `Aktuálne overené kupóny pre ${shopName}. Ušetri na nákupe.`,
+    title: `${shopName} kupóny, zľavové kódy a akcie ${month} ${year}`,
+    description: `Aktuálne kupóny, zľavové kódy a akcie pre ${shopName} na ${month} ${year}. Pozrite si platné ponuky a podmienky zliav.`,
     alternates: {
-      canonical: pageUrl,
-      languages: isCz ? undefined : { sk: pageUrl, cs: `${BASE}/kupony/${slug}-cz` },
+      canonical: canonicalUrl,
     },
     openGraph: {
-      title: `${shopName} zľavové kódy ${year} | Zlavickovo.sk`,
-      description: `Aktuálne overené kupóny pre ${shopName}. Ušetri na nákupe.`,
-      url: pageUrl, type: "website", locale: "sk_SK",
+      title: `${shopName} kupóny a akcie ${month} ${year}`,
+      description: `Aktuálne kupóny, zľavové kódy a akcie pre ${shopName}.`,
+      url: canonicalUrl, type: "website", locale: "sk_SK",
     },
   };
 }
@@ -177,7 +170,7 @@ export async function generateMetadata({ params }: Props) {
 export default async function ShopPage({ params }: Props) {
   const { slug } = await params;
   if (!(await isValidShopSlug(slug))) notFound();
-  const isCz = slug.endsWith("-cz");
+  const isCz = await isSyntheticCzVariant(slug);
   const baseSlug = isCz ? slug.slice(0, -3) : slug;
   const shopName = baseSlug.replace(/-/g, " ");
   const affialShop = findAffialShop(slug);
@@ -194,7 +187,7 @@ export default async function ShopPage({ params }: Props) {
   let coupons: any[] = await withTimeout(getCouponsByShop(shopName), 8000, []);
 
   // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
-  const shopDomain = getShopDomain(capitalized) || feedShopDomainForSlug(slug) || feedShopDomainForSlug(baseSlug) || `${baseSlug}.sk`;
+  const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
   const shopAffiliateUrl: string | null =
     affiliateUrlFromCoupons(coupons) ??
     affialShop?.affiliateUrl ??
@@ -219,9 +212,7 @@ export default async function ShopPage({ params }: Props) {
   const shopDesc: { short: string; long: string } =
     await withTimeout(getShopDescription(capitalized, baseSlug), 3000, { short: "", long: "", source: "fallback" as const });
 
-  const hasCodeCoupon = codeCoupons.length > 0;
-
-  // Kategória obchodu (existujúce dáta, bez siete) — pre SEO blok, produkty, related shops a podobné kategórie
+  // Kategória obchodu — pre popis, súvisiace obchody a podobné kategórie.
   const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
   const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
 
@@ -231,27 +222,7 @@ export default async function ShopPage({ params }: Props) {
     return { slug: s, name: n.charAt(0).toUpperCase() + n.slice(1) };
   });
 
-  // Nezávislé DB/cache volania paralelne + s timeoutom (max 12 produktov, vždy LIMIT).
-  // Sekcia 4 (pokles ceny), vlastné produkty, related shops.
-  const [priceDrops, shopProducts, relatedShops] = await Promise.all([
-    withTimeout(getBiggestPriceDropsByDomain(shopDomain, 6), 3000, [] as Awaited<ReturnType<typeof getBiggestPriceDropsByDomain>>),
-    withTimeout(getShopProducts(shopDomain, 12), 3000, [] as Awaited<ReturnType<typeof getShopProducts>>),
-    withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback),
-  ]);
-
-  // Fallback produkty podľa kategórie — LEN ak obchod nemá vlastné produkty.
-  // Elektronika nemá vlastný Heureka feed, preto skúša širšie príbuzné produktové kategórie.
-  let fallbackProducts: Awaited<ReturnType<typeof getProductsByCategory>> = [];
-  const fallbackProductCategories = getFallbackProductCategories(categoryId);
-  if (shopProducts.length === 0 && fallbackProductCategories.length > 0) {
-    const fallbackGroups = await Promise.all(
-      fallbackProductCategories.map((fallbackCategory) =>
-        withTimeout(getProductsByCategory(fallbackCategory, 12), 3000, [])
-      )
-    );
-    fallbackProducts = fallbackGroups.find((products) => products.length > 0) ?? [];
-  }
-  const productTypes = [...new Set(shopProducts.map(p => p.category).filter(Boolean))].slice(0, 4);
+  const relatedShops = await withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
 
   const jsonLd = {
@@ -277,7 +248,7 @@ export default async function ShopPage({ params }: Props) {
 
   return (
     <div style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif", minHeight: "100vh", background: "#F8FAFC", color: "#111827" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
 
       <Nav />
 
@@ -370,7 +341,7 @@ export default async function ShopPage({ params }: Props) {
 
           {/* Left column */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* SEO blok pod hero — popis, kategória, typ produktov */}
+            {/* Popis a kategória obchodu */}
             {(shopDesc.short || categoryLabel) && (
               <div className="card-section">
                 {shopDesc.short && (
@@ -378,7 +349,7 @@ export default async function ShopPage({ params }: Props) {
                     {shopDesc.short}
                   </p>
                 )}
-                {(categoryLabel || productTypes.length > 0) && (
+                {categoryLabel && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
                     {categoryLabel && (
                       <a href={`/kategoria/${categoryId}`} style={{ textDecoration: "none" }}>
@@ -387,11 +358,6 @@ export default async function ShopPage({ params }: Props) {
                         </span>
                       </a>
                     )}
-                    {productTypes.map(pt => (
-                      <span key={pt} style={{ fontSize: 12, fontWeight: 600, background: "#F1F5F9", color: "#475569", padding: "5px 12px", borderRadius: 9999 }}>
-                        {pt}
-                      </span>
-                    ))}
                   </div>
                 )}
               </div>
@@ -413,31 +379,6 @@ export default async function ShopPage({ params }: Props) {
               <ShopCouponList capitalized={capitalized} coupons={dealCoupons} kind="akcie" shopUrl={shopVisitUrl} />
             </div>
 
-            {/* Sekcia 4 — Najväčší pokles ceny (zobrazí sa len ak existuje história) */}
-            <ShopPriceDrops drops={priceDrops} capitalized={capitalized} shopSlug={baseSlug} />
-
-            {/* Produkty z obchodu (vlastné) alebo fallback odporúčaných z podobných obchodov */}
-            {shopProducts.length > 0 ? (
-              <ShopProducts products={shopProducts} capitalized={capitalized} shopSlug={baseSlug} variant="own" hasCoupon={hasCodeCoupon} />
-            ) : (
-              <ShopProducts products={fallbackProducts} capitalized={capitalized} shopSlug={baseSlug} variant="fallback" />
-            )}
-
-            {/* AI Coupons */}
-            <div className="card-section">
-              <div className="section-title">🤖 AI vyhľadávanie kupónov</div>
-              <Suspense fallback={
-                <div style={{ textAlign: "center", padding: "36px 20px" }}>
-                  <div style={{ width: 34, height: 34, borderRadius: "50%", margin: "0 auto 12px", border: "3px solid #E5E7EB", borderTopColor: "#22C55E", animation: "spin 0.8s linear infinite" }} />
-                  <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>AI hľadá kódy pre {capitalized}…</div>
-                  <div style={{ fontSize: 12, marginTop: 4, color: "#9CA3AF" }}>Môže to trvať 10–20 sekúnd</div>
-                </div>
-              }>
-                <AiCoupons shopName={`${capitalized}${isCz ? " CZ" : ""}`} />
-              </Suspense>
-            </div>
-
             {/* Sekcia 5 — O obchode (SEO popis, fallback ak chýba) */}
             {shopDesc.long && (
               <div className="card-section">
@@ -449,8 +390,6 @@ export default async function ShopPage({ params }: Props) {
                 ))}
               </div>
             )}
-
-            <HeurekaWidget />
 
             {/* Mobile sidebar */}
             <div className="shop-sidebar-mobile" style={{ display: "none", marginTop: 16 }}>

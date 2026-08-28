@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const url = new URL("/admin/clanky", req.url);
     url.searchParams.set("scraped", String(result.created));
     url.searchParams.set("aff", String(result.monetizedAffiliate));
-    url.searchParams.set("heu", String(result.monetizedHeureka));
+    url.searchParams.set("unm", String(result.unmonetized));
     return NextResponse.redirect(url, 303);
   } catch (err: any) {
     const url = new URL("/admin/clanky", req.url);
