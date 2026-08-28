@@ -14,6 +14,7 @@ import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/lib/shop-affiliate";
+import { isOfferActive } from "@/lib/offers/freshness";
 // ShopLogo removed — using ShopFavicon throughout
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
@@ -86,11 +87,11 @@ function getFAQ(shopName: string) {
     },
     {
       q: `Má ${shopName} dopravu zadarmo?`,
-      a: `${shopName} ponúka dopravu zadarmo pri nákupe nad určitú minimálnu sumu alebo pri použití špeciálneho kupónu na dopravu. Skontrolujte aktuálne podmienky priamo na webe obchodu.`,
+      a: `Podmienky dopravy sa v obchode ${shopName} môžu meniť a niekedy ich pokrýva akcia alebo kupón na dopravu. Aktuálne podmienky dopravy si over priamo na webe obchodu.`,
     },
     {
       q: `Kde nájdem aktuálne ${shopName} kupóny?`,
-      a: `Aktuálne overené kupóny pre ${shopName} nájdete práve tu na Zlavickovo.sk. Naše AI automaticky vyhľadáva a overuje kódy z viacerých zdrojov a pravidelne ich aktualizuje.`,
+      a: `Aktuálne zľavové kódy a akcie pre ${shopName} nájdete tu na Zlavickovo.sk. Ponuky čerpáme z affiliate sietí obchodu a pravidelne ich aktualizujeme; platnosť kódu si vždy over v pokladni obchodu.`,
     },
   ];
 }
@@ -201,8 +202,13 @@ export default async function ShopPage({ params }: Props) {
     );
   }
 
-  const rawCodeCoupons = coupons.filter((c: any) => c.code && c.code.trim() !== "");
-  const dealCoupons = coupons.filter((c: any) => !c.code || c.code.trim() === "");
+  // Expirované ponuky sa nezobrazujú ako aktívne (kanonický freshness model).
+  const activeCoupons = coupons.filter((c: any) =>
+    isOfferActive(c.valid_to ?? c.validTo ?? c.endDate ?? c.expires ?? null)
+  );
+
+  const rawCodeCoupons = activeCoupons.filter((c: any) => c.code && c.code.trim() !== "");
+  const dealCoupons = activeCoupons.filter((c: any) => !c.code || c.code.trim() === "");
 
   const codeCoupons = rawCodeCoupons.map(c => {
     const { code, ...rest } = c;
@@ -282,7 +288,7 @@ export default async function ShopPage({ params }: Props) {
               </h1>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontSize: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
-                  ✓ {codeCoupons.length} overených kupónov
+                  {codeCoupons.length} zľavových kódov
                 </span>
                 {dealCoupons.length > 0 && (
                   <span style={{ fontSize: 12, background: "#FFF7ED", color: "#C2410C", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
