@@ -1,40 +1,20 @@
 import type { CSSProperties } from "react";
-import type { FeedProviderHealth, HealthMetric, HealthStatus } from "@/lib/feeds/health";
-import ProviderRefreshButton from "./ProviderRefreshButton";
+import type { FeedProviderHealth, HealthStatus, MetricStatus } from "@/lib/feeds/health";
 
 const STATUS_COPY: Record<HealthStatus, { label: string; color: string; bg: string; border: string }> = {
   healthy: { label: "Zdravé", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
   warning: { label: "Pozor", color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
   missing: { label: "Chýbajú dáta", color: "#9a3412", bg: "#fff7ed", border: "#fed7aa" },
   error: { label: "Chyba", color: "#991b1b", bg: "#fef2f2", border: "#fecaca" },
-  unsupported: { label: "Nepodporované", color: "#475569", bg: "#f1f5f9", border: "#cbd5e1" },
 };
 
-const METRIC_COPY: Record<HealthMetric["status"], string> = {
-  ok: "Dostupné",
+const METRIC_COPY: Record<MetricStatus, string> = {
+  ok: "Dostupné z cache",
   empty: "Prázdne",
   missing: "Cache chýba",
   error: "Chyba čítania",
-  unsupported: "Nepodporované",
   static: "Manuálna evidencia",
 };
-
-function formatCount(metric: HealthMetric): string {
-  if (metric.status === "unsupported") return "—";
-  if (metric.count === null) return "Neznáme";
-  return new Intl.NumberFormat("sk-SK").format(metric.count);
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return "Nikdy / neznáme";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Neznáme";
-  return new Intl.DateTimeFormat("sk-SK", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: "Europe/Bratislava",
-  }).format(date);
-}
 
 function formatTtl(seconds: number | null): string {
   if (seconds === null) return "—";
@@ -44,25 +24,10 @@ function formatTtl(seconds: number | null): string {
   return hours > 0 ? `${hours} h ${minutes} min` : `${minutes} min`;
 }
 
-function Metric({ label, metric }: { label: string; metric: HealthMetric }) {
-  const isProblem = metric.status === "missing" || metric.status === "error";
-  return (
-    <div style={{ minWidth: 0 }}>
-      <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
-        {label}
-      </div>
-      <div style={{ color: isProblem ? "#b91c1c" : "#0f172a", fontSize: 21, fontWeight: 800, lineHeight: 1.2, marginTop: 4 }}>
-        {formatCount(metric)}
-      </div>
-      <div title={metric.detail} style={{ color: isProblem ? "#b91c1c" : "#64748b", fontSize: 11, marginTop: 3 }}>
-        {METRIC_COPY[metric.status]}
-      </div>
-    </div>
-  );
-}
-
 export default function ProviderHealthCard({ provider }: { provider: FeedProviderHealth }) {
   const status = STATUS_COPY[provider.status];
+  const count = provider.coupons.count;
+  const isProblem = provider.coupons.status === "missing" || provider.coupons.status === "error";
   const cardStyle: CSSProperties = {
     background: "#ffffff",
     border: `1px solid ${provider.status === "healthy" ? "#e2e8f0" : status.border}`,
@@ -88,25 +53,27 @@ export default function ProviderHealthCard({ provider }: { provider: FeedProvide
         </span>
       </div>
 
-      <div style={{ display: "grid", gap: 16, gridTemplateColumns: "repeat(2, minmax(0, 1fr))", padding: 16 }}>
-        <Metric label="Produkty" metric={provider.products} />
-        <Metric label="Kupóny" metric={provider.coupons} />
+      <div style={{ display: "flex", gap: 24, padding: 16 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            Kupóny / akcie
+          </div>
+          <div style={{ color: isProblem ? "#b91c1c" : "#0f172a", fontSize: 24, fontWeight: 800, lineHeight: 1.2, marginTop: 4 }}>
+            {count === null ? "Neznáme" : new Intl.NumberFormat("sk-SK").format(count)}
+          </div>
+          <div title={provider.coupons.detail} style={{ color: isProblem ? "#b91c1c" : "#64748b", fontSize: 11, marginTop: 3 }}>
+            {METRIC_COPY[provider.coupons.status]}
+          </div>
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ color: "#64748b", fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+            Cache TTL
+          </div>
+          <div style={{ color: "#0f172a", fontSize: 24, fontWeight: 800, lineHeight: 1.2, marginTop: 4 }}>
+            {formatTtl(provider.cacheTtlSeconds)}
+          </div>
+        </div>
       </div>
-
-      <dl style={{ background: "#f8fafc", borderTop: "1px solid #f1f5f9", display: "grid", gap: "7px 12px", gridTemplateColumns: "minmax(0, 1fr) auto", margin: 0, padding: "12px 16px" }}>
-        <dt style={{ color: "#64748b", fontSize: 11 }}>Feedy konfigurácia / cache</dt>
-        <dd style={{ color: "#334155", fontSize: 11, fontWeight: 700, margin: 0 }}>
-          {provider.configuredFeeds ?? "?"} / {provider.cachedFeeds ?? "?"}
-        </dd>
-        <dt style={{ color: "#64748b", fontSize: 11 }}>Chýbajúce cache kľúče</dt>
-        <dd style={{ color: provider.missingFeeds ? "#b45309" : "#334155", fontSize: 11, fontWeight: 700, margin: 0 }}>
-          {provider.missingFeeds ?? "?"}
-        </dd>
-        <dt style={{ color: "#64748b", fontSize: 11 }}>Najkratšie TTL</dt>
-        <dd style={{ color: "#334155", fontSize: 11, fontWeight: 700, margin: 0 }}>{formatTtl(provider.cacheTtlSeconds)}</dd>
-        <dt style={{ color: "#64748b", fontSize: 11 }}>Posledný import</dt>
-        <dd style={{ color: "#334155", fontSize: 11, fontWeight: 700, margin: 0, textAlign: "right" }}>{formatDate(provider.lastImportAt)}</dd>
-      </dl>
 
       <div style={{ borderTop: "1px solid #f1f5f9", color: provider.status === "error" ? "#991b1b" : "#475569", fontSize: 12, lineHeight: 1.5, padding: "12px 16px" }}>
         {provider.message}
@@ -117,11 +84,6 @@ export default function ProviderHealthCard({ provider }: { provider: FeedProvide
           </details>
         ) : null}
       </div>
-
-      <div style={{ borderTop: "1px solid #f1f5f9", padding: "12px 16px" }}>
-        <ProviderRefreshButton provider={provider.id} />
-      </div>
     </article>
   );
 }
-
