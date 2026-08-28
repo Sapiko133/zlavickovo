@@ -12,6 +12,7 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { getClickStats } from "@/lib/click-log";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
+import { isOfferActive } from "@/lib/offers/freshness";
 
 export const revalidate = 3600;
 
@@ -118,13 +119,8 @@ function HomeDealCard({ item, featured = false }: { item: VypredajItem; featured
 export default async function Home() {
   const { items: currentDeals } = await getVypredaje();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const notExpired = (v?: string | null) => {
-    if (!v) return true;
-    const d = new Date(v);
-    return isNaN(d.getTime()) || d >= today;
-  };
+  // Kanonický freshness model (neparsovateľný dátum NIE je aktívny, SK formát OK).
+  const notExpired = (v?: string | null) => isOfferActive(v ?? null);
 
   // ── TOP KUPÓNY (5) — Dognet + Affial kupóny s kódom, jeden obchod raz ──
   const sales = getStaticSales() as StaticSale[];

@@ -4,6 +4,7 @@ import { getEhubCoupons } from "@/lib/ehub";
 import { resolveCategory } from "@/lib/shop-categories";
 import type { CategoryId } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
+import { isOfferActive } from "@/lib/offers/freshness";
 
 /**
  * Kupón v jednotnom (dognet-like) tvare, aký očakáva CouponCard.
@@ -104,7 +105,8 @@ export async function getCouponsByCategory(
   const inCategory = unified.filter(
     c =>
       c.campaign_name &&
-      resolveCategory({ name: c.campaign_name, domain: c.campaign_name }) === categoryId
+      resolveCategory({ name: c.campaign_name, domain: c.campaign_name }) === categoryId &&
+      isOfferActive(c.valid_to) // expirované ponuky sa nezobrazujú ako aktívne
   );
 
   // Dedup kódov naprieč sieťami (rovnaký kupón vo viacerých zdrojoch)
