@@ -14,6 +14,7 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import { isOfferActive } from "@/lib/offers/freshness";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
+import { isAdultShop } from "@/lib/shop-categories";
 
 export const revalidate = 3600;
 
@@ -152,6 +153,8 @@ export default async function Home() {
   const topCoupons: CouponRow[] = [];
   const seenCoupon = new Set<string>();
   for (const c of byPrio([...dognetKupony, ...affialKupony])) {
+    // 18+ / erotické obchody nepatria na homepage.
+    if (isAdultShop({ slug: c.shopSlug, name: c.shopName, domain: c.domain })) continue;
     const key = c.shopName.toLowerCase().trim();
     if (seenCoupon.has(key)) continue;
     seenCoupon.add(key);
@@ -163,7 +166,10 @@ export default async function Home() {
   let topShops: { slug: string; name: string; domain: string }[] = [];
   try {
     const c = await getClickStats();
-    topShops = c.windows.last30d.topShops.slice(0, 8).map((r) => shopFromSlug(r.key));
+    topShops = c.windows.last30d.topShops
+      .map((r) => shopFromSlug(r.key))
+      .filter((s) => !isAdultShop({ slug: s.slug, name: s.name, domain: s.domain }))
+      .slice(0, 8);
   } catch {}
   if (topShops.length === 0) topShops = FAVOURITE_SHOPS;
 
