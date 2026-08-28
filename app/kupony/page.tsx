@@ -8,6 +8,8 @@ import { getEhubCoupons } from "@/lib/ehub";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { resolveCategory } from "@/lib/shop-categories";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
+import { isOfferActive } from "@/lib/offers/freshness";
+import { dedupeOffers } from "@/lib/offers/dedupe";
 import type { Metadata } from "next";
 import CodeReveal from "./CodeReveal";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
@@ -235,6 +237,20 @@ export default async function KuponyPage({
     all = await getAllCoupons();
   } catch {}
 
+  // Expirované ponuky preč + cross-source deduplikácia (kanonický model).
+  all = all.filter((c) => isOfferActive(c.validTo));
+  all = dedupeOffers(
+    all.map((c) => ({
+      source: c.source,
+      shopName: c.shopName,
+      code: c.token,
+      title: c.title,
+      discountPct: c.discountPct,
+      validTo: c.validTo,
+      _coupon: c,
+    }))
+  ).map((group) => (group.canonical as { _coupon: UnifiedCoupon })._coupon);
+
   // Filter — normalizovane (bez diakritiky): názov obchodu vrátane substringu,
   // titulok len word boundary ("kava" → "Káva", nie "získavajte")
   let filtered = all.filter(c => {
@@ -315,7 +331,7 @@ export default async function KuponyPage({
                 🎟️ Všetky zľavové kódy a kupóny
               </h1>
               <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
-                {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií z overených obchodov` : "Načítavam..."}
+                {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií slovenských obchodov` : "Načítavam..."}
               </p>
             </div>
           </div>
