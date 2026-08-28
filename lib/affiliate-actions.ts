@@ -7,6 +7,7 @@ import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE } from "@/lib/akcie";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
+import { isOfferActive } from "@/lib/offers/freshness";
 
 export type AffiliateActionSource = "dognet" | "affial" | "ehub" | "cj" | "static";
 
@@ -60,10 +61,9 @@ function extractDiscountPct(text: string): number | null {
   return value >= 1 && value <= 90 ? value : null;
 }
 
+/** Kanonický freshness model: neparsovateľný dátum nie je aktívny, SK formát OK. */
 function isActive(validTo?: string | null): boolean {
-  if (!validTo) return true;
-  const date = new Date(validTo);
-  return Number.isNaN(date.getTime()) || date.getTime() >= Date.now() - 86_400_000;
+  return isOfferActive(validTo ?? null);
 }
 
 /** Krátky stabilný hash bez Node-only závislostí — vhodný aj pre názov URL. */

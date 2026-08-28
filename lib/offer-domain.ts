@@ -9,6 +9,8 @@
  * názov kampane) sa konzervatívne nepripojí vôbec.
  */
 
+import { isOfferActive } from "@/lib/offers/freshness";
+
 /** Zjednotený tvar naprieč zdrojmi kupónov/akcií. */
 export interface OfferRecord {
   shopName: string;
@@ -35,13 +37,12 @@ export interface ExactDomainOffer {
   deal: ExactDomainDeal | null;
 }
 
+/**
+ * Tenký wrapper nad kanonickým freshness modelom. Neparsovateľný dátum sa
+ * NEpovažuje za aktívny (audit §4.2) a SK/CZ formát DD.MM.YYYY je podporovaný.
+ */
 export function notExpired(v: string | null): boolean {
-  if (!v) return true;
-  const d = new Date(v);
-  if (isNaN(d.getTime())) return true;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return d >= today;
+  return isOfferActive(v);
 }
 
 const EXACT_DOMAIN_RE = /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$/;
