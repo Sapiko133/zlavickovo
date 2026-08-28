@@ -4,18 +4,25 @@ import { NextRequest } from "next/server";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-// Whitelist tabuliek, na ktorých je povolená údržba (VACUUM). Identifikátor sa
-// nedá parametrizovať, preto tvrdý whitelist proti SQL injection.
-const MAINTAINABLE = new Set(["hk_products", "product_price_history"]);
+// Zastarané tabuľky z odstránenej Heureky / produktového katalógu. DROP je
+// idempotentný (IF EXISTS) a bezpečne opakovateľný. shop_descriptions a
+// analytické tabuľky sa NEdotýkame.
+const OBSOLETE_TABLES = [
+  "hk_products",
+  "hk_feeds",
+  "hk_import_runs",
+  "hk_import_run_feeds",
+  "hk_import_locks",
+  "product_price_history",
+  "price_watches",
+];
 
 /**
- * DB údržba a diagnostika veľkosti (Neon 512 MB strop).
+ * DB údržba a diagnostika (Neon).
  *  - ?action=sizes (default): veľkosť DB + per-tabuľka total/table/index + dead tuples
- *  - ?action=vacuum&table=hk_products: VACUUM (ANALYZE) — uvoľní dead tuples na reuse
- *  - ?action=vacuum_full&table=hk_products: VACUUM FULL — prepíše tabuľku a zmenší
- *    ju na disku (POZOR: potrebuje zámok + docasne miesto; pri plnom disku môže
- *    zlyhať rovnakou chybou). Používať až po znížení Neon retencie.
- *  - ?action=prune_price_history&keepDays=2: zmaže cenovú históriu staršiu ako N dní
+ *  - ?action=drop_obsolete: dropne zastarané Heureka/produktové tabuľky (idempotentné).
+ *    Uvoľní storage po odstránení produktového katalógu; 402 quota root cause
+ *    (ťažký import) je už odstránený v kóde.
  */
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -26,7 +33,6 @@ export async function GET(req: NextRequest) {
 
   const sql = getDb();
   const action = req.nextUrl.searchParams.get("action") ?? "sizes";
-  const table = req.nextUrl.searchParams.get("table") ?? "";
 
   try {
     if (action === "sizes") {
@@ -38,13 +44,9 @@ export async function GET(req: NextRequest) {
       const tables = (await sql`
         SELECT relname                                                            AS name,
                pg_size_pretty(pg_total_relation_size(relid))                      AS total,
-               pg_size_pretty(pg_relation_size(relid))                            AS heap,
-               pg_size_pretty(pg_total_relation_size(relid) - pg_relation_size(relid)) AS idx_toast,
                pg_total_relation_size(relid)::bigint                              AS total_bytes,
                n_live_tup                                                         AS live,
-               n_dead_tup                                                         AS dead,
-               to_char(last_autovacuum, 'YYYY-MM-DD HH24:MI')                     AS last_autovacuum,
-               to_char(last_vacuum, 'YYYY-MM-DD HH24:MI')                         AS last_vacuum
+               n_dead_tup                                                         AS dead
         FROM pg_stat_user_tables
         ORDER BY pg_total_relation_size(relid) DESC
       `) as unknown[];
@@ -57,31 +59,15 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (action === "vacuum" || action === "vacuum_full") {
-      if (!MAINTAINABLE.has(table)) {
-        return Response.json(
-          { ok: false, error: `table musí byť z whitelistu: ${[...MAINTAINABLE].join(", ")}` },
-          { status: 400 }
-        );
-      }
+    if (action === "drop_obsolete") {
       const started = Date.now();
-      const stmt = action === "vacuum_full" ? `VACUUM (FULL, ANALYZE) ${table}` : `VACUUM (ANALYZE) ${table}`;
-      // neon HTTP driver = single-statement auto-commit → VACUUM tu smie bežať
-      await sql.query(stmt);
-      return Response.json({ ok: true, action, table, durationMs: Date.now() - started });
-    }
-
-    if (action === "prune_price_history") {
-      const keepDays = Math.max(1, parseInt(req.nextUrl.searchParams.get("keepDays") ?? "2", 10) || 2);
-      const [{ deleted }] = (await sql`
-        WITH d AS (
-          DELETE FROM product_price_history
-          WHERE recorded_day < (CURRENT_DATE - ${keepDays}::int)
-          RETURNING 1
-        )
-        SELECT COUNT(*)::int AS deleted FROM d
-      `) as { deleted: number }[];
-      return Response.json({ ok: true, action, keepDays, deleted });
+      const dropped: string[] = [];
+      for (const table of OBSOLETE_TABLES) {
+        // Identifikátor je z tvrdého whitelistu (žiadny user input) → bezpečné.
+        await sql.query(`DROP TABLE IF EXISTS ${table} CASCADE`);
+        dropped.push(table);
+      }
+      return Response.json({ ok: true, action, dropped, durationMs: Date.now() - started });
     }
 
     return Response.json({ ok: false, error: `neznáma action: ${action}` }, { status: 400 });

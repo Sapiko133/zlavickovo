@@ -13,18 +13,18 @@ Override 28. 8. 2026: **ZLAVICKOVO = AKTUÁLNE ZĽAVY + AKCIE + ZĽAVOVÉ KÓDY.
 - [x] Cache-policy `lib/feeds/cache-policy.ts` (36 h) — platí pre coupon cache.
 - [x] Design tokeny v `globals.css` (light-only).
 - [x] Trust komponenty `components/commerce/*` + `lib/offers/evidence-labels.ts`.
-- [x] Admin feed health + provider refresh (upraviť: coupon-only, bez Heureky/produktov).
-- [~] Monetizačný resolver `lib/offers/outbound.ts` — PREROBIŤ bez Heureka fallbacku.
-- [~] Deal score `lib/deals/score.ts` — ponechať, ale bez price-history dôkazov (produkty preč).
+- [x] Admin feed health prerobený na coupon-only (bez Heureky/produktov/refresh).
+- [x] Monetizačný resolver `lib/offers/outbound.ts` prerobený bez Heureka fallbacku.
+- [x] Deal score `lib/deals/score.ts` ponechaný (bez price-history dôkazov).
 
 ## FÁZA A — DEMOLÍCIA Heureky a produktového katalógu
 
-- [ ] **A1. Prerobiť outbound bez Heureky**: `lib/offers/outbound.ts` samostatný (direct affiliate → shop affiliate → neplatený link), odstrániť Heureka fallback a haff. Upraviť `lib/outbound-ui.ts`. _Verify: test-offer-outbound bez Heureka vetvy._
-- [ ] **A2. Odstrániť produktové/Heureka stránky a API**: `app/produkt/[slug]`, `app/produkty`, `app/api/feed-search`, `app/api/cron/import-heureka`, `app/api/cron/price-watch-notify`, `app/api/price-watch/*`, `app/api/admin/{heureka-migrate,heureka-stats,price-history-cleanup}`. _Verify: build, žiadne mŕtve odkazy._
-- [ ] **A3. Odstrániť Heureka komponenty**: `HeurekaWidget`, `HeurekaSearch`, `HeurekaPriceChart`, `ProductPriceHistory`, `ShopPriceDrops`, `ShopProducts`, `PriceWatchForm`, príp. `AiCoupons`. Odstrániť trixam script z `app/layout.tsx`. _Verify: build._
-- [ ] **A4. Odstrániť `lib/heureka/*`** a produktové feed-catalog (`lib/feeds/FeedManager`, `*AutoFeed`, `AffialFeedProvider` produktová časť) ak slúžia iba produktovému searchu. Upraviť `lib/sale-articles.ts` (bez price-drops/products), `lib/feeds/health.ts` (coupon-only), `app/kupony/[slug]` (bez feed-shop-slug). _Verify: tsc/build._
-- [ ] **A5. DB cleanup**: dropnúť `hk_products`, `hk_feeds`, `hk_import_*`, `product_price_history`, `price_watches` (idempotentne, po overení, že ich nič nové nepoužíva). Zachovať `shop_descriptions` + analytiku. Overiť, že Neon 402 zmizne. _Verify: read-only audit po drope._
-- [ ] **A6. Env a dead code**: odstrániť `HEUREKA_*` env referencie, `.env.example` čistý, žiadne mŕtve importy. Odstrániť/aktualizovať staré scripts/test-* viazané na Heureku/produkty.
+- [x] **A1. Prerobiť outbound bez Heureky**: `lib/offers/outbound.ts` samostatný (direct affiliate → shop affiliate → neplatený link), odstrániť Heureka fallback a haff. Upraviť `lib/outbound-ui.ts`. _Verify: test-offer-outbound bez Heureka vetvy._
+- [x] **A2. Odstrániť produktové/Heureka stránky a API**: `app/produkt/[slug]`, `app/produkty`, `app/api/feed-search`, `app/api/cron/import-heureka`, `app/api/cron/price-watch-notify`, `app/api/price-watch/*`, `app/api/admin/{heureka-migrate,heureka-stats,price-history-cleanup}`. _Verify: build, žiadne mŕtve odkazy._
+- [x] **A3. Odstrániť Heureka komponenty**: `HeurekaWidget`, `HeurekaSearch`, `HeurekaPriceChart`, `ProductPriceHistory`, `ShopPriceDrops`, `ShopProducts`, `PriceWatchForm`, príp. `AiCoupons`. Odstrániť trixam script z `app/layout.tsx`. _Verify: build._
+- [x] **A4. Odstrániť `lib/heureka/*`** a produktové feed-catalog (`lib/feeds/FeedManager`, `*AutoFeed`, `AffialFeedProvider` produktová časť) ak slúžia iba produktovému searchu. Upraviť `lib/sale-articles.ts` (bez price-drops/products), `lib/feeds/health.ts` (coupon-only), `app/kupony/[slug]` (bez feed-shop-slug). _Verify: tsc/build._
+- [~] **A5. DB cleanup**: endpoint PRIPRAVENÝ — `GET /api/admin/db-maintenance?action=drop_obsolete` (Bearer CRON_SECRET) idempotentne dropne `hk_products`, `hk_feeds`, `hk_import_*`, `product_price_history`, `price_watches` CASCADE. Zachováva `shop_descriptions` + analytiku. Kód už DB nepoužíva. ZOSTÁVA: spustiť proti prod (potrebuje CRON_SECRET/DB prístup) + overiť `action=sizes`.
+- [x] **A6. Env a dead code**: odstrániť `HEUREKA_*` env referencie, `.env.example` čistý, žiadne mŕtve importy. Odstrániť/aktualizovať staré scripts/test-* viazané na Heureku/produkty.
 
 ## FÁZA B — DEAL DISCOVERY REBUILD
 
