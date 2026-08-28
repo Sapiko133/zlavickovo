@@ -91,7 +91,7 @@ export default async function ActionImage({ params }: Props) {
             {title}
           </div>
           <div style={{ display: "flex", marginTop: "auto", fontSize: 23, color: "#cbd5e1", fontWeight: 600 }}>
-            {validity} · Podmienky overené pri otvorení obchodu
+            {validity} · Podmienky si over pri otvorení obchodu
           </div>
         </div>
 

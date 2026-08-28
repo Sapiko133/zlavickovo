@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://www.zlavickovo.sk/akcie" },
   openGraph: {
     title: "Výpredaje v e-shopoch | Zlavickovo",
-    description: "Aktuálne výpredaje a akcie v e-shopoch — veľké obchody aj overení partneri.",
+    description: "Aktuálne výpredaje a akcie slovenských e-shopov na jednom mieste.",
     url: "https://www.zlavickovo.sk/akcie", type: "website", locale: "sk_SK",
   },
 };
@@ -122,7 +122,7 @@ export default async function VypredajePage() {
           </div>
           <div style={{ background: `linear-gradient(135deg, ${ORANGE} 0%, ${ORANGE_DARK} 100%)`, borderRadius: 14, padding: "22px 20px", textAlign: "center", color: "#fff" }}>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 6 }}>🎟️ Hľadáš kupóny?</div>
-            <p style={{ fontSize: 13, opacity: 0.95, margin: "0 0 14px", lineHeight: 1.5 }}>Pozri overené zľavové kódy pre stovky obchodov.</p>
+            <p style={{ fontSize: 13, opacity: 0.95, margin: "0 0 14px", lineHeight: 1.5 }}>Pozri aktuálne zľavové kódy pre stovky obchodov.</p>
             <a href="/kupony" style={{ display: "inline-block", background: "#fff", color: ORANGE_DARK, fontWeight: 800, fontSize: 13, padding: "10px 20px", borderRadius: 100, textDecoration: "none" }}>Zobraziť kupóny →</a>
           </div>
         </aside>

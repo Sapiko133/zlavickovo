@@ -373,9 +373,9 @@ export default async function ShopPage({ params }: Props) {
               <AdBanner slot="header" shopName={capitalized} />
             </div>
 
-            {/* Sekcia 2 — Overené kupóny (len s kódom) */}
+            {/* Sekcia 2 — Zľavové kódy (len s kódom) */}
             <div className="card-section">
-              <div className="section-title">🏷️ Overené kupóny ({codeCoupons.length})</div>
+              <div className="section-title">🏷️ Zľavové kódy ({codeCoupons.length})</div>
               <ShopCouponList capitalized={capitalized} coupons={codeCoupons} kind="kupony" shopUrl={shopVisitUrl} />
             </div>
 

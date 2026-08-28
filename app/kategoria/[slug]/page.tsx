@@ -45,18 +45,18 @@ function getCategoryFAQ(cat: { label: string; featuredShops: { name: string }[] 
   const shopNames = cat.featuredShops.slice(0, 3).map(s => s.name).join(", ");
   return [
     {
-      q: `Kde kúpiť ${cat.label.toLowerCase()} najlacnejšie?`,
+      q: `Kde nájdem zľavy na ${cat.label.toLowerCase()}?`,
       a: shopNames
-        ? `Najlepšie ceny ${cat.label.toLowerCase()} nájdete v obchodoch ako ${shopNames}. Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`
-        : `Pred nákupom vždy skontrolujte aktuálne kupóny a zľavové kódy na Zlavickovo.sk — môžete ušetriť až 20%.`,
+        ? `Aktuálne akcie a zľavové kódy pre ${cat.label.toLowerCase()} nájdeš v obchodoch ako ${shopNames} — všetky na jednom mieste na Zlavickovo.sk. Pred nákupom skontroluj aktuálne kupóny obchodu.`
+        : `Aktuálne akcie a zľavové kódy pre ${cat.label.toLowerCase()} nájdeš na Zlavickovo.sk. Pred nákupom skontroluj aktuálne kupóny obchodu.`,
     },
     {
       q: `Ako ušetriť na ${cat.label.toLowerCase()}?`,
-      a: `Použite zľavový kód pri objednávke, sledujte sezónne výpredaje a akcie obchodov. Na Zlavickovo.sk pravidelne aktualizujeme overené kupóny pre všetky kategórie vrátane ${cat.label.toLowerCase()}.`,
+      a: `Použi zľavový kód pri objednávke a sleduj sezónne výpredaje a akcie obchodov. Kupóny a akcie pre kategóriu ${cat.label.toLowerCase()} pravidelne aktualizujeme z affiliate sietí obchodov.`,
     },
     {
       q: `Má ${cat.featuredShops[0]?.name ?? "váš obchod"} aktuálny kupón?`,
-      a: `Aktuálne kupóny pre všetky obchody v kategórii ${cat.label} nájdete priamo na tejto stránke. Kódy sú overené a pravidelne aktualizované.`,
+      a: `Aktuálne kupóny a akcie pre obchody v kategórii ${cat.label} nájdeš priamo na tejto stránke. Ponuky pravidelne aktualizujeme; platnosť kódu si over v pokladni obchodu.`,
     },
   ];
 }

@@ -4,15 +4,15 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "O nás",
-  description: "Zlavickovo je slovenský AI kupónový portál. Automaticky vyhľadávame aktuálne zľavové kódy pre 100+ obchodov.",
+  description: "Zlavickovo je slovenský portál zliav, akcií a zľavových kódov. Aktuálne ponuky slovenských obchodov na jednom mieste.",
   alternates: { canonical: "https://www.zlavickovo.sk/o-nas" },
 };
 
 const FACTS = [
-  { icon: "🤖", title: "AI vyhľadávanie",    desc: "Naša AI prehľadáva internet v reálnom čase a hľadá overené zľavové kódy." },
-  { icon: "🏪", title: "100+ obchodov",       desc: "Sledujeme kupóny pre viac ako 100 slovenských a českých e-shopov." },
+  { icon: "🎟️", title: "Zľavy na jednom mieste", desc: "Zbierame aktuálne akcie a zľavové kódy z affiliate sietí obchodov." },
+  { icon: "🏪", title: "100+ obchodov",       desc: "Sledujeme akcie a kupóny pre viac ako 100 slovenských a českých e-shopov." },
   { icon: "🇸🇰", title: "SK + CZ trh",        desc: "Pôsobíme na slovenskom aj českom trhu s lokálnymi zľavami." },
-  { icon: "✅", title: "Overené kódy",         desc: "Každý kód je automaticky overovaný pred zverejnením." },
+  { icon: "🔄", title: "Pravidelná aktualizácia", desc: "Ponuky pravidelne aktualizujeme; platnosť kódu si over v obchode." },
 ];
 
 export default function ONasPage() {
@@ -26,7 +26,7 @@ export default function ONasPage() {
         <div style={{ width: 72, height: 72, borderRadius: 20, margin: "0 auto 24px", background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 32, fontWeight: 800 }}>Z</div>
         <h1 style={{ fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, letterSpacing: "-1.5px", margin: "0 0 16px", color: "#1d1d1f" }}>O nás</h1>
         <p style={{ fontSize: 18, color: "#555", maxWidth: 580, margin: "0 auto", lineHeight: 1.7 }}>
-          Zlavickovo je slovenský kupónový portál poháňaný AI. Automaticky vyhľadávame aktuálne zľavové kódy pre 100+ obchodov.
+          Zlavickovo je slovenský portál zliav, akcií a zľavových kódov. Zbierame aktuálne ponuky slovenských obchodov na jednom mieste.
         </p>
       </div>
 
@@ -47,8 +47,8 @@ export default function ONasPage() {
         <div style={{ maxWidth: 680, margin: "0 auto" }}>
           <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: "-0.5px", margin: "0 0 20px", color: "#1d1d1f" }}>Čo robíme</h2>
           <p style={{ fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 16px" }}>
-            Naša AI automaticky vyhľadáva a overuje zľavové kódy z viacerých zdrojov — affiliate sietí, obchodných partnerov
-            aj verejne dostupných stránok. Výsledky sú pravidelne aktualizované, aby ste mali vždy k dispozícii platné kupóny.
+            Zbierame aktuálne zľavové kódy a akcie z affiliate sietí obchodov (Dognet, eHub, CJ, Affial). Ponuky
+            pravidelne aktualizujeme; platnosť konkrétneho kódu si vždy over v pokladni obchodu.
           </p>
           <p style={{ fontSize: 15, color: "#555", lineHeight: 1.8, margin: "0 0 16px" }}>
             Okrem promo kódov poskytujeme letákové akcie supermarketov a prehľad najpopulárnejších

@@ -382,7 +382,7 @@ async function TipArticle({ article }: { article: Article }) {
           {shopSlug && (
             <div style={{ marginTop: 48, padding: "28px", background: "#F0FDF4", borderRadius: 16, border: "1px solid #BBF7D0", textAlign: "center" }}>
               <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 8 }}>Nájdi zľavový kód pre {article.shopName}</div>
-              <div style={{ fontSize: 14, color: "#666", marginBottom: 20 }}>Aktuálne overené kupóny a promo kódy na jednom mieste.</div>
+              <div style={{ fontSize: 14, color: "#666", marginBottom: 20 }}>Aktuálne zľavové kódy a promo akcie na jednom mieste.</div>
               <a href={`/kupony/${shopSlug}`} style={{ display: "inline-block", padding: "12px 24px", borderRadius: 12, background: "#22C55E", color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
                 Zobraziť kupóny pre {article.shopName} →
               </a>
