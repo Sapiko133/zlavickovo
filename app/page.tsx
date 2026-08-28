@@ -44,6 +44,13 @@ const FAVOURITE_SHOPS: { name: string; slug: string; domain: string }[] = [
   { name: "Dr. Max", slug: "dr-max", domain: "drmax.sk" },
 ];
 
+// Obchody, ktoré nechceme propagovať na homepage (18+ + alkohol/tabak/vape).
+// Shop stránky a sitemap zostávajú dostupné — filtrujeme len odporúčania na úvode.
+const HOME_RESTRICTED_RX = /alkohol|alkoshop|whisky|whiskey|\bvino\b|tabak|tabac|cigaret|\bvape\b|e-?cigaret/i;
+function isRestrictedForHome(x: { slug?: string | null; name?: string | null; domain?: string | null }): boolean {
+  return isAdultShop(x) || HOME_RESTRICTED_RX.test(`${x.slug ?? ""} ${x.name ?? ""} ${x.domain ?? ""}`);
+}
+
 interface CouponRow {
   shopName: string;
   domain: string;
@@ -153,8 +160,8 @@ export default async function Home() {
   const topCoupons: CouponRow[] = [];
   const seenCoupon = new Set<string>();
   for (const c of byPrio([...dognetKupony, ...affialKupony])) {
-    // 18+ / erotické obchody nepatria na homepage.
-    if (isAdultShop({ slug: c.shopSlug, name: c.shopName, domain: c.domain })) continue;
+    // 18+ / alkohol / tabak nepropagujeme na homepage.
+    if (isRestrictedForHome({ slug: c.shopSlug, name: c.shopName, domain: c.domain })) continue;
     const key = c.shopName.toLowerCase().trim();
     if (seenCoupon.has(key)) continue;
     seenCoupon.add(key);
@@ -168,7 +175,7 @@ export default async function Home() {
     const c = await getClickStats();
     topShops = c.windows.last30d.topShops
       .map((r) => shopFromSlug(r.key))
-      .filter((s) => !isAdultShop({ slug: s.slug, name: s.name, domain: s.domain }))
+      .filter((s) => !isRestrictedForHome({ slug: s.slug, name: s.name, domain: s.domain }))
       .slice(0, 8);
   } catch {}
   if (topShops.length === 0) topShops = FAVOURITE_SHOPS;
