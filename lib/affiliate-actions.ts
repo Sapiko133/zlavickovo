@@ -8,6 +8,7 @@ import { STATIC_AKCIE } from "@/lib/akcie";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import { isOfferActive } from "@/lib/offers/freshness";
+import { dedupeOffers } from "@/lib/offers/dedupe";
 
 export type AffiliateActionSource = "dognet" | "affial" | "ehub" | "cj" | "static";
 
@@ -187,5 +188,8 @@ export async function getAffiliateActions(): Promise<AffiliateAction[]> {
     const action = normalizeAction(item);
     if (action) unique.set(action.actionKey, action);
   }
-  return Array.from(unique.values());
+
+  // Cross-source dedup: tá istá akcia z dvoch sietí (napr. Bonprix z Dognetu aj
+  // Affialu) sa v kategórii zobrazovala dvakrát. Kanonická = najúplnejší záznam.
+  return dedupeOffers(Array.from(unique.values())).map((group) => group.canonical);
 }
