@@ -9,6 +9,7 @@ import { redis } from "@/lib/redis";
 import { LETAKY } from "@/lib/letaky";
 import { logSearchQuery } from "@/lib/search-log";
 import { normalizeSearchText, matchesSearchTokens, matchesSearch, searchMatchRank } from "@/lib/search-normalize";
+import { isOfferActive } from "@/lib/offers/freshness";
 import { createHash } from "crypto";
 
 const CATEGORY_MAP: Record<string, string[]> = {
@@ -147,7 +148,8 @@ export async function POST(req: Request) {
     };
     result.coupons = [...dognetAll, ...affialAll, ...ehubAll, ...cjMapped, ...affialStatic, ...staticAkcie]
       .map((c: any) => ({ c, rank: couponRank(c) }))
-      .filter(x => x.rank >= 0)
+      // Relevancia + expirované ponuky preč (kanonický freshness model)
+      .filter(x => x.rank >= 0 && isOfferActive(x.c.valid_to ?? x.c.endDate ?? null))
       .sort((a, b) => a.rank - b.rank)
       .map(x => x.c)
       .slice(0, 8).map((c: any) => ({

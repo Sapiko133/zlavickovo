@@ -13,6 +13,7 @@ import { getClickStats } from "@/lib/click-log";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import { isOfferActive } from "@/lib/offers/freshness";
+import { TAXONOMY_LIST } from "@/lib/taxonomy";
 
 export const revalidate = 3600;
 
@@ -290,6 +291,22 @@ export default async function Home() {
                   <ShopFavicon domain={s.domain} name={s.name} size={34} />
                   <span style={{ fontSize: 11, fontWeight: 700, textAlign: "center", lineHeight: 1.25 }}>{s.name}</span>
                 </TrackedLink>
+              ))}
+            </div>
+          </div>
+
+          {/* Kategórie */}
+          <div style={{ background: "#fff", border: "1.5px solid #eceff3", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontWeight: 800, fontSize: 15 }}>📂 Kategórie</span>
+              <Link href="/kategoria" className="see-all" style={{ fontSize: 12 }}>Všetky →</Link>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 12 }}>
+              {TAXONOMY_LIST.map((c) => (
+                <Link key={c.id} href={`/kategoria/${c.id}`} className="side-row"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 999, background: "#F0FDF4", color: "#166534", fontSize: 12, fontWeight: 700, textDecoration: "none", border: "1px solid #DCFCE7" }}>
+                  <span>{c.emoji}</span>{c.label}
+                </Link>
               ))}
             </div>
           </div>
