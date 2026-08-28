@@ -75,7 +75,7 @@ export default function CodeReveal({
         style={{
           display: "flex", alignItems: "center", justifyContent: "center",
           padding: "12px 10px", minHeight: 44, borderRadius: 9,
-          background: "#22C55E", color: "#fff", fontWeight: 700,
+          background: "#15803D", color: "#fff", fontWeight: 700,
           fontSize: 14, textAlign: "center", textDecoration: "none",
           boxShadow: "0 4px 14px rgba(34,197,94,0.3)",
         }}
@@ -92,7 +92,7 @@ export default function CodeReveal({
         style={{
           width: "100%", padding: "12px 10px", minHeight: 44,
           borderRadius: 9, border: "none",
-          background: "#22C55E", color: "#fff", fontWeight: 700,
+          background: "#15803D", color: "#fff", fontWeight: 700,
           fontSize: 14, cursor: "pointer", fontFamily: "inherit",
           boxShadow: "0 4px 14px rgba(34,197,94,0.3)",
         }}

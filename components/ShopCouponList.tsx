@@ -147,7 +147,7 @@ export function ShopCouponRow({ coupon, capitalized }: { coupon: any; capitalize
               onClick={handleGetDeal}
               style={{
                 padding: "13px 24px", borderRadius: T.rMd, border: "none",
-                background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+                background: "#15803D",
                 color: T.white, fontWeight: 700, fontSize: 14, cursor: "pointer",
                 whiteSpace: "nowrap", fontFamily: T.fontSans,
                 boxShadow: T.shadowGreen, transition: T.transBase,
@@ -173,7 +173,7 @@ export function ShopCouponRow({ coupon, capitalized }: { coupon: any; capitalize
             style={{
               display: "inline-flex", alignItems: "center", justifyContent: "center",
               padding: "13px 24px", borderRadius: T.rMd,
-              background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+              background: "#15803D",
               color: T.white, fontWeight: 700, fontSize: 14, textDecoration: "none",
               whiteSpace: "nowrap", boxShadow: T.shadowGreen, transition: T.transBase,
             }}
@@ -246,7 +246,7 @@ export default function ShopCouponList({ capitalized, coupons, kind, shopUrl }: 
               style={{
                 display: "inline-flex", alignItems: "center", gap: 8,
                 marginTop: 18, padding: "12px 24px", borderRadius: T.rMd,
-                background: `linear-gradient(135deg, ${T.green} 0%, ${T.greenDark} 100%)`,
+                background: "#15803D",
                 color: T.white, fontWeight: 700, fontSize: 14,
                 textDecoration: "none", boxShadow: T.shadowGreen,
               }}
