@@ -347,25 +347,16 @@ export default async function ShopPage({ params }: Props) {
 
           {/* Left column */}
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Popis a kategória obchodu */}
-            {(shopDesc.short || categoryLabel) && (
+            {/* Kategória obchodu (popis je v hlavičke a v sekcii „O obchode") */}
+            {categoryLabel && (
               <div className="card-section">
-                {shopDesc.short && (
-                  <p style={{ fontSize: 14, color: "#374151", lineHeight: 1.7, margin: "0 0 12px" }}>
-                    {shopDesc.short}
-                  </p>
-                )}
-                {categoryLabel && (
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-                    {categoryLabel && (
-                      <a href={`/kategoria/${categoryId}`} style={{ textDecoration: "none" }}>
-                        <span style={{ fontSize: 12, fontWeight: 700, background: "#DCFCE7", color: "#15803D", padding: "5px 12px", borderRadius: 9999 }}>
-                          {TAXONOMY[categoryId!].emoji} {categoryLabel}
-                        </span>
-                      </a>
-                    )}
-                  </div>
-                )}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+                  <a href={`/kategoria/${categoryId}`} style={{ textDecoration: "none" }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, background: "#DCFCE7", color: "#15803D", padding: "5px 12px", borderRadius: 9999 }}>
+                      {TAXONOMY[categoryId!].emoji} {categoryLabel}
+                    </span>
+                  </a>
+                </div>
               </div>
             )}
 
