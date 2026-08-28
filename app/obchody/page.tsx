@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Všetky obchody A-Z | Zlavickovo.sk",
+  title: "Obchody A–Z so zľavami a kupónmi",
   description: "Prehľad všetkých obchodov so zľavovými kódmi a kupónmi. Nájdi kupóny pre tvoj obľúbený eshop – zoradené podľa abecedy.",
   alternates: { canonical: "https://www.zlavickovo.sk/obchody" },
 };

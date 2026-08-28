@@ -4,7 +4,7 @@ import Nav from "@/components/Nav";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Inzercia | Zlavickovo.sk",
+  title: "Inzercia a spolupráca",
   description: "Inzerujte na Zlavickovo.sk a oslovte zákazníkov hľadajúcich zľavy. SK+CZ trh, AI platforma, 3 balíky od 49€/mes.",
   alternates: { canonical: "https://www.zlavickovo.sk/inzercia" },
 };

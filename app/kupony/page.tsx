@@ -14,18 +14,33 @@ import CouponTypeBadge from "@/components/CouponTypeBadge";
 
 export const revalidate = 3600;
 
-export const metadata: Metadata = {
-  title: "Všetky zľavové kódy a kupóny 2026 | Zlavickovo.sk",
-  description: "Aktuálne overené zľavové kódy pre 100+ obchodov. Zľavy, akcie a promo kódy zadarmo.",
-  alternates: { canonical: "https://www.zlavickovo.sk/kupony" },
-  openGraph: {
-    title: "Všetky zľavové kódy 2026 – Zlavickovo.sk",
-    description: "Aktuálne kupóny pre 100+ slovenských obchodov.",
-    url: "https://www.zlavickovo.sk/kupony",
-    type: "website",
-    locale: "sk_SK",
-  },
-};
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const year = new Date().getFullYear();
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+  const isFiltered = Boolean(params.q || params.cat || params.sort);
+  const canonical = page > 1 && !isFiltered
+    ? `https://www.zlavickovo.sk/kupony?page=${page}`
+    : "https://www.zlavickovo.sk/kupony";
+
+  return {
+    title: `Zľavové kódy a kupóny – aktuálne ponuky ${year}${page > 1 ? ` – strana ${page}` : ""}`,
+    description: "Aktuálne zľavové kódy, kupóny a promo akcie slovenských obchodov. Vyhľadajte obchod, porovnajte podmienky a ušetrite pri nákupe.",
+    alternates: { canonical },
+    robots: isFiltered ? { index: false, follow: true } : undefined,
+    openGraph: {
+      title: `Všetky zľavové kódy a kupóny ${year}`,
+      description: "Aktuálne kupóny a promo akcie slovenských obchodov.",
+      url: canonical,
+      type: "website",
+      locale: "sk_SK",
+    },
+  };
+}
 
 const PER_PAGE = 24;
 

@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "O nás | Zlavickovo.sk",
+  title: "O nás",
   description: "Zlavickovo je slovenský AI kupónový portál. Automaticky vyhľadávame aktuálne zľavové kódy pre 100+ obchodov.",
   alternates: { canonical: "https://www.zlavickovo.sk/o-nas" },
 };

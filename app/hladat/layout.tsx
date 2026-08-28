@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Vyhľadávanie",
-  description: "Vyhľadaj zľavové kódy, kupóny, obchody a produkty na Zlavickovo.",
-  alternates: { canonical: "https://www.zlavickovo.sk/hladat" },
+  description: "Vyhľadaj aktuálne zľavové kódy, kupóny, akcie a obchody na Zlavickovo.",
+  robots: { index: false, follow: true },
 };
 
 export default function HladatLayout({ children }: { children: React.ReactNode }) {

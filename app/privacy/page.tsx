@@ -3,7 +3,7 @@ import Nav from "@/components/Nav";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Ochrana súkromia | Zlavickovo.sk",
+  title: "Ochrana súkromia",
   description: "Zásady ochrany osobných údajov portálu Zlavickovo.sk. GDPR, cookies, affiliate linky.",
   alternates: { canonical: "https://www.zlavickovo.sk/privacy" },
 };

@@ -3,8 +3,13 @@ import { MetadataRoute } from "next";
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
-      { userAgent: "*", allow: "/", disallow: ["/api/", "/admin/"] },
+      {
+        userAgent: "*",
+        allow: "/",
+        disallow: ["/api/", "/admin/"],
+      },
     ],
     sitemap: "https://www.zlavickovo.sk/sitemap.xml",
+    host: "https://www.zlavickovo.sk",
   };
 }

@@ -35,17 +35,13 @@ export default function HeroSearch({
   const { results, loading } = useUnifiedAutocomplete(query);
 
   const flatItems = [
-    ...results.products.map(p => ({ type: "product" as const, label: p.name, sub: "Produkt", href: p.url, domain: "" })),
     ...results.shops.map(s => ({ type: "shop" as const, label: s.name, sub: "Obchod", href: `/kupony/${s.slug}`, domain: s.domain })),
-    ...results.coupons.map(c => ({ type: "coupon" as const, label: c.title, sub: c.shopName, href: `/kupony/${c.shopSlug}`, domain: "" })),
+    ...results.coupons.map(c => ({ type: "coupon" as const, label: c.title, sub: `Akcia · ${c.shopName}`, href: `/kupony/${c.shopSlug}`, domain: "" })),
   ];
   const hasResults = flatItems.length > 0;
   const showEmpty = query.trim().length >= 2 && !loading && !hasResults;
 
-  useEffect(() => { setHighlight(-1); }, [query]);
-  useEffect(() => {
-    setDropOpen(focused && query.trim().length >= 2 && (hasResults || showEmpty));
-  }, [hasResults, showEmpty, focused, query]);
+  const showDropdown = dropOpen && focused && query.trim().length >= 2 && (hasResults || showEmpty);
 
   useEffect(() => {
     if (!dropOpen) return;
@@ -112,7 +108,7 @@ export default function HeroSearch({
               name="q"
               type="search"
               value={query}
-              onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
+              onChange={e => { setQuery(e.target.value); setHighlight(-1); setDropOpen(true); }}
               onFocus={() => { setFocused(true); if (hasResults) setDropOpen(true); }}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
@@ -143,7 +139,7 @@ export default function HeroSearch({
         </form>
 
         {/* Dropdown */}
-        {dropOpen && (
+        {showDropdown && (
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 400, overflow: "hidden", textAlign: "left" }}>
             {showEmpty ? (
               <div style={{ padding: "14px 16px", fontSize: 13, color: "#999", textAlign: "center" }}>
@@ -151,9 +147,8 @@ export default function HeroSearch({
               </div>
             ) : (
               ([
-                { title: "Produkty", start: 0, count: results.products.length },
-                { title: "Obchody", start: results.products.length, count: results.shops.length },
-                { title: "Kupóny", start: results.products.length + results.shops.length, count: results.coupons.length },
+                { title: "Obchody", start: 0, count: results.shops.length },
+                { title: "Akcie a kupóny", start: results.shops.length, count: results.coupons.length },
               ] as const).map(sec => sec.count > 0 && (
                 <div key={sec.title}>
                   <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", background: "#fafafa", borderBottom: "1px solid #f5f5f5" }}>
@@ -173,7 +168,7 @@ export default function HeroSearch({
                           <ShopFavicon domain={item.domain || ""} name={item.label} size={28} />
                         ) : (
                           <span style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
-                            {item.type === "product" ? "🛍️" : "🎟️"}
+                            🎟️
                           </span>
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>

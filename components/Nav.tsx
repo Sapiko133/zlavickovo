@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import ShopFavicon from "@/components/ShopFavicon";
@@ -39,13 +40,13 @@ function CatDropdown({ onClose }: { onClose: () => void }) {
         </a>
       ))}
       <div style={{ borderTop: "1px solid #f0f0f0", margin: "6px 0" }} />
-      <a href="/kategoria" onClick={onClose}
+      <Link href="/kategoria" onClick={onClose}
         style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", color: "#22C55E", textDecoration: "none", borderRadius: 8, fontSize: 13, fontWeight: 700 }}
         onMouseEnter={e => (e.currentTarget.style.background = "#F0FDF4")}
         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
       >
         🗂️ Všetky kategórie →
-      </a>
+      </Link>
     </div>
   );
 }
@@ -55,7 +56,7 @@ export default function Nav() {
   const t = useTranslations("nav");
 
   const NAV_LINKS = [
-    { label: t("leaflets"),href: "/akcie" },
+    { label: "Akcie",       href: "/akcie" },
     { label: t("coupons"), href: "/kupony" },
     { label: t("shops"),   href: "/obchody" },
     { label: "Letáky",     href: "/letaky" },
@@ -75,17 +76,13 @@ export default function Nav() {
   const { results, loading } = useUnifiedAutocomplete(query);
 
   const flatItems = [
-    ...results.products.map(p => ({ type: "product" as const, label: p.name, sub: "Produkt", href: p.url, domain: "" })),
     ...results.shops.map(s => ({ type: "shop" as const, label: s.name, sub: "Obchod", href: `/kupony/${s.slug}`, domain: s.domain })),
-    ...results.coupons.map(c => ({ type: "coupon" as const, label: c.title, sub: c.shopName, href: `/kupony/${c.shopSlug}`, domain: "" })),
+    ...results.coupons.map(c => ({ type: "coupon" as const, label: c.title, sub: `Akcia · ${c.shopName}`, href: `/kupony/${c.shopSlug}`, domain: "" })),
   ];
   const hasResults = flatItems.length > 0;
   const showEmpty = query.trim().length >= 2 && !loading && !hasResults;
 
-  useEffect(() => { setHighlight(-1); }, [query]);
-  useEffect(() => {
-    setDropOpen(focused && query.trim().length >= 2 && (hasResults || showEmpty));
-  }, [hasResults, showEmpty, focused, query]);
+  const showDropdown = dropOpen && focused && query.trim().length >= 2 && (hasResults || showEmpty);
 
   useEffect(() => {
     if (!catOpen) return;
@@ -152,7 +149,10 @@ export default function Nav() {
         .nav-drop-item:hover { background:#F0FDF4 !important; }
         .nav-chip { display:inline-flex;align-items:center;gap:6px;padding:7px 16px;border-radius:100px;background:#fff;border:1.5px solid #e5e7eb;color:#1d1d1f;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap;transition:border-color .15s,color .15s,background .15s; }
         .nav-chip:hover { border-color:#22C55E;color:#16A34A;background:#F0FDF4; }
-        @media(max-width:560px){ .nav-chip{padding:8px 14px;font-size:13px;flex:1 1 0;justify-content:center;} }
+        @media(max-width:560px){
+          .nav-quick{gap:6px!important;padding-left:8px!important;padding-right:8px!important;}
+          .nav-chip{padding:8px 6px;font-size:11px;flex:1 1 0;min-width:0;justify-content:center;}
+        }
         @media(max-width:900px){.nav-row2{display:none!important}.nav-hamburger{display:flex!important}.nav-lang-d{display:none!important}}
         @media(min-width:901px){.nav-hamburger{display:none!important}}
         /* Mobil (<768px): Riadok 1 = [Logo] [☰ Menu], Riadok 2 = [Vyhľadávanie] */
@@ -173,12 +173,12 @@ export default function Nav() {
 
           {/* Logo */}
           <div className="nav-logo" style={{ flex: "0 0 20%", minWidth: 140 }}>
-            <a href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900, flexShrink: 0 }}>Z</div>
               <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f", letterSpacing: "-0.3px", whiteSpace: "nowrap" }}>
                 Zlavickovo<span style={{ color: "#22C55E" }}>.sk</span>
               </span>
-            </a>
+            </Link>
           </div>
 
           {/* Search — center 60% (na mobile plný 2. riadok) */}
@@ -193,7 +193,7 @@ export default function Nav() {
                 ref={inputRef}
                 type="text"
                 value={query}
-                onChange={e => { setQuery(e.target.value); setDropOpen(true); }}
+                onChange={e => { setQuery(e.target.value); setHighlight(-1); setDropOpen(true); }}
                 onFocus={() => { setFocused(true); if (hasResults) setDropOpen(true); }}
                 onKeyDown={handleKeyDown}
                 placeholder={t("search_placeholder")}
@@ -219,7 +219,7 @@ export default function Nav() {
             </div>
 
             {/* Dropdown */}
-            {dropOpen && (
+            {showDropdown && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 400, overflow: "hidden" }}>
                 {showEmpty ? (
                   <div style={{ padding: "14px 16px", fontSize: 13, color: "#999", textAlign: "center" }}>
@@ -227,9 +227,8 @@ export default function Nav() {
                   </div>
                 ) : (
                   ([
-                    { title: "Produkty", start: 0, count: results.products.length },
-                    { title: "Obchody", start: results.products.length, count: results.shops.length },
-                    { title: "Kupóny", start: results.products.length + results.shops.length, count: results.coupons.length },
+                    { title: "Obchody", start: 0, count: results.shops.length },
+                    { title: "Akcie a kupóny", start: results.shops.length, count: results.coupons.length },
                   ] as const).map(sec => sec.count > 0 && (
                     <div key={sec.title}>
                       <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", background: "#fafafa", borderBottom: "1px solid #f5f5f5" }}>
@@ -249,7 +248,7 @@ export default function Nav() {
                               <ShopFavicon domain={item.domain || ""} name={item.label} size={28} />
                             ) : (
                               <span style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, flexShrink: 0 }}>
-                                {item.type === "product" ? "🛍️" : "🎟️"}
+                                🎟️
                               </span>
                             )}
                             <div style={{ flex: 1, minWidth: 0 }}>
@@ -308,8 +307,9 @@ export default function Nav() {
 
         {/* ── ROW 3: Rýchle odkazy pod hľadáčikom — VŽDY viditeľné (aj mobil) ── */}
         <div className="nav-quick" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", borderTop: "1px solid #f2f2f2", background: "#fafafa" }}>
-          <a href="/kupony" className="nav-chip">🎟️ Kupóny</a>
-          <a href="/obchody" className="nav-chip">🏪 Všetky obchody</a>
+          <Link href="/akcie" className="nav-chip">🔥 Aktuálne akcie</Link>
+          <Link href="/kupony" className="nav-chip">🎟️ Kupóny</Link>
+          <a href="/obchody" className="nav-chip">🏪 Obchody</a>
         </div>
       </nav>
 
@@ -317,10 +317,10 @@ export default function Nav() {
       {menuOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 500, background: "#fff", overflowY: "auto", display: "flex", flexDirection: "column", fontFamily: "system-ui,-apple-system,sans-serif" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 16px", height: 60, flexShrink: 0, borderBottom: "1px solid #f0f0f0", position: "sticky", top: 0, background: "#fff", zIndex: 1 }}>
-            <a href="/" onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+            <Link href="/" onClick={() => setMenuOpen(false)} style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: "#22C55E", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 15, fontWeight: 900 }}>Z</div>
               <span style={{ fontWeight: 800, fontSize: 16, color: "#1d1d1f" }}>Zlavickovo<span style={{ color: "#22C55E" }}>.sk</span></span>
-            </a>
+            </Link>
             <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#1d1d1f", padding: 6, minWidth: 44, minHeight: 44, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
           </div>
           {NAV_LINKS.map(l => (

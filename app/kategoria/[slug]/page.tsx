@@ -9,8 +9,6 @@ import { getCouponsByCategory } from "@/lib/category-coupons";
 import { TAXONOMY, TAXONOMY_LIST, isCategoryId, type TaxonomyCategory } from "@/lib/taxonomy";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { notFound } from "next/navigation";
-import { getProductsByHkCategory, toProductSlug, formatProductPriceLines } from "@/lib/heureka/query";
-import type { HkProduct } from "@/lib/heureka/types";
 
 export const revalidate = 3600;
 
@@ -32,12 +30,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const cat = getVisibleCategory(slug);
   if (!cat) return {};
   return {
-    title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
-    description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
+    title: `${cat.label} – kupóny, akcie a zľavové kódy`,
+    description: `Aktuálne kupóny, akcie a zľavové kódy pre kategóriu ${cat.label.toLowerCase()}. Porovnajte ponuky slovenských obchodov a ušetrite pri nákupe.`,
     alternates: { canonical: `https://www.zlavickovo.sk/kategoria/${slug}` },
     openGraph: {
-      title: `${cat.label} kupóny a zľavy | Zlavickovo.sk`,
-      description: `Aktuálne overené kupóny pre ${cat.label.toLowerCase()}. Ušetri na nákupe.`,
+      title: `${cat.label} – kupóny, akcie a zľavové kódy`,
+      description: `Aktuálne kupóny a akcie pre kategóriu ${cat.label.toLowerCase()}.`,
       url: `https://www.zlavickovo.sk/kategoria/${slug}`, type: "website",
     },
   };
@@ -91,14 +89,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       return true;
     });
 
-  // Produkty z Heureka DB — iba pre pilotné kategórie (krasa, sport, byvanie)
-  const PILOT_CATS = new Set(["krasa", "sport", "byvanie"]);
-
-  // Parallelizovane: kupony (podla kategorie obchodu, nie keywords) + produkty (DB)
-  const [coupons, hkProducts] = await Promise.all([
-    getCouponsByCategory(cat.id, 12).catch(() => []),
-    PILOT_CATS.has(slug) ? getProductsByHkCategory(slug, 8).catch(() => []) : Promise.resolve<HkProduct[]>([]),
-  ]);
+  const coupons = await getCouponsByCategory(cat.id, 12).catch(() => []);
 
   // Kupón = má kód, akcia = bez kódu
   const kuponyList = coupons.filter((c: any) => c.code && String(c.code).trim() !== "");
@@ -127,7 +118,7 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <style>{`
         .shop-card-k { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
         .shop-card-k:hover { border-color: ${cat.color} !important; box-shadow: 0 6px 20px ${cat.color}22 !important; transform: translateY(-2px); }
@@ -270,69 +261,6 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
               {akcieList.map((coupon: any) => (
                 <CouponCard key={coupon.id} coupon={coupon} token={null} />
               ))}
-            </div>
-          </section>
-        )}
-
-        {/* Produkty z Heureka DB */}
-        {hkProducts.length > 0 && (
-          <section style={{ marginTop: 48 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: "#1d1d1f" }}>
-                🛍️ Produkty v kategórii {cat.label}
-              </h2>
-              <a
-                href={`/produkty?kategoria=${slug}`}
-                style={{ fontSize: 13, color: cat.color, fontWeight: 600, textDecoration: "none" }}
-              >
-                Všetky produkty →
-              </a>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-              {hkProducts.map((p: HkProduct) => {
-                const pSlug = toProductSlug(p.name, p.id);
-                const pPrice = formatProductPriceLines(p);
-                return (
-                  <a
-                    key={p.id}
-                    href={`/produkt/${pSlug}`}
-                    style={{
-                      display: "flex", flexDirection: "column",
-                      background: "#fff", borderRadius: 12, border: "1.5px solid #e8e8e8",
-                      textDecoration: "none", color: "#1d1d1f", overflow: "hidden",
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
-                    }}
-                  >
-                    <div style={{ aspectRatio: "1", background: "#f8f9fa", display: "flex", alignItems: "center", justifyContent: "center", padding: 8 }}>
-                      {p.img_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.img_url} alt={p.name} loading="lazy" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
-                      ) : (
-                        <ShopFavicon domain={p.domain} name={p.domain} size={36} />
-                      )}
-                    </div>
-                    <div style={{ padding: "10px 12px 12px" }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, lineHeight: 1.4, color: "#1d1d1f", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as const, overflow: "hidden", marginBottom: 6 }}>
-                        {p.name}
-                      </div>
-                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                        {pPrice ? (
-                          <span style={{ display: "flex", flexDirection: "column", lineHeight: 1.2 }}>
-                            <span style={{ fontSize: 13, fontWeight: 800, color: "#22C55E" }}>{pPrice.primary}</span>
-                            {pPrice.secondary && (
-                              <span title="Orientačný prepočet podľa aktuálne nastaveného kurzu." style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>
-                                {pPrice.secondary}
-                              </span>
-                            )}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 11, color: "#aaa" }}>Cena na webe</span>
-                        )}
-                      </div>
-                    </div>
-                  </a>
-                );
-              })}
             </div>
           </section>
         )}

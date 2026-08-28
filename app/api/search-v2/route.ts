@@ -80,9 +80,8 @@ export async function POST(req: Request) {
 
   // Hash z normalizovaného dopytu — "káva" a "kava" zdieľajú cache záznam
   const hash = createHash("md5").update(normalizeSearchText(query)).digest("hex");
-  // v3: normalizované vyhľadávanie (diakritika + word boundary) — nový prefix
-  // invaliduje starú cache
-  const cacheKey = `search_cache:v3:${hash}`;
+  // Krátka cache: nové affiliate akcie sa majú vo vyhľadávaní objaviť rýchlo.
+  const cacheKey = `search_cache:v4:${hash}`;
 
   // Redis cache
   try {
@@ -168,9 +167,9 @@ export async function POST(req: Request) {
     }));
   }
 
-  // Cache na 30 dní (2592000s)
+  // 15 minút je kompromis medzi čerstvosťou ponúk a záťažou affiliate zdrojov.
   try {
-    await redis.set(cacheKey, result, { ex: 2592000 });
+    await redis.set(cacheKey, result, { ex: 900 });
   } catch {}
 
   return Response.json(result);

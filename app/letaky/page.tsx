@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
-  title: "Aktuálne akcie supermarketov | Potraviny & Reťazce",
+  title: "Aktuálne akcie supermarketov a reťazcov",
   description: "Aktuálne týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalších obchodov. Nájdi najlepšie zľavy.",
   alternates: { canonical: "https://www.zlavickovo.sk/letaky" },
   openGraph: {

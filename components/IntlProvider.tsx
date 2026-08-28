@@ -24,7 +24,7 @@ export default function IntlProvider({ children }: { children: React.ReactNode }
   }, []);
 
   return (
-    <NextIntlClientProvider messages={msgMap[locale]} locale={locale}>
+    <NextIntlClientProvider messages={msgMap[locale]} locale={locale} timeZone="Europe/Bratislava">
       {children}
     </NextIntlClientProvider>
   );

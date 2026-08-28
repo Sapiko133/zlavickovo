@@ -56,7 +56,11 @@ const nextConfig: NextConfig = {
       { source: "/blog", destination: "/akcie", permanent: true },
       { source: "/blog/:slug", destination: "/akcie/:slug", permanent: true },
     ];
-    return [...shopRedirects, ...blogRedirects];
+    const productRedirects = [
+      { source: "/produkty", destination: "/akcie", permanent: true },
+      { source: "/produkt/:slug", destination: "/akcie", permanent: true },
+    ];
+    return [...shopRedirects, ...blogRedirects, ...productRedirects];
   },
 };
 

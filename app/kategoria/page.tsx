@@ -3,7 +3,7 @@ import Footer from "@/components/Footer";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 
 export const metadata = {
-  title: "Kategórie kupónov | Zlavickovo",
+  title: "Kategórie kupónov a zliav",
   description: "Prehľad všetkých kategórií zľavových kódov a kupónov pre slovenské obchody.",
   alternates: { canonical: "https://www.zlavickovo.sk/kategoria" },
 };

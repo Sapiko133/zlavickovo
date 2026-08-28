@@ -7,10 +7,6 @@ import { STATIC_AKCIE } from "@/lib/akcie";
 import { getAllKnownShops } from "@/lib/all-shops";
 import { normalizeShopName, normalizeShopSlug } from "@/lib/slug";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
-import { feedManager } from "@/lib/feeds/FeedManager";
-import { getFormattedProductPricesFromRaw, searchHkProducts, toProductSlug } from "@/lib/heureka/query";
-import { variantBaseKey } from "@/lib/heureka/variant-name";
-import { getOfferOutbound, type OfferOutboundKind } from "@/lib/heureka/affiliate";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 
 export const dynamic = "force-dynamic";
@@ -20,17 +16,6 @@ interface ShopEntry {
   slug: string;
   category: string;
   domain: string;
-}
-
-interface ProductEntry {
-  name: string;
-  slug: string;
-  category: string;
-  domain: string;
-  price?: string;
-  url?: string;
-  outboundType?: OfferOutboundKind;
-  monetized?: boolean;
 }
 
 // Jediný zdroj pravdy — lib/all-shops.ts (getAllKnownShops)
@@ -46,7 +31,7 @@ export async function GET(req: Request) {
   const mode = searchParams.get("mode");
   const q = searchParams.get("q") || "";
 
-  // ── Unified mode: products + shops + coupons ─────────────────
+  // ── Unified mode: shops + deals/coupons ──────────────────────
   if (mode === "unified") {
     if (q.trim().length < 2) {
       return Response.json({ products: [], shops: [], coupons: [] });
@@ -54,43 +39,14 @@ export async function GET(req: Request) {
     // Normalizovaný dopyt pre slug matching — "SHEIN" → "shein", "shein.sk"/"shein.com" → "shein"
     const sq = normalizeShopSlug(q);
 
-    const [hkResult, shopsResult, dognetCouponsResult, ehubCouponsResult, affialCouponsResult, cjCouponsResult] =
+    const [shopsResult, dognetCouponsResult, ehubCouponsResult, affialCouponsResult, cjCouponsResult] =
       await Promise.allSettled([
-        searchHkProducts(q, 20),
         getAllShops(),
         getDognetCoupons(),
         getEhubCoupons(),
         getAffialCoupons(),
         getCjCoupons(),
       ]);
-
-    // Produkty — hk_products, abecedne, max 5
-    const products =
-      hkResult.status === "fulfilled"
-        ? hkResult.value
-            .map(p => {
-              const slug = toProductSlug(p.name, p.id);
-              const price = getFormattedProductPricesFromRaw(p.price, p.currency_code, p.domain);
-              return {
-                slug,
-                name: p.name,
-                category: p.category,
-                domain: p.domain,
-                price: price?.primary ?? "",
-                url: `/produkt/${slug}`,
-              };
-            })
-            .sort((a, b) => skCollator.compare(a.name, b.name))
-        : [];
-
-    // Dedup variantov toho istého produktu (§8) — nezobrazuj tú istú topánku 2× v rôznych veľkostiach
-    const seenVariant = new Set<string>();
-    const dedupProducts = products.filter((p) => {
-      const key = `${(p.domain || "").toLowerCase()}|${variantBaseKey(p.name)}`;
-      if (seenVariant.has(key)) return false;
-      seenVariant.add(key);
-      return true;
-    }).slice(0, 5);
 
     // Obchody — shop cache, max 5. Radenie: exact → startsWith → word boundary
     // → substring (normalizované, bez diakritiky — "gym beam" nájde GymBeam),
@@ -185,36 +141,14 @@ export async function GET(req: Request) {
     });
 
     return Response.json(
-      { products: dedupProducts, shops, coupons: coupons.slice(0, 5) },
+      { products: [], shops, coupons: coupons.slice(0, 5) },
       { headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" } }
     );
   }
 
-  // ── Product search mode ──────────────────────────────────────
+  // Legacy product mode remains as an empty compatibility response.
   if (mode === "product") {
-    if (q.length < 1) return Response.json([]);
-    try {
-      const products = await feedManager.search(q);
-      const results: ProductEntry[] = products.slice(0, 5).map(p => {
-        // Centrálna outbound logika (PROJECT_VISION §14) — bez lokálneho fallbacku
-        const outbound = getOfferOutbound({ affiliateUrl: p.affiliateUrl, url: p.url, name: p.name });
-        return {
-          name: p.name,
-          slug: "",
-          category: p.category || "Produkt",
-          domain: p.domain || "",
-          price: getFormattedProductPricesFromRaw(p.price, null, p.domain)?.primary ?? "",
-          url: outbound.url,
-          outboundType: outbound.kind,
-          monetized: outbound.monetized,
-        };
-      });
-      return Response.json(results, {
-        headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },
-      });
-    } catch {
-      return Response.json([]);
-    }
+    return Response.json([]);
   }
 
   // ── Shop search mode (default) ───────────────────────────────

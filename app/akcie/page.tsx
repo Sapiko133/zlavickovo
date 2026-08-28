@@ -13,8 +13,8 @@ const ORANGE_DARK = "#16A34A";
 const PINK = "#16A34A";
 
 export const metadata: Metadata = {
-  title: "Výpredaje v e-shopoch až -80 % | Zlavickovo.sk",
-  description: "Aktuálne výpredaje a akcie v e-shopoch — veľké obchody aj overení partneri. Porovnaj ceny a nakúp výhodne.",
+  title: "Aktuálne akcie a výpredaje obchodov",
+  description: "Čerstvé akcie, zľavy a výpredaje slovenských obchodov zo zapojených affiliate sietí. Ponuky pravidelne aktualizujeme na jednom mieste.",
   alternates: { canonical: "https://www.zlavickovo.sk/akcie" },
   openGraph: {
     title: "Výpredaje v e-shopoch | Zlavickovo",
@@ -94,9 +94,9 @@ export default async function VypredajePage() {
 
       {/* HERO */}
       <div style={{ background: `linear-gradient(120deg, ${ORANGE_DARK} 0%, ${ORANGE} 60%, #4ADE80 100%)`, padding: "48px 20px 44px", textAlign: "center", color: "#fff" }}>
-        <h1 style={{ fontSize: "clamp(30px, 5vw, 48px)", fontWeight: 900, margin: "0 0 12px", letterSpacing: "-1px", textShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>Výpredaje</h1>
+        <h1 style={{ fontSize: "clamp(30px, 5vw, 48px)", fontWeight: 900, margin: "0 0 12px", letterSpacing: "-1px", textShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>Aktuálne akcie a výpredaje</h1>
         <p style={{ fontSize: "clamp(14px, 2vw, 18px)", margin: 0, opacity: 0.95 }}>
-          Viac ako {total} overených výpredajov a akcií v e-shopoch — až do -80 %
+          {total} aktuálnych ponúk zo zapojených obchodov a affiliate sietí
         </p>
       </div>
 
@@ -114,10 +114,10 @@ export default async function VypredajePage() {
         {/* Sidebar */}
         <aside className="vyp-aside" style={{ position: "sticky", top: 80, display: "flex", flexDirection: "column", gap: 18 }}>
           <div style={{ background: "#fff", borderRadius: 14, border: "1px solid #ececec", padding: "20px" }}>
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>Výpredaj v e-shopoch</div>
+            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>Ako akcie vyberáme</div>
             <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.65, margin: 0 }}>
-              Nestihli ste nákup v akcii? Výpredaje sú skvelá voľba — nakúpite viac za menej.
-              Pri veľkých obchodoch porovnáme ceny cez Heureku, pri partneroch ideš priamo na ponuku.
+              Ponuky pravidelne načítavame zo zapojených affiliate sietí. Ak má akcia vlastný detail,
+              môžeme pri nej ukázať aj zľavnené produkty, ktoré sa jej priamo týkajú.
             </p>
           </div>
           <div style={{ background: `linear-gradient(135deg, ${ORANGE} 0%, ${ORANGE_DARK} 100%)`, borderRadius: 14, padding: "22px 20px", textAlign: "center", color: "#fff" }}>
@@ -146,7 +146,7 @@ export default async function VypredajePage() {
           )}
 
           <div style={{ marginTop: 22, padding: "14px 18px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534" }}>
-            ℹ️ Ceny a dostupnosť sa môžu meniť. Pri veľkých obchodoch ťa odkaz prevedie na porovnanie cien na Heureke; over si aktuálne podmienky pred nákupom.
+            ℹ️ Podmienky, ceny a dostupnosť sa môžu meniť. Pred nákupom si vždy over aktuálne pravidlá akcie priamo v obchode.
           </div>
         </main>
       </div>
