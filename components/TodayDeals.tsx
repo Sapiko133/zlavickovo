@@ -61,7 +61,7 @@ function KuponCard({ deal }: { deal: DealItem }) {
       <CardHead deal={deal} />
       <div style={titleStyle}>{deal.title}</div>
       <div style={{ marginTop: "auto", paddingTop: 10 }}>
-        <div style={{ fontSize: 11, color: "#aaa", marginBottom: 8 }}>{validLabel(deal.validTo)}</div>
+        <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 8 }}>{validLabel(deal.validTo)}</div>
         {!revealed ? (
           <button onClick={handleReveal}
             style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1.5px dashed #22C55E", background: "#f0fdf4", color: "#15803d", fontWeight: 800, fontSize: 13, cursor: "pointer", letterSpacing: "0.04em" }}>
@@ -92,7 +92,7 @@ function AkciaCard({ deal }: { deal: DealItem }) {
       <CardHead deal={deal} />
       <div style={titleStyle}>{deal.title}</div>
       <div style={{ marginTop: "auto", paddingTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-        <span style={{ fontSize: 11, color: "#aaa" }}>{validLabel(deal.validTo)}</span>
+        <span style={{ fontSize: 11, color: "#6b7280" }}>{validLabel(deal.validTo)}</span>
         <span style={{ fontSize: 13, fontWeight: 800, color: "#fff", background: ORANGE, borderRadius: 8, padding: "7px 14px", whiteSpace: "nowrap" }}>Využiť →</span>
       </div>
     </a>

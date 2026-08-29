@@ -97,7 +97,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
           <div style={{ display: "flex", maxWidth: 520, border: "2px solid #e0e0e0", borderRadius: 12, background: "#f9fafb", overflow: "hidden", transition: "border-color 0.15s" }}
             onFocus={() => {}} // handled by inner input focus style
           >
-            <span style={{ padding: "0 14px", display: "flex", alignItems: "center", color: "#aaa", fontSize: 18 }}>🔍</span>
+            <span style={{ padding: "0 14px", display: "flex", alignItems: "center", color: "#6b7280", fontSize: 18 }}>🔍</span>
             <input
               ref={inputRef}
               type="text"
@@ -112,7 +112,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
             />
             {query && (
               <button onClick={() => { setQuery(""); inputRef.current?.focus(); }}
-                style={{ padding: "0 14px", border: "none", background: "transparent", color: "#aaa", cursor: "pointer", fontSize: 18 }}>
+                style={{ padding: "0 14px", border: "none", background: "transparent", color: "#6b7280", cursor: "pointer", fontSize: 18 }}>
                 ×
               </button>
             )}
@@ -120,7 +120,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
 
           {/* Result count */}
           {query && (
-            <p style={{ fontSize: 13, color: "#888", margin: "10px 0 0" }}>
+            <p style={{ fontSize: 13, color: "#6b7280", margin: "10px 0 0" }}>
               {resultCount === 0 ? "Žiadne výsledky" : `${resultCount} obchod${resultCount === 1 ? "" : resultCount < 5 ? "y" : "ov"} pre „${query}"`}
             </p>
           )}
@@ -180,7 +180,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
       <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 20px 80px" }}>
 
         {allSortedLetters.length === 0 && (
-          <div style={{ textAlign: "center", padding: "80px 24px", color: "#aaa" }}>
+          <div style={{ textAlign: "center", padding: "80px 24px", color: "#6b7280" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
             <p style={{ fontSize: 16 }}>Nenašli sme žiadne obchody pre „{query}"</p>
             <button onClick={() => setQuery("")} style={{ marginTop: 12, padding: "10px 22px", borderRadius: 10, border: "none", background: "#22C55E", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: 14, fontFamily: "inherit" }}>
@@ -204,7 +204,7 @@ export default function ObchodyClient({ shops, total }: { shops: ShopItem[]; tot
                   {letter}
                 </div>
                 <div style={{ flex: 1, height: 1, background: "#e8e8e8" }} />
-                <span style={{ fontSize: 12, color: "#aaa", fontWeight: 600, whiteSpace: "nowrap" }}>
+                <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 600, whiteSpace: "nowrap" }}>
                   {letterShops.length} obchod{letterShops.length === 1 ? "" : letterShops.length < 5 ? "y" : "ov"}
                 </span>
               </div>
@@ -250,7 +250,7 @@ function ShopCard({ shop }: { shop: ShopItem }) {
         <div style={{ fontSize: 12, fontWeight: 700, color: "#1d1d1f", lineHeight: 1.3, wordBreak: "break-word" }}>
           {shop.name}
         </div>
-        <div style={{ fontSize: 10, color: "#aaa", marginTop: 3 }}>
+        <div style={{ fontSize: 10, color: "#6b7280", marginTop: 3 }}>
           {shop.count != null && shop.count > 0
             ? `${shop.count} kupón${shop.count === 1 ? "" : shop.count < 5 ? "y" : "ov"}`
             : "kupóny"}

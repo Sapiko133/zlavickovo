@@ -95,7 +95,7 @@ function CouponGridCard({ c }: { c: UnifiedCoupon }) {
             {c.shopName || "Obchod"}
           </div>
           {expiryStr && (
-            <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>
+            <div style={{ fontSize: 11, color: "#6b7280", marginTop: 1 }}>
               Platí do {expiryStr}
             </div>
           )}
@@ -133,7 +133,7 @@ function CouponGridCard({ c }: { c: UnifiedCoupon }) {
           {c.title || "Zľava"}
         </div>
         {c.description && (
-          <div className="line-clamp2" style={{ fontSize: 12, color: "#888", lineHeight: 1.5 }}>
+          <div className="line-clamp2" style={{ fontSize: 12, color: "#6b7280", lineHeight: 1.5 }}>
             {c.description}
           </div>
         )}
@@ -338,8 +338,8 @@ export default async function KuponyPage({
       {/* Page header */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e8e8e8", padding: "36px 24px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ fontSize: 12, color: "#aaa", marginBottom: 8 }}>
-            <a href="/" style={{ color: "#aaa", textDecoration: "none" }}>Zlavickovo</a>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+            <a href="/" style={{ color: "#6b7280", textDecoration: "none" }}>Zlavickovo</a>
             {" › "}
             <span style={{ color: "#1d1d1f" }}>Všetky kupóny</span>
           </div>
@@ -348,7 +348,7 @@ export default async function KuponyPage({
               <h1 style={{ fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 800, margin: "0 0 6px", letterSpacing: "-0.5px" }}>
                 🎟️ Všetky zľavové kódy a kupóny
               </h1>
-              <p style={{ fontSize: 14, color: "#888", margin: 0 }}>
+              <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>
                 {total > 0 ? `${kuponyAll.length} kupónov · ${akcieAll.length} akcií slovenských obchodov` : "Načítavam..."}
               </p>
             </div>
@@ -446,7 +446,7 @@ export default async function KuponyPage({
       {/* Grid */}
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "24px 24px 64px" }}>
         {paginated.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "80px 24px", color: "#aaa" }}>
+          <div style={{ textAlign: "center", padding: "80px 24px", color: "#6b7280" }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
             <p style={{ fontSize: 16, fontWeight: 600, margin: "0 0 8px" }}>Žiadne kupóny nenájdené</p>
             <p style={{ fontSize: 14, margin: "0 0 20px" }}>Skúste iný filter alebo vyhľadávanie.</p>
@@ -459,7 +459,7 @@ export default async function KuponyPage({
             {pageKupony.length > 0 && (
               <section style={{ marginBottom: pageAkcie.length > 0 ? 40 : 0 }}>
                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
-                  🎟️ Kupóny <span style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>({kuponyAll.length})</span>
+                  🎟️ Kupóny <span style={{ fontSize: 14, fontWeight: 600, color: "#6b7280" }}>({kuponyAll.length})</span>
                 </h2>
                 <div className="kupony-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
                   {pageKupony.map(c => <CouponGridCard key={c.id} c={c} />)}
@@ -469,7 +469,7 @@ export default async function KuponyPage({
             {pageAkcie.length > 0 && (
               <section>
                 <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 16px", letterSpacing: "-0.3px" }}>
-                  🔥 Akcie <span style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>({akcieAll.length})</span>
+                  🔥 Akcie <span style={{ fontSize: 14, fontWeight: 600, color: "#6b7280" }}>({akcieAll.length})</span>
                 </h2>
                 <div className="kupony-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
                   {pageAkcie.map(c => <CouponGridCard key={c.id} c={c} />)}
@@ -540,7 +540,7 @@ export default async function KuponyPage({
         )}
 
         {total > 0 && (
-          <p style={{ textAlign: "center", fontSize: 12, color: "#bbb", marginTop: 16 }}>
+          <p style={{ textAlign: "center", fontSize: 12, color: "#6b7280", marginTop: 16 }}>
             Strana {currentPage} z {totalPages} · {kuponyAll.length} kupónov a {akcieAll.length} akcií celkom
           </p>
         )}

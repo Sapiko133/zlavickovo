@@ -142,7 +142,7 @@ export default function HeroSearch({
         {showDropdown && (
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, background: "#fff", border: "1px solid #e8e8e8", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.12)", zIndex: 400, overflow: "hidden", textAlign: "left" }}>
             {showEmpty ? (
-              <div style={{ padding: "14px 16px", fontSize: 13, color: "#999", textAlign: "center" }}>
+              <div style={{ padding: "14px 16px", fontSize: 13, color: "#6b7280", textAlign: "center" }}>
                 Nenašli sa žiadne výsledky
               </div>
             ) : (
@@ -151,7 +151,7 @@ export default function HeroSearch({
                 { title: "Akcie a kupóny", start: results.shops.length, count: results.coupons.length },
               ] as const).map(sec => sec.count > 0 && (
                 <div key={sec.title}>
-                  <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, color: "#aaa", letterSpacing: "0.08em", textTransform: "uppercase", background: "#fafafa", borderBottom: "1px solid #f5f5f5" }}>
+                  <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, color: "#6b7280", letterSpacing: "0.08em", textTransform: "uppercase", background: "#fafafa", borderBottom: "1px solid #f5f5f5" }}>
                     {sec.title}
                   </div>
                   {flatItems.slice(sec.start, sec.start + sec.count).map((item, j) => {
@@ -173,7 +173,7 @@ export default function HeroSearch({
                         )}
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontWeight: 700, fontSize: 13, color: "#1d1d1f", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
-                          <div style={{ fontSize: 11, color: "#999", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.sub}</div>
+                          <div style={{ fontSize: 11, color: "#6b7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.sub}</div>
                         </div>
                         <span style={{ fontSize: 11, color: "#ccc", flexShrink: 0 }}>→</span>
                       </div>
@@ -191,7 +191,7 @@ export default function HeroSearch({
         display: "flex", gap: 8, justifyContent: "center",
         flexWrap: "wrap",
       }}>
-        <span style={{ fontSize: 13, color: "#999", lineHeight: "30px", flexShrink: 0 }}>
+        <span style={{ fontSize: 13, color: "#6b7280", lineHeight: "30px", flexShrink: 0 }}>
           Populárne:
         </span>
         {POPULAR.map(item => (

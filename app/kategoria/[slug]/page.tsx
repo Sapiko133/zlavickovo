@@ -146,10 +146,10 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
       {/* Header */}
       <div style={{ background: `linear-gradient(135deg, ${cat.bg} 0%, #fff 100%)`, borderBottom: `1px solid ${cat.color}30`, padding: "48px 24px 36px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ fontSize: 12, color: "#999", marginBottom: 10 }}>
-            <a href="/" style={{ color: "#999", textDecoration: "none" }}>Zlavickovo</a>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 10 }}>
+            <a href="/" style={{ color: "#6b7280", textDecoration: "none" }}>Zlavickovo</a>
             {" › "}
-            <a href="/kategoria" style={{ color: "#999", textDecoration: "none" }}>Kategórie</a>
+            <a href="/kategoria" style={{ color: "#6b7280", textDecoration: "none" }}>Kategórie</a>
             {" › "}
             <span style={{ color: cat.color, fontWeight: 600 }}>{cat.label}</span>
           </div>

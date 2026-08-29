@@ -157,7 +157,7 @@ export default async function VypredajePage() {
               {items.map((it, i) => <RowCardWrap key={it.id} item={it} rank={i + 1} />)}
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "80px 20px", color: "#aaa", background: "#fff", borderRadius: 14, border: "1px solid #ececec" }}>
+            <div style={{ textAlign: "center", padding: "80px 20px", color: "#6b7280", background: "#fff", borderRadius: 14, border: "1px solid #ececec" }}>
               <div style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
               <p>Momentálne pripravujeme nové výpredaje. Skontroluj neskôr.</p>
             </div>
