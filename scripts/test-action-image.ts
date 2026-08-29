@@ -17,14 +17,18 @@ async function main() {
   const { resolveActionImage } = await import("../lib/action-image");
 
   // Konkrétne obchody, o ktorých vieme, že majú Dognet bannery aj og:image.
-  const targets = [
+  const { getAffiliateActions } = await import("../lib/affiliate-actions");
+  const actions = await getAffiliateActions().catch(() => []);
+  console.log(`Aktuálnych affiliate akcií: ${actions.length}`);
+
+  // Fixné + vzorka reálnych akcií naprieč sieťami (dognet/ehub/cj).
+  const fixed = [
     { shopName: "Sizeer.sk", domain: "sizeer.sk" },
-    { shopName: "Tchibo.sk", domain: "tchibo.sk" },
     { shopName: "Alza.sk", domain: "alza.sk" },
-    { shopName: "Puravia.cz", domain: "puravia.cz" },
-    { shopName: "Piumo.sk", domain: "piumo.sk" },
-    { shopName: "Hauzi.sk", domain: "hauzi.sk" },
   ];
+  const bySource: Record<string, { shopName: string; domain: string }> = {};
+  for (const a of actions) if (!bySource[a.source]) bySource[a.source] = { shopName: a.shopName, domain: a.domain };
+  const targets = [...fixed, ...Object.values(bySource), ...actions.slice(0, 8).map((a) => ({ shopName: a.shopName, domain: a.domain }))];
 
   for (const t of targets) {
     const img = await resolveActionImage(t);

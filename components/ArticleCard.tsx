@@ -18,7 +18,10 @@ export default function ArticleCard({ article, featured = false }: { article: Ar
 
   // Reálne bannery inzerenta (Dognet creative / og:image) vyplnia rám bez deformácie
   // (cover), zatiaľ čo produktové feed fotky nechávame celé na bielom (contain).
-  const isBanner = article.imageSource === "dognet-banner" || article.imageSource === "og-image";
+  const isBanner =
+    article.imageSource === "dognet-banner" ||
+    article.imageSource === "cj-banner" ||
+    article.imageSource === "og-image";
   const media = (height: number, faviconSize: number) =>
     article.imageUrl ? (
       // eslint-disable-next-line @next/next/no-img-element

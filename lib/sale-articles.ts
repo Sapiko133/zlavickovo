@@ -32,7 +32,9 @@ import { resolveActionImage } from "@/lib/action-image";
 
 const MIN_PRODUCTS = 5;
 const MAX_CANDIDATE_DOMAINS = 80; // strop na runtime crona
-const IMAGE_BUDGET = 40; // max. koľko reálnych obrázkov doťaháme za jeden beh crona
+// Max. koľko reálnych obrázkov doťaháme za jeden beh (chráni runtime crona).
+// Cez SALE_IMAGE_BUDGET sa dá zvýšiť pre jednorazový backfill.
+const IMAGE_BUDGET = Number(process.env.SALE_IMAGE_BUDGET) || 40;
 
 const SK_MONTHS = [
   "január", "február", "marec", "apríl", "máj", "jún",

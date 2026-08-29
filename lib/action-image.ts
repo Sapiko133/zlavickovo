@@ -1,14 +1,17 @@
 import { redis } from "@/lib/redis";
 import { getToken } from "@/lib/dognet";
+import { getCjBanners } from "@/lib/cj";
+import { getEhubShops } from "@/lib/ehub";
 
 /**
  * Resolver REÁLNYCH obrázkov pre akcie/kampane — žiadna AI grafika.
  *
  * Preferencia zdrojov (odsúhlasené):
- *   1. affiliate campaign creative  → Dognet /banners/filter (banner inzerenta)
+ *   1. affiliate campaign creative  → Dognet /banners/filter + CJ Banner links
  *   2. feed image                   → obrázok z produktového feedu (ak je)
  *   3. og:image z webu inzerenta    → <meta og:image> na doméne obchodu
- *   4. logo obchodu (favicon)       → fallback rieši UI, tu NEukladáme
+ *   4. logo obchodu                 → eHub logoUrl (reálne logo pred Google favicon)
+ *   5. favicon                      → fallback rieši UI, tu NEukladáme
  *
  * Do DB sa ukladá iba URL + zdroj (attribution), nikdy binárka.
  */
@@ -16,11 +19,11 @@ import { getToken } from "@/lib/dognet";
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415; // náš ad_channel (NIE 8875)
 
-const CACHE_PREFIX = "action-image:v2:";
+const CACHE_PREFIX = "action-image:v3:"; // v3: + CJ bannery, eHub logá, strip anotácií
 const CACHE_TTL = 60 * 60 * 24 * 30; // 30 dní — reálny nález
 const NEGATIVE_TTL = 60 * 60 * 24 * 3; // 3 dni — aby sme nespamovali siete
 
-export type ActionImageSource = "dognet-banner" | "feed" | "og-image";
+export type ActionImageSource = "dognet-banner" | "cj-banner" | "feed" | "og-image" | "ehub-logo";
 
 export interface ActionImage {
   url: string;
@@ -36,13 +39,18 @@ interface BannerEntry {
   tld: string; // trh kreatívy z názvu kampane (sk/cz/hu/…) na uprednostnenie rovnakého trhu
 }
 
-/** Normalizuj názov obchodu/kampane na porovnateľný kľúč (bez TLD a diakritiky). */
+/**
+ * Normalizuj názov obchodu/kampane na porovnateľný kľúč — bez diakritiky, TLD a
+ * anotácií v zátvorkách ("Alza.hu (for content publishers)" → "alza").
+ */
 function normKey(s: string): string {
   return (s || "")
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .replace(/\.(sk|cz|eu|com|pl|hu|at|de)$/i, "")
+    .replace(/\([^)]*\)/g, " ") // odstráň anotácie "(for content publishers)" a pod.
+    .trim()
+    .replace(/\.(sk|cz|eu|com|pl|hu|at|de|hr|rs|bg|si|ro)$/i, "")
     .replace(/[^a-z0-9]/g, "");
 }
 
@@ -140,6 +148,77 @@ async function dognetBanner(shopName: string, domain: string): Promise<string | 
   return null;
 }
 
+// ── CJ banner kreatívy ────────────────────────────────────────────────────────
+let cjMemo: { at: number; map: Map<string, BannerEntry[]> } | null = null;
+
+async function loadCjMap(): Promise<Map<string, BannerEntry[]>> {
+  if (cjMemo && Date.now() - cjMemo.at < BANNER_MEMO_TTL) return cjMemo.map;
+  const map = new Map<string, BannerEntry[]>();
+  try {
+    const banners = await getCjBanners();
+    for (const b of banners) {
+      const entry: BannerEntry = { url: b.imageUrl, area: b.area || 1, tld: tldOf(b.domain) };
+      for (const key of [normKey(b.advertiserName), normKey(b.domain)]) {
+        if (!key) continue;
+        const list = map.get(key) || [];
+        if (!list.some((e) => e.url === entry.url)) {
+          list.push(entry);
+          list.sort((a, c) => c.area - a.area);
+          if (list.length > PER_KEY_CAP) list.length = PER_KEY_CAP;
+          map.set(key, list);
+        }
+      }
+    }
+  } catch {}
+  cjMemo = { at: Date.now(), map };
+  return map;
+}
+
+/** 1b. Affiliate campaign creative — reálny CJ banner inzerenta. */
+async function cjBanner(shopName: string, domain: string): Promise<string | null> {
+  const map = await loadCjMap();
+  const targetTld = tldOf(domain);
+  for (const key of [normKey(shopName), normKey(domain)]) {
+    if (!key) continue;
+    const list = map.get(key);
+    if (!list || !list.length) continue;
+    const sameMarket = targetTld ? list.find((e) => e.tld === targetTld) : undefined;
+    return (sameMarket || list[0]).url;
+  }
+  return null;
+}
+
+// ── eHub logá obchodov (reálne logo pred Google favicon) ──────────────────────
+let ehubMemo: { at: number; map: Map<string, string> } | null = null;
+
+async function loadEhubLogoMap(): Promise<Map<string, string>> {
+  if (ehubMemo && Date.now() - ehubMemo.at < BANNER_MEMO_TTL) return ehubMemo.map;
+  const map = new Map<string, string>();
+  try {
+    const shops = await getEhubShops();
+    for (const s of shops) {
+      if (!s.logoUrl || !/^https?:\/\//.test(s.logoUrl)) continue;
+      for (const key of [normKey(s.name), normKey(domainOf(s.web))]) {
+        if (key && !map.has(key)) map.set(key, s.logoUrl);
+      }
+    }
+  } catch {}
+  ehubMemo = { at: Date.now(), map };
+  return map;
+}
+
+function domainOf(web: string): string {
+  return (web || "").replace(/^https?:\/\/(?:www\.)?/i, "").replace(/\/.*$/, "").toLowerCase();
+}
+
+async function ehubLogo(shopName: string, domain: string): Promise<string | null> {
+  const map = await loadEhubLogoMap();
+  for (const key of [normKey(shopName), normKey(domain)]) {
+    if (key && map.has(key)) return map.get(key)!;
+  }
+  return null;
+}
+
 /** 3. og:image z webu inzerenta (pôvodný obrázok, nie AI). */
 async function ogImage(domain: string): Promise<string | null> {
   const base = `https://${domain}`;
@@ -189,10 +268,17 @@ export async function resolveActionImage(input: ResolveInput): Promise<ActionIma
   }
 
   let result: ActionImage | null = null;
+  const shopName = input.shopName || "";
 
-  // 1. Affiliate campaign creative
-  const banner = await dognetBanner(input.shopName || "", domain);
+  // 1. Affiliate campaign creative — Dognet banner
+  const banner = await dognetBanner(shopName, domain);
   if (banner) result = { url: banner, source: "dognet-banner" };
+
+  // 1b. Affiliate campaign creative — CJ banner
+  if (!result) {
+    const cj = await cjBanner(shopName, domain);
+    if (cj) result = { url: cj, source: "cj-banner" };
+  }
 
   // 2. Feed image
   if (!result && input.feedImage && /^https?:\/\//.test(input.feedImage)) {
@@ -203,6 +289,12 @@ export async function resolveActionImage(input: ResolveInput): Promise<ActionIma
   if (!result && domain) {
     const og = await ogImage(domain);
     if (og) result = { url: og, source: "og-image" };
+  }
+
+  // 4. eHub logo obchodu (reálne logo pred Google favicon fallbackom)
+  if (!result) {
+    const logo = await ehubLogo(shopName, domain);
+    if (logo) result = { url: logo, source: "ehub-logo" };
   }
 
   if (cacheKey) {

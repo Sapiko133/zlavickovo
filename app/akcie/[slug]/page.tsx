@@ -124,10 +124,15 @@ async function SaleArticle({ article }: { article: Article }) {
   const seoContent = article.content || buildSaleSeoContent(article);
   // Iba REÁLNY obrázok inzerenta (banner / og:image / feed) — žiadna generická grafika.
   const heroImage = article.imageUrl || null;
-  const isBannerCreative = article.imageSource === "dognet-banner" || article.imageSource === "og-image";
+  const isBannerCreative =
+    article.imageSource === "dognet-banner" ||
+    article.imageSource === "cj-banner" ||
+    article.imageSource === "og-image";
   const imageCredit =
-    article.imageSource === "dognet-banner"
+    article.imageSource === "dognet-banner" || article.imageSource === "cj-banner"
       ? `Reklamná kreatíva obchodu ${article.shopName || ""}`.trim()
+      : article.imageSource === "ehub-logo"
+      ? `Logo obchodu ${article.shopName || ""}`.trim()
       : article.imageSource
       ? `Obrázok: ${article.domain || article.shopName || "web obchodu"}`
       : null;
@@ -213,7 +218,11 @@ async function SaleArticle({ article }: { article: Article }) {
               <img
                 src={heroImage}
                 alt={`Aktuálna akcia ${article.shopName || article.title}`}
-                style={{ width: "100%", maxHeight: 420, objectFit: isBannerCreative ? "contain" : "cover" }}
+                style={{
+                  width: "100%",
+                  maxHeight: 420,
+                  objectFit: isBannerCreative || article.imageSource === "ehub-logo" ? "contain" : "cover",
+                }}
               />
             </div>
             {imageCredit && (

@@ -184,6 +184,70 @@ export async function getCjCouponsByShop(shopName: string): Promise<CjCoupon[]> 
   return all.filter((c) => matches(c.advertiserName));
 }
 
+// ── CJ banner kreatívy (reálne obrázky inzerenta, žiadna AI grafika) ──────────
+export interface CjBanner {
+  advertiserName: string;
+  domain: string;
+  imageUrl: string;
+  area: number;
+}
+
+const BANNER_CACHE_KEY = "cj:banners:v1";
+let bannersMemo: { at: number; data: Promise<CjBanner[]> } | null = null;
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&quot;/g, '"')
+    .replace(/&#0?39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&");
+}
+
+function domainFromUrl(url: string): string {
+  return (url.match(/^https?:\/\/(?:www\.)?([^/?#]+)/i)?.[1] || "").toLowerCase();
+}
+
+async function fetchCjBanners(): Promise<CjBanner[]> {
+  const xml = await fetchFromCj({ "link-type": "Banner", "records-per-page": "500" });
+  if (!xml) return [];
+  const out: CjBanner[] = [];
+  for (const link of parseLinks(xml)) {
+    const html = decodeEntities(xmlField(link, "link-code-html"));
+    const img = html.match(/<img[^>]+src=["']([^"']+)["']/i)?.[1];
+    if (!img || !/^https?:\/\//.test(img)) continue;
+    const w = Number(xmlField(link, "creative-width")) || 0;
+    const h = Number(xmlField(link, "creative-height")) || 0;
+    out.push({
+      advertiserName: xmlField(link, "advertiser-name"),
+      domain: domainFromUrl(xmlField(link, "destination")),
+      imageUrl: img,
+      area: w * h || 1,
+    });
+  }
+  return out;
+}
+
+export async function getCjBanners(): Promise<CjBanner[]> {
+  if (bannersMemo && Date.now() - bannersMemo.at < PROCESS_MEMO_TTL_SECONDS * 1000) {
+    return bannersMemo.data;
+  }
+  const promise = (async () => {
+    try {
+      const cached = await redis.get<CjBanner[]>(BANNER_CACHE_KEY);
+      if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+    } catch {}
+    const banners = await fetchCjBanners();
+    if (banners.length > 0) {
+      try { await redis.set(BANNER_CACHE_KEY, banners, { ex: SHOP_CACHE_TTL }); } catch {}
+    }
+    return banners;
+  })();
+  bannersMemo = { at: Date.now(), data: promise };
+  promise.catch(() => { bannersMemo = null; });
+  return promise;
+}
+
 /**
  * Shop-level CJ affiliate link (napr. Answear.sk) — pre obchod, ktorý má v CJ
  * joined advertisera, ale žiadne coupon-type promo. Vráti CJ clickUrl (tracking).
