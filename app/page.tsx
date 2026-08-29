@@ -14,6 +14,7 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import { isOfferActive } from "@/lib/offers/freshness";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
+import { TOP_SHOPS } from "@/lib/top-shops";
 import { isAdultShop } from "@/lib/shop-categories";
 
 export const revalidate = 3600;
@@ -31,7 +32,6 @@ export const metadata = {
 
 const GREEN = "#22C55E";
 const ORANGE_DARK = "#EA580C";
-const DARK = "#0F172A";
 
 const FAVOURITE_SHOPS: { name: string; slug: string; domain: string }[] = [
   { name: "Alza", slug: "alza", domain: "alza.sk" },
@@ -180,6 +180,11 @@ export default async function Home() {
   } catch {}
   if (topShops.length === 0) topShops = FAVOURITE_SHOPS;
 
+  // ── OBCHODY (grid dole) — kurátorský zoznam so stránkou /kupony/[slug] ──
+  const bottomShops = TOP_SHOPS
+    .filter((s) => !isRestrictedForHome({ slug: s.slug, name: s.name, domain: s.domain }))
+    .map((s) => ({ name: s.name, slug: s.slug, domain: s.domain }));
+
   return (
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
@@ -209,6 +214,13 @@ export default async function Home() {
         .home-deal-content { min-width: 0; padding: 18px; display: flex; flex-direction: column; justify-content: center; }
         .home-deal-card-featured .home-deal-content { padding: 26px; }
         .side-row:hover { background: #F0FDF4 !important; }
+        .cat-chip { display: inline-flex; align-items: center; gap: 7px; padding: 9px 16px; border-radius: 999px; background: #F0FDF4; color: #166534; font-size: 14px; font-weight: 700; text-decoration: none; border: 1px solid #DCFCE7; white-space: nowrap; transition: background .15s, border-color .15s, color .15s; }
+        .cat-chip:hover { background: ${GREEN}; border-color: ${GREEN}; color: #fff; }
+        .shop-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 18px 10px; border: 1.5px solid #eceff3; border-radius: 16px; background: #fff; text-decoration: none; color: #1d1d1f; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+        .shop-tile:hover { transform: translateY(-3px); box-shadow: 0 10px 26px rgba(15,23,42,.10); border-color: ${GREEN}; }
+        @media(max-width: 620px) {
+          .cat-bar { justify-content: flex-start !important; flex-wrap: nowrap !important; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        }
         @media(max-width: 900px) {
           .home-layout { grid-template-columns: 1fr !important; }
           .home-sidebar { position: static !important; }
@@ -223,18 +235,29 @@ export default async function Home() {
 
       <Nav />
 
-      {/* HERO — vyhľadávanie obchodov */}
-      <div style={{ background: `linear-gradient(135deg, ${DARK} 0%, #1E293B 60%, #27364a 100%)`, padding: "52px 20px 42px" }}>
+      {/* HERO — svetlý, vyhľadávanie hneď hore */}
+      <div style={{ background: "linear-gradient(180deg, #F0FDF4 0%, #ffffff 100%)", padding: "40px 20px 30px", borderBottom: "1px solid #f0f0f0" }}>
         <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
-          <h1 style={{ fontSize: "clamp(26px, 5vw, 44px)", fontWeight: 800, color: "#fff", letterSpacing: "-1.2px", lineHeight: 1.14, margin: "0 0 14px" }}>
-            Akcie, výpredaje a kupóny obchodov
+          <h1 style={{ fontSize: "clamp(24px, 4.6vw, 40px)", fontWeight: 800, color: "#0F172A", letterSpacing: "-1px", lineHeight: 1.15, margin: "0 0 12px" }}>
+            Zľavové kupóny, kódy a akcie obchodov
           </h1>
-          <p style={{ fontSize: "clamp(15px, 2vw, 19px)", color: "#cbd5e1", margin: "0 auto 26px", lineHeight: 1.55, maxWidth: 620 }}>
-            Nájdi obchod a pozri jeho aktuálne akcie, výpredaje a kupóny pred nákupom.
+          <p style={{ fontSize: "clamp(14px, 1.9vw, 18px)", color: "#475569", margin: "0 auto 24px", lineHeight: 1.5, maxWidth: 600 }}>
+            Nájdi obchod a pozri jeho aktuálne kupóny, zľavové kódy a akcie pred nákupom.
           </p>
           <div style={{ maxWidth: 620, margin: "0 auto" }}>
             <HeroSearch placeholder="Alza, Notino, Zalando, GymBeam..." ctaLabel="Hľadať" />
           </div>
+        </div>
+      </div>
+
+      {/* KATEGÓRIE — horizontálna lišta hneď pod hľadaním */}
+      <div style={{ background: "#fff", borderBottom: "1px solid #f0f0f0" }}>
+        <div className="cat-bar" style={{ maxWidth: 1200, margin: "0 auto", padding: "14px 20px", display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+          {TAXONOMY_LIST.map((c) => (
+            <Link key={c.id} href={`/kategoria/${c.id}`} className="cat-chip">
+              <span aria-hidden>{c.emoji}</span>{c.label}
+            </Link>
+          ))}
         </div>
       </div>
 
@@ -308,25 +331,26 @@ export default async function Home() {
             </div>
           </div>
 
-          {/* Kategórie */}
-          <div style={{ background: "#fff", border: "1.5px solid #eceff3", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
-            <div style={{ padding: "14px 16px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontWeight: 800, fontSize: 15 }}>📂 Kategórie</span>
-              <Link href="/kategoria" className="see-all" style={{ fontSize: 12 }}>Všetky →</Link>
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: 12 }}>
-              {TAXONOMY_LIST.map((c) => (
-                <Link key={c.id} href={`/kategoria/${c.id}`} className="side-row"
-                  style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 11px", borderRadius: 999, background: "#F0FDF4", color: "#166534", fontSize: 12, fontWeight: 700, textDecoration: "none", border: "1px solid #DCFCE7" }}>
-                  <span>{c.emoji}</span>{c.label}
-                </Link>
-              ))}
-            </div>
-          </div>
         </aside>
       </div>
 
-      <div style={{ height: 80 }} />
+      {/* OBCHODY — celo­šírkový grid log obchodov (ako referencia dole) */}
+      <section style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 20px 8px" }}>
+        <div style={{ marginBottom: 18 }}>
+          <h2 className="sec-title">🏪 Pre aký obchod hľadáš zľavu?</h2>
+          <p className="sec-sub">Vyber obchod a pozri jeho aktuálne kupóny, kódy a akcie</p>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
+          {bottomShops.map((s) => (
+            <TrackedLink key={s.slug} href={`/kupony/${s.slug}`} type="shop_outbound" shopSlug={s.slug} destinationDomain={s.domain} className="shop-tile">
+              <ShopFavicon domain={s.domain} name={s.name} size={40} />
+              <span style={{ fontSize: 13, fontWeight: 700, textAlign: "center", lineHeight: 1.25 }}>{s.name}</span>
+            </TrackedLink>
+          ))}
+        </div>
+      </section>
+
+      <div style={{ height: 60 }} />
       <Footer />
     </div>
   );
