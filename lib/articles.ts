@@ -32,7 +32,8 @@ export interface Article {
   title: string;
   perex: string;            // krátky popis do gridu / meta description
   content?: string;         // HTML (manuálne / tip články)
-  imageUrl?: string;        // og:image (prvý produkt / manuálne)
+  imageUrl?: string;        // reálny obrázok akcie (banner inzerenta / og:image / feed)
+  imageSource?: string;     // pôvod obrázka: "dognet-banner" | "feed" | "og-image" (attribution)
   shopName?: string;
   domain?: string;
   shopSlug?: string;

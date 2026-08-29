@@ -13,6 +13,21 @@ function shorten(value: string, limit: number): string {
   return clean.length <= limit ? clean : `${clean.slice(0, limit - 1).trimEnd()}…`;
 }
 
+/** Overí, že URL vracia skutočný obrázok (aby Satori render nespadol). */
+async function usableImage(url?: string): Promise<string | null> {
+  if (!url || !/^https?:\/\//.test(url)) return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    const type = res.headers.get("content-type") || "";
+    return res.ok && type.startsWith("image/") ? url : null;
+  } catch {
+    return null;
+  }
+}
+
 export default async function ActionImage({ params }: Props) {
   const { slug } = await params;
   const article = await getArticleBySlug(slug);
@@ -25,6 +40,53 @@ export default async function ActionImage({ params }: Props) {
     : "Aktuálna ponuka";
   const badge = article?.discountPct ? `ZĽAVA AŽ -${article.discountPct}%` : "AKTUÁLNA AKCIA";
   const titleSize = title.length > 82 ? 44 : title.length > 58 ? 51 : 59;
+
+  // Ak máme REÁLNU kreatívu inzerenta, použijeme ju (aj pre FB auto-posting) namiesto
+  // generickej grafiky — s jemným spodným brand pruhom.
+  const creative = await usableImage(article?.imageUrl);
+  if (creative) {
+    return new ImageResponse(
+      (
+        <div style={{ width: "100%", height: "100%", display: "flex", position: "relative", background: "#0f172a" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={creative} width={1200} height={630} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: "flex",
+              alignItems: "center",
+              padding: "26px 44px",
+              background: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.78) 100%)",
+              color: "white",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", fontSize: 30, fontWeight: 800 }}>
+              <span style={{ color: "#4ade80", marginRight: 10 }}>✂</span>
+              Zlavickovo.sk
+            </div>
+            <div
+              style={{
+                display: "flex",
+                marginLeft: "auto",
+                borderRadius: 999,
+                padding: "10px 22px",
+                background: "#22c55e",
+                color: "#052e16",
+                fontSize: 24,
+                fontWeight: 900,
+              }}
+            >
+              {badge}
+            </div>
+          </div>
+        </div>
+      ),
+      size,
+    );
+  }
 
   return new ImageResponse(
     (

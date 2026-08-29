@@ -14,6 +14,7 @@ import {
   type Article,
   type SaleProduct,
 } from "@/lib/articles";
+import { resolveActionImage } from "@/lib/action-image";
 
 /**
  * Generátor článkov o výpredajoch (cron /api/cron/check-sales, každých 6h).
@@ -31,6 +32,7 @@ import {
 
 const MIN_PRODUCTS = 5;
 const MAX_CANDIDATE_DOMAINS = 80; // strop na runtime crona
+const IMAGE_BUDGET = 40; // max. koľko reálnych obrázkov doťaháme za jeden beh crona
 
 const SK_MONTHS = [
   "január", "február", "marec", "apríl", "máj", "jún",
@@ -158,13 +160,31 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
 
   // Každá aktuálna affiliate akcia dostane vlastný stabilný detail a SEO obsah.
   const affiliateActions = await getAffiliateActions().catch(() => []);
+  let imageBudget = IMAGE_BUDGET;
   for (const action of affiliateActions) {
     const prev = existingBySlug.get(action.articleSlug);
     const contentHash = actionContentHash(action);
     generatedActionSlugs.add(action.articleSlug);
 
-    // Nehýb updatedAt ani sitemap lastmod, pokiaľ sa vstupné dáta akcie nezmenili.
-    if (prev?.contentHash === contentHash && prev.published) continue;
+    // Reálny obrázok akcie (banner inzerenta → feed → og:image). Ťaháme len keď
+    // ho ešte nemáme a v rámci rozpočtu behu; výsledok je v Redise cachovaný.
+    let imageUrl = prev?.imageUrl;
+    let imageSource = prev?.imageSource;
+    if (!imageUrl && imageBudget > 0) {
+      imageBudget--;
+      const resolved = await resolveActionImage({
+        shopName: action.shopName,
+        domain: action.domain,
+      }).catch(() => null);
+      if (resolved) {
+        imageUrl = resolved.url;
+        imageSource = resolved.source;
+      }
+    }
+
+    // Nehýb updatedAt ani sitemap lastmod, pokiaľ sa nezmenili vstupné dáta akcie
+    // ani sa nedoplnil nový obrázok.
+    if (prev?.contentHash === contentHash && prev.published && imageUrl === prev?.imageUrl) continue;
 
     const article: Article = {
       slug: action.articleSlug,
@@ -178,7 +198,8 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
       shopSlug: action.shopSlug,
       discountPct: action.discountPct,
       products: prev?.products || [],
-      imageUrl: prev?.imageUrl,
+      imageUrl,
+      imageSource,
       affiliateUrl: action.affiliateUrl,
       date: prev?.date ?? nowIso,
       updatedAt: nowIso,
@@ -225,6 +246,7 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
       title,
       perex,
       imageUrl: image,
+      imageSource: image ? "feed" : undefined,
       shopName,
       domain: cand.domain,
       shopSlug,

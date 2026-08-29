@@ -122,7 +122,15 @@ async function SaleArticle({ article }: { article: Article }) {
   const shopSlug = article.shopSlug || (article.shopName ? normalizeShopSlug(article.shopName) : "");
   const products = article.products ?? [];
   const seoContent = article.content || buildSaleSeoContent(article);
-  const heroImageUrl = `/akcie/${article.slug}/opengraph-image`;
+  // Iba REÁLNY obrázok inzerenta (banner / og:image / feed) — žiadna generická grafika.
+  const heroImage = article.imageUrl || null;
+  const isBannerCreative = article.imageSource === "dognet-banner" || article.imageSource === "og-image";
+  const imageCredit =
+    article.imageSource === "dognet-banner"
+      ? `Reklamná kreatíva obchodu ${article.shopName || ""}`.trim()
+      : article.imageSource
+      ? `Obrázok: ${article.domain || article.shopName || "web obchodu"}`
+      : null;
 
   // Kupóny obchodu (bez zobrazenia kódu — kód sa odhalí až na /kupony/[slug])
   let coupons: any[] = [];
@@ -197,11 +205,24 @@ async function SaleArticle({ article }: { article: Article }) {
           </span>
         </div>
 
-        {/* Hero image */}
-        <div style={{ borderRadius: 18, overflow: "hidden", background: "#0f172a", marginBottom: 24, maxHeight: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={heroImageUrl} alt={`Aktuálna akcia ${article.shopName || article.title}`} style={{ width: "100%", maxHeight: 420, objectFit: "cover" }} />
-        </div>
+        {/* Hero — len reálny obrázok inzerenta; ak žiadny nemáme, žiadna výplňová grafika */}
+        {heroImage && (
+          <figure style={{ margin: "0 0 24px" }}>
+            <div style={{ borderRadius: 18, overflow: "hidden", background: "#f4f5f7", border: "1px solid #eceff3", maxHeight: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={heroImage}
+                alt={`Aktuálna akcia ${article.shopName || article.title}`}
+                style={{ width: "100%", maxHeight: 420, objectFit: isBannerCreative ? "contain" : "cover" }}
+              />
+            </div>
+            {imageCredit && (
+              <figcaption style={{ fontSize: 11, color: "#9ca3af", marginTop: 6, textAlign: "right" }}>
+                {imageCredit}
+              </figcaption>
+            )}
+          </figure>
+        )}
 
         {/* CTA */}
         {article.affiliateUrl && (
