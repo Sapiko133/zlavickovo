@@ -180,10 +180,13 @@ export default async function Home() {
   } catch {}
   if (topShops.length === 0) topShops = FAVOURITE_SHOPS;
 
-  // ── OBCHODY (grid dole) — kurátorský zoznam so stránkou /kupony/[slug] ──
+  // ── OBCHODY (grid dole) — kurátorský zoznam so stránkou /kupony/[slug].
+  //    Zoradené podľa priority (.sk pred .cz/.com), zastropované — plný zoznam na /obchody.
   const bottomShops = TOP_SHOPS
     .filter((s) => !isRestrictedForHome({ slug: s.slug, name: s.name, domain: s.domain }))
-    .map((s) => ({ name: s.name, slug: s.slug, domain: s.domain }));
+    .map((s) => ({ name: s.name, slug: s.slug, domain: s.domain }))
+    .sort((a, b) => compareShopsByPriority({ name: a.name, domain: a.domain }, { name: b.name, domain: b.domain }))
+    .slice(0, 36);
 
   return (
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
@@ -336,9 +339,12 @@ export default async function Home() {
 
       {/* OBCHODY — celo­šírkový grid log obchodov (ako referencia dole) */}
       <section style={{ maxWidth: 1200, margin: "0 auto", padding: "44px 20px 8px" }}>
-        <div style={{ marginBottom: 18 }}>
-          <h2 className="sec-title">🏪 Pre aký obchod hľadáš zľavu?</h2>
-          <p className="sec-sub">Vyber obchod a pozri jeho aktuálne kupóny, kódy a akcie</p>
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12, marginBottom: 18, flexWrap: "wrap" }}>
+          <div>
+            <h2 className="sec-title">🏪 Pre aký obchod hľadáš zľavu?</h2>
+            <p className="sec-sub">Vyber obchod a pozri jeho aktuálne kupóny, kódy a akcie</p>
+          </div>
+          <Link href="/obchody" className="see-all">Všetky obchody →</Link>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 12 }}>
           {bottomShops.map((s) => (

@@ -89,6 +89,27 @@ export function isApprovedCampaign(c: { commissionGroups?: unknown }): boolean {
   return groups.some((g: any) => /^(approved|active|accepted)$/i.test(String(g?.status ?? "")));
 }
 
+// ── Coverage report (read-only audit) ──────────────────────────────────────
+// SK/CZ kampane rozdelené na schválené (máme) vs neschválené (pending/požiadať).
+// Používa /api/admin/affiliate-coverage.
+export interface EhubCoverageItem { name: string; web: string; market: string; }
+export interface EhubCoverage { total: number; approved: EhubCoverageItem[]; notApproved: EhubCoverageItem[]; }
+
+export async function getEhubCampaignCoverage(): Promise<EhubCoverage> {
+  const campaigns = await _fetchAllPages("campaigns", "campaigns");
+  const approved: EhubCoverageItem[] = [];
+  const notApproved: EhubCoverageItem[] = [];
+  for (const c of campaigns) {
+    const market = getCampaignMarket(c);
+    if (!isAllowedMarket(market)) continue; // len SK/CZ
+    const item: EhubCoverageItem = { name: String(c?.name ?? ""), web: String(c?.web ?? ""), market };
+    if (isApprovedCampaign(c)) approved.push(item);
+    else notApproved.push(item);
+  }
+  const byName = (a: EhubCoverageItem, b: EhubCoverageItem) => a.name.localeCompare(b.name, "sk");
+  return { total: campaigns.length, approved: approved.sort(byName), notApproved: notApproved.sort(byName) };
+}
+
 // Datumy su YYYY-MM-DD, staci string porovnanie.
 function isDateRangeActive(validFrom: string | null | undefined, validTill: string | null | undefined): boolean {
   const today = new Date().toISOString().slice(0, 10);

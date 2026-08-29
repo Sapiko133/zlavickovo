@@ -198,6 +198,41 @@ export async function refreshDognetCampaignsCache(): Promise<{ count: number; er
   }
 }
 
+// ── Coverage report (read-only audit) ──────────────────────────────────────
+// Klasifikuje SK/CZ kampane podľa stavu nášho ad_channelu (33415):
+//   status 1 = joined/approved; status 2/3 = pending; ad_channel chýba = joinovateľné
+//   (= zoznam „o čo požiadať"). Používa /api/admin/affiliate-coverage.
+export interface DognetCoverage {
+  totalCampaigns: number;
+  joined: DognetJoinedCampaign[];
+  pending: DognetJoinedCampaign[];
+  available: DognetJoinedCampaign[];
+}
+
+export async function getDognetCampaignCoverage(): Promise<DognetCoverage> {
+  const t = await getToken();
+  const all = await _fetchAllCampaigns(t);
+  const joined: DognetJoinedCampaign[] = [];
+  const pending: DognetJoinedCampaign[] = [];
+  const available: DognetJoinedCampaign[] = [];
+  for (const c of all) {
+    if (!c.name) continue;
+    if (!isDognetSkCzMarket(c.name, c.url)) continue; // len SK/CZ trh
+    const entry: DognetJoinedCampaign = { name: cleanDognetShopName(c.name), url: c.url || "" };
+    const ch = (c.ad_channels_in_campaign || []).find((a: any) => a.ad_channel_id === AD_CHANNEL_ID);
+    if (!ch) available.push(entry);
+    else if (ch.status === 1) joined.push(entry);
+    else pending.push(entry);
+  }
+  const byName = (a: DognetJoinedCampaign, b: DognetJoinedCampaign) => a.name.localeCompare(b.name, "sk");
+  return {
+    totalCampaigns: all.length,
+    joined: joined.sort(byName),
+    pending: pending.sort(byName),
+    available: available.sort(byName),
+  };
+}
+
 /** chid nášho ad_channelu (z cached voucher urls). */
 export async function getDognetChid(): Promise<string> {
   const coupons = await getCoupons().catch(() => []);
