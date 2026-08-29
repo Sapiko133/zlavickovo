@@ -43,4 +43,4 @@ Override 28. 8. 2026: **ZLAVICKOVO = AKTUÁLNE ZĽAVY + AKCIE + ZĽAVOVÉ KÓDY.
 - [x] **C3. Sitemap/robots/404**: sitemap = kupóny/kategórie/akcie/obchody/letáky (18+ mimo, žiadne produktové URL); robots disallow /api,/admin.
 - [~] **C4. Performance**: server-first + Redis cache (36 h) + ISR revalidate. CHÝBA: cielený audit N+1/bundle.
 - [~] **C5. Mobile-first + WCAG AA**: mobile-first layouty + WCAG CTA kontrast (B7). CHÝBA: úplný AA pass (focus/aria/kontrasty naprieč).
-- [ ] **C6. E2E QA + deal/coupon/affiliate**: žiadne fake claims, expirácie, dedup, tracking — neurobené.
+- [x] **C6. E2E QA + deal/coupon/affiliate** (29.8.2026, overené na prode v prehliadači): kritický monetizačný flow PASS — kód skrytý → klik odhalí kód + otvorí Dognet affiliate link (utm_source=dognet, visitorId) → tracking `/api/track-click` + `/api/track` vrátili 200. Expirácie (freshness filter, „Platí do" aktívne), žiadne fake „funguje" claims, favicony nových obchodov 200. Pozn.: Lumories.sk/.cz zobrazené oddelene = cross-market variant (nie duplicita).
