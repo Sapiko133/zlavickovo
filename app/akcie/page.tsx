@@ -1,7 +1,9 @@
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
+import SmartImage from "@/components/SmartImage";
 import TrackedLink from "@/components/TrackedLink";
+import { proxyImage } from "@/lib/proxy-image";
 import { getVypredaje, type VypredajItem } from "@/lib/vypredaje";
 import type { Metadata } from "next";
 
@@ -64,17 +66,18 @@ function FeaturedCard({ item }: { item: VypredajItem }) {
   return (
     <div style={{ flex: "0 0 260px", scrollSnapAlign: "start", background: "#fff", borderRadius: 16, border: "1px solid #eee", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.05)", display: "flex", flexDirection: "column" }}>
       <div style={{ height: 130, background: "#f4f5f7", display: "flex", alignItems: "center", justifyContent: "center", position: "relative", overflow: "hidden" }}>
-        {item.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={item.imageUrl} alt={item.title} loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: isBannerImg(item.imageSource) ? "cover" : "contain", padding: isBannerImg(item.imageSource) ? 0 : 12 }} />
-        ) : (
-          <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${ORANGE} 0%, ${ORANGE_DARK} 130%)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div style={{ background: "#fff", borderRadius: 12, padding: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.2)" }}>
-              <ShopFavicon domain={item.domain} name={item.shopName} size={46} />
+        <SmartImage
+          src={proxyImage(item.imageUrl)}
+          alt={item.title}
+          style={{ width: "100%", height: "100%", objectFit: isBannerImg(item.imageSource) ? "cover" : "contain", padding: isBannerImg(item.imageSource) ? 0 : 12 }}
+          fallback={
+            <div style={{ position: "absolute", inset: 0, background: `linear-gradient(135deg, ${ORANGE} 0%, ${ORANGE_DARK} 130%)`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ background: "#fff", borderRadius: 12, padding: 8, boxShadow: "0 4px 14px rgba(0,0,0,0.2)" }}>
+                <ShopFavicon domain={item.domain} name={item.shopName} size={46} />
+              </div>
             </div>
-          </div>
-        )}
+          }
+        />
       </div>
       <div style={{ padding: "16px 16px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
         <Badge item={item} big />
@@ -193,15 +196,12 @@ function RowCardWrap({ item, rank }: { item: VypredajItem; rank: number }) {
     <div className="vyp-row" style={{ position: "relative", background: "#fff", borderRadius: 14, border: "1px solid #ececec", boxShadow: "0 2px 8px rgba(0,0,0,0.04)", padding: "18px 20px", display: "grid", gridTemplateColumns: "auto 1fr auto", gap: 18, alignItems: "center" }}>
       <span style={{ position: "absolute", top: -9, left: 16, background: "#1d1d1f", color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: "0.06em", padding: "3px 9px", borderRadius: 6 }}>TOP {rank}.</span>
       <div style={{ width: 64, display: "flex", justifyContent: "center" }}>
-        {item.imageUrl ? (
-          <div style={{ width: 56, height: 56, borderRadius: 10, overflow: "hidden", background: "#f4f5f7", border: "1px solid #eee", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.imageUrl} alt={item.shopName} loading="lazy"
-              style={{ width: "100%", height: "100%", objectFit: isBannerImg(item.imageSource) ? "cover" : "contain", padding: isBannerImg(item.imageSource) ? 0 : 4 }} />
-          </div>
-        ) : (
-          <ShopFavicon domain={item.domain} name={item.shopName} size={50} />
-        )}
+        <SmartImage
+          src={proxyImage(item.imageUrl)}
+          alt={item.shopName}
+          style={{ width: 56, height: 56, borderRadius: 10, border: "1px solid #eee", background: "#f4f5f7", objectFit: isBannerImg(item.imageSource) ? "cover" : "contain", padding: isBannerImg(item.imageSource) ? 0 : 4 }}
+          fallback={<ShopFavicon domain={item.domain} name={item.shopName} size={50} />}
+        />
       </div>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6, flexWrap: "wrap" }}>

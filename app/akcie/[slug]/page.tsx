@@ -9,8 +9,10 @@ import { getCouponsByShop } from "@/lib/dognet";
 import { normalizeShopSlug } from "@/lib/slug";
 import { buildSaleSeoContent } from "@/lib/article-seo";
 import ShopFavicon from "@/components/ShopFavicon";
+import SmartImage from "@/components/SmartImage";
 import TrackedLink from "@/components/TrackedLink";
 import Footer from "@/components/Footer";
+import { proxyImage } from "@/lib/proxy-image";
 
 // Lokálny formátovač ceny (Heureka odstránená). Zľavnené produkty na sale
 // článkoch sú vyradené; ponechané len pre spätnú kompatibilitu starých článkov.
@@ -214,15 +216,15 @@ async function SaleArticle({ article }: { article: Article }) {
         {heroImage && (
           <figure style={{ margin: "0 0 24px" }}>
             <div style={{ borderRadius: 18, overflow: "hidden", background: "#f4f5f7", border: "1px solid #eceff3", maxHeight: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={heroImage}
+              <SmartImage
+                src={proxyImage(heroImage)}
                 alt={`Aktuálna akcia ${article.shopName || article.title}`}
                 style={{
                   width: "100%",
                   maxHeight: 420,
                   objectFit: isBannerCreative || article.imageSource === "ehub-logo" ? "contain" : "cover",
                 }}
+                fallback={null}
               />
             </div>
             {imageCredit && (
@@ -314,8 +316,7 @@ async function SaleArticle({ article }: { article: Article }) {
                 <a key={r.slug} href={`/akcie/${r.slug}`} className="rel-card"
                   style={{ display: "flex", flexDirection: "column", textDecoration: "none", color: "#1d1d1f", background: "#fff", borderRadius: 14, border: "1.5px solid #eceff3", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)", transition: "transform .15s, box-shadow .15s" }}>
                   {r.imageUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={r.imageUrl} alt={r.title} loading="lazy" style={{ width: "100%", height: 120, objectFit: "cover" }} />
+                    <SmartImage src={proxyImage(r.imageUrl)} alt={r.title} style={{ width: "100%", height: 120, objectFit: "cover" }} fallback={null} />
                   )}
                   <div style={{ padding: "14px 16px" }}>
                     <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{r.title}</div>

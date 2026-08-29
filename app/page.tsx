@@ -1,5 +1,6 @@
 import ShopFavicon from "@/components/ShopFavicon";
-import Image from "next/image";
+import SmartImage from "@/components/SmartImage";
+import { proxyImage } from "@/lib/proxy-image";
 import Link from "next/link";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import Footer from "@/components/Footer";
@@ -89,23 +90,18 @@ function shopFromSlug(slug: string): { slug: string; name: string; domain: strin
 function HomeDealCard({ item, featured = false }: { item: VypredajItem; featured?: boolean }) {
   const card = (
     <article className={featured ? "home-deal-card home-deal-card-featured" : "home-deal-card"}>
-      {item.imageUrl ? (
-        <div className="home-deal-image">
-          <Image
-            src={item.imageUrl}
-            alt={`Aktuálna akcia ${item.shopName}: ${item.title}`}
-            width={1200}
-            height={630}
-            sizes={featured ? "(max-width: 900px) 100vw, 520px" : "(max-width: 620px) 100vw, 320px"}
-            priority={featured}
-            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-          />
-        </div>
-      ) : (
-        <div className="home-deal-fallback">
-          <ShopFavicon domain={item.domain} name={item.shopName} size={featured ? 64 : 50} />
-        </div>
-      )}
+      <SmartImage
+        src={proxyImage(item.imageUrl)}
+        alt={`Aktuálna akcia ${item.shopName}: ${item.title}`}
+        wrapperClassName="home-deal-image"
+        priority={featured}
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        fallback={
+          <div className="home-deal-fallback">
+            <ShopFavicon domain={item.domain} name={item.shopName} size={featured ? 64 : 50} />
+          </div>
+        }
+      />
       <div className="home-deal-content">
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 7 }}>
           <span style={{ color: item.hasPct ? "#16A34A" : "#475569", background: item.hasPct ? "#DCFCE7" : "#F1F5F9", padding: "4px 9px", borderRadius: 999, fontSize: 11, fontWeight: 900 }}>{item.badge}</span>

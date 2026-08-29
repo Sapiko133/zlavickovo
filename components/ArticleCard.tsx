@@ -1,5 +1,7 @@
 import ShopFavicon from "@/components/ShopFavicon";
+import SmartImage from "@/components/SmartImage";
 import type { Article } from "@/lib/articles";
+import { proxyImage } from "@/lib/proxy-image";
 import { ARTICLE_ACCENTS } from "@/lib/static-articles";
 
 const GREEN = "#22C55E";
@@ -22,24 +24,26 @@ export default function ArticleCard({ article, featured = false }: { article: Ar
     article.imageSource === "dognet-banner" ||
     article.imageSource === "cj-banner" ||
     article.imageSource === "og-image";
-  const media = (height: number, faviconSize: number) =>
-    article.imageUrl ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={article.imageUrl} alt={article.title} loading="lazy"
-        style={{ width: "100%", height: "100%", objectFit: isBanner ? "cover" : isSale ? "contain" : "cover", padding: isBanner ? 0 : isSale ? 12 : 0 }} />
-    ) : (
-      <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${accent} 0%, #0F172A 130%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 16 }}>
-        <div style={{ background: "#fff", borderRadius: 14, padding: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}>
-          <ShopFavicon domain={article.domain || ""} name={article.shopName || article.title} size={faviconSize} />
+  const media = (height: number, faviconSize: number) => (
+    <SmartImage
+      src={proxyImage(article.imageUrl)}
+      alt={article.title}
+      style={{ width: "100%", height: "100%", objectFit: isBanner ? "cover" : isSale ? "contain" : "cover", padding: isBanner ? 0 : isSale ? 12 : 0 }}
+      fallback={
+        <div style={{ width: "100%", height: "100%", background: `linear-gradient(135deg, ${accent} 0%, #0F172A 130%)`, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10, padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 14, padding: 8, boxShadow: "0 6px 20px rgba(0,0,0,0.25)" }}>
+            <ShopFavicon domain={article.domain || ""} name={article.shopName || article.title} size={faviconSize} />
+          </div>
+          <span style={{ color: "#fff", fontWeight: 800, fontSize: featured ? 18 : 14, letterSpacing: "-0.3px", textShadow: "0 1px 8px rgba(0,0,0,0.3)" }}>{article.shopName}</span>
+          {article.discountPct ? (
+            <span style={{ color: "#fff", background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 100, padding: "2px 12px", fontSize: 12, fontWeight: 800 }}>
+              zľavy až -{article.discountPct}%
+            </span>
+          ) : null}
         </div>
-        <span style={{ color: "#fff", fontWeight: 800, fontSize: featured ? 18 : 14, letterSpacing: "-0.3px", textShadow: "0 1px 8px rgba(0,0,0,0.3)" }}>{article.shopName}</span>
-        {article.discountPct ? (
-          <span style={{ color: "#fff", background: "rgba(255,255,255,0.18)", border: "1px solid rgba(255,255,255,0.35)", borderRadius: 100, padding: "2px 12px", fontSize: 12, fontWeight: 800 }}>
-            zľavy až -{article.discountPct}%
-          </span>
-        ) : null}
-      </div>
-    );
+      }
+    />
+  );
 
   const badge = (
     <span style={{ position: "absolute", top: 12, left: 12, zIndex: 1, fontSize: 11, fontWeight: 800, padding: "3px 10px", borderRadius: 100, color: "#fff", background: isSale ? ORANGE_DARK : GREEN }}>
