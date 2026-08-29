@@ -16,6 +16,7 @@ export interface VypredajItem {
   ctaUrl: string;
   detailUrl?: string;
   imageUrl?: string;
+  imageSource?: string;
   actionKey?: string;
   external: boolean;
   clickType: ClickType;
@@ -67,7 +68,9 @@ async function articleItems(): Promise<VypredajItem[]> {
     hasPct: Boolean(article.discountPct),
     meta: validMeta(article.validTo),
     ctaUrl: `/akcie/${article.slug}`,
-    imageUrl: `/akcie/${article.slug}/opengraph-image`,
+    // Reálny obrázok inzerenta (banner/og/logo), NIE generovaná grafika.
+    imageUrl: article.imageUrl,
+    imageSource: article.imageSource,
     external: false,
     clickType: "action_outbound" as const,
     source: "editorial" as const,
@@ -80,15 +83,17 @@ export interface VypredajeData { featured: VypredajItem[]; items: VypredajItem[]
 export async function getVypredaje(): Promise<VypredajeData> {
   const [affiliate, articles] = await Promise.all([affiliateItems(), articleItems()]);
   const articleByAction = new Map(
-    articles.filter((article) => article.actionKey).map((article) => [article.actionKey as string, article.ctaUrl]),
+    articles.filter((article) => article.actionKey).map((article) => [article.actionKey as string, article]),
   );
-  const articleByShop = new Map(articles.map((article) => [article.shopSlug, article.ctaUrl]));
+  const articleByShop = new Map(articles.map((article) => [article.shopSlug, article]));
   const linkedAffiliate = affiliate.map((item) => {
-    const detailUrl = (item.actionKey ? articleByAction.get(item.actionKey) : undefined) || articleByShop.get(item.shopSlug);
+    const linked = (item.actionKey ? articleByAction.get(item.actionKey) : undefined) || articleByShop.get(item.shopSlug);
     return {
       ...item,
-      detailUrl,
-      imageUrl: detailUrl ? `${detailUrl}/opengraph-image` : undefined,
+      detailUrl: linked?.ctaUrl,
+      // Reálny obrázok z prepojeného článku (banner/og/logo), NIE generovaná grafika.
+      imageUrl: linked?.imageUrl,
+      imageSource: linked?.imageSource,
     };
   });
   const seen = new Set<string>();
