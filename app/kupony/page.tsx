@@ -10,6 +10,7 @@ import { resolveCategory } from "@/lib/shop-categories";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { isOfferActive } from "@/lib/offers/freshness";
 import { dedupeOffers } from "@/lib/offers/dedupe";
+import { normalizeShopSlug } from "@/lib/slug";
 import type { Metadata } from "next";
 import CodeReveal from "./CodeReveal";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
@@ -297,8 +298,25 @@ export default async function KuponyPage({
     { value: "code", label: "S kódom" },
   ];
 
+  // ItemList (C2) — viditeľné kupóny/akcie stránky, každý odkazuje na obchodovú
+  // stránku. Bez cenových tvrdení. Pri filtrovanej stránke je robots noindex,
+  // ale ItemList ponechávame (validný, neškodí).
+  const itemListJsonLd = paginated.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Zľavové kódy a kupóny",
+    numberOfItems: paginated.length,
+    itemListElement: paginated.map((c, i) => ({
+      "@type": "ListItem",
+      position: (currentPage - 1) * PER_PAGE + i + 1,
+      name: c.title || `${c.shopName} kupón`,
+      url: `https://www.zlavickovo.sk/kupony/${normalizeShopSlug(c.shopName)}`,
+    })),
+  } : null;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fa", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
+      {itemListJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c") }} />}
       <style>{`
         .coupon-card { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
         .coupon-card:hover { border-color: #22C55E !important; box-shadow: 0 6px 24px rgba(34,197,94,0.10) !important; transform: translateY(-2px); }

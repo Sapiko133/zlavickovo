@@ -95,6 +95,13 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
   const kuponyList = coupons.filter((c: any) => c.code && String(c.code).trim() !== "");
   const akcieList = coupons.filter((c: any) => !c.code || String(c.code).trim() === "");
 
+  // ItemList (C2) — obchody kategórie, každý odkazuje na svoju /kupony/[slug]
+  // stránku. Bez cenových/zľavových tvrdení (vízia: žiadne neoverené claims).
+  const catShopEntries = [
+    ...catShops.map(s => ({ name: s.name, path: s.href ?? `/kupony/${s.slug}` })),
+    ...affialForCat.map(s => ({ name: s.name, path: `/kupony/${normalizeShopSlug(s.domain || s.name)}` })),
+  ];
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -106,6 +113,15 @@ export default async function KategoriaPage({ params }: { params: Promise<{ slug
           { "@type": "ListItem", "position": 3, "name": cat.label, "item": `https://www.zlavickovo.sk/kategoria/${slug}` },
         ],
       },
+      ...(catShopEntries.length > 0 ? [{
+        "@type": "ItemList",
+        "name": `Obchody v kategórii ${cat.label}`,
+        "numberOfItems": catShopEntries.length,
+        "itemListElement": catShopEntries.map((s, i) => ({
+          "@type": "ListItem", "position": i + 1, "name": s.name,
+          "url": s.path.startsWith("http") ? s.path : `https://www.zlavickovo.sk${s.path}`,
+        })),
+      }] : []),
       {
         "@type": "FAQPage",
         "mainEntity": faq.map(f => ({

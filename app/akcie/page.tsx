@@ -75,8 +75,26 @@ function FeaturedCard({ item }: { item: VypredajItem }) {
 export default async function VypredajePage() {
   const { featured, items, total } = await getVypredaje();
 
+  // ItemList (C2) — viditeľné akcie, každá odkazuje na stránku obchodu.
+  // Bez cenových/dostupnostných tvrdení (vízia: žiadne neoverené claims).
+  const itemListJsonLd = items.length > 0 ? {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    name: "Aktuálne akcie a výpredaje",
+    numberOfItems: items.length,
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.title,
+      url: it.shopSlug
+        ? `https://www.zlavickovo.sk/kupony/${it.shopSlug}`
+        : "https://www.zlavickovo.sk/akcie",
+    })),
+  } : null;
+
   return (
     <div style={{ minHeight: "100vh", background: "#f7f7f8", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
+      {itemListJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c") }} />}
       <style>{`
         .feat-row::-webkit-scrollbar { height: 8px; }
         .feat-row::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 100px; }
