@@ -39,7 +39,7 @@ Override 28. 8. 2026: **ZLAVICKOVO = AKTUÁLNE ZĽAVY + AKCIE + ZĽAVOVÉ KÓDY.
 
 ## FÁZA C — SEO, PERFORMANCE, QA
 - [x] **C1. Metadata/canonical/noindex**: landing pages majú canonical; `/kupony` noindex pri filtri; `/hladat` noindex,follow (29.8.2026).
-- [~] **C2. Structured data**: Organization/WebSite+SearchAction (homepage), BreadcrumbList + FAQPage (shop/kategória). CHÝBA: ItemList kódov/akcií na listingoch.
+- [x] **C2. Structured data**: Organization/WebSite+SearchAction (homepage), BreadcrumbList + FAQPage (shop/kategória), **ItemList na /kupony, /akcie, /kategoria/[slug]** (29.8.2026, bez cenových claims). Overené na prode.
 - [x] **C3. Sitemap/robots/404**: sitemap = kupóny/kategórie/akcie/obchody/letáky (18+ mimo, žiadne produktové URL); robots disallow /api,/admin.
 - [~] **C4. Performance**: server-first + Redis cache (36 h) + ISR revalidate. CHÝBA: cielený audit N+1/bundle.
 - [~] **C5. Mobile-first + WCAG AA**: mobile-first layouty + WCAG CTA kontrast (B7). CHÝBA: úplný AA pass (focus/aria/kontrasty naprieč).
