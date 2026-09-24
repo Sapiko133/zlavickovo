@@ -118,7 +118,7 @@ async function main() {
       publish: async (item) => { published.push(item.id); return `post_${item.id}`; },
       verify: async () => null,
       imageUrlFor: (slug) => `https://www.zlavickovo.sk/akcie/${slug}/opengraph-image`,
-      linkFor: (c) => c.affiliateUrl,
+      linkFor: (c) => `https://www.zlavickovo.sk/akcie/${c.slug}`,
       ...over,
     };
     return d;
@@ -133,6 +133,10 @@ async function main() {
     assert.equal(new Set(plan.items.map((i) => i.shopSlug)).size, 3);
     assert.equal(plan.items[0].scheduledAt, new Date(localSlotMs("2026-09-24", "08:00")).toISOString());
     assert.equal(plan.items[0].scheduledAt, "2026-09-24T06:00:00.000Z", "08:00 v Bratislave = 06:00 UTC (letný čas)");
+    for (const it of plan.items) {
+      assert.equal(it.link, `https://www.zlavickovo.sk/akcie/${it.slug}`, "post vedie na stránku akcie");
+      assert.ok(it.text.includes(it.link) && !/dognet|ehub|cj\.com|affial/i.test(it.text), "v texte nie je affiliate URL");
+    }
     const again = await planDay(d, settings);
     assert.equal(again.status, "already-planned", "plán dňa je idempotentný");
 
@@ -227,6 +231,36 @@ async function main() {
     await planDay(d2, settings);
     clock = Date.parse("2026-09-29T06:05:00Z");
     assert.equal((await publishDue(d2, settings)).status, "failed");
+  }
+
+  // ── Položka naplánovaná so starým affiliate odkazom → pred publikovaním prepísaná na Zlavickovo ──
+  {
+    clock = Date.parse("2026-10-01T05:30:00Z");
+    const d = deps();
+    await planDay(d, settings);
+    const queued = Object.values((await d.kv.hgetall<FbQueueItem>(FB_QUEUE_KEY))!);
+    const aff = "https://go.dognet.com/?chid=x&url=https%3A%2F%2Fs1.sk";
+    const legacy = queued[0];
+    const publicLink = legacy.link;
+    legacy.text = legacy.text.split(publicLink).join(aff);
+    legacy.link = aff;
+    await d.kv.hset(FB_QUEUE_KEY, { [legacy.id]: legacy });
+    const sent: FbQueueItem[] = [];
+    d.publish = async (item) => { sent.push({ ...item }); return "post_x"; };
+    clock = Date.parse("2026-10-01T06:05:00Z");
+    assert.equal((await publishDue(d, settings)).status, "published");
+    assert.equal(sent[0].link, publicLink);
+    assert.ok(sent[0].text.includes(publicLink) && !sent[0].text.includes("dognet"), "legacy affiliate odkaz prepísaný");
+    // cudzí odkaz, ktorý nejde prepísať → nepublikuje sa
+    const other = Object.values((await d.kv.hgetall<FbQueueItem>(FB_QUEUE_KEY))!).find((i) => i.status === "scheduled")!;
+    other.text += "\nhttps://www.awin1.com/cread.php?x=1";
+    other.scheduledAt = new Date(clock).toISOString();
+    await d.kv.hset(FB_QUEUE_KEY, { [other.id]: other });
+    clock += 3 * 3600_000;
+    const r = await publishDue(d, settings);
+    assert.equal(r.status, "skipped");
+    assert.equal(r.error, "externý odkaz v texte postu");
+    assert.equal(sent.length, 1);
   }
 
   // ── Dry-run: nič sa nezapíše ani nepublikuje ──

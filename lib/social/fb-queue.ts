@@ -68,7 +68,24 @@ export interface FbDeps {
   /** Nájde už publikovaný post položky; vyhodí, keď overenie nie je možné. */
   verify: (item: FbQueueItem) => Promise<string | null>;
   imageUrlFor: (slug: string) => string;
-  linkFor: (c: FbCandidate) => string;
+  /** Verejná stránka ponuky na Zlavickovo — nikdy nie affiliate URL siete. */
+  linkFor: (c: Pick<FbCandidate, "slug">) => string;
+}
+
+/**
+ * Položky naplánované pred prechodom na verejné URL nesú v texte priamy
+ * affiliate odkaz → prepíše ho na stránku Zlavickovo. Vráti dôvod preskočenia,
+ * ak by v texte ostal akýkoľvek odkaz mimo webu Zlavickovo.
+ */
+export function ensurePublicLink(item: FbQueueItem, link: string): string | null {
+  if (item.link !== link) {
+    if (item.link) item.text = item.text.split(item.link).join(link);
+    item.link = link;
+    item.textHash = fnv1a(item.text);
+  }
+  const origin = new URL(link).origin;
+  const foreign = (item.text.match(/https?:\/\/[^\s]+/g) ?? []).some((u) => u !== origin && !u.startsWith(`${origin}/`));
+  return foreign ? "externý odkaz v texte postu" : null;
 }
 
 export interface FbSettings {
@@ -317,7 +334,8 @@ export async function publishDue(deps: FbDeps, settings: FbSettings, opts: { dry
       result.skippedStale++;
       continue;
     }
-    const reason = await deps.checkEligible(item).catch((e) => `eligibility-error: ${safeErrorMessage(e)}`);
+    const reason = ensurePublicLink(item, deps.linkFor(item))
+      ?? (await deps.checkEligible(item).catch((e) => `eligibility-error: ${safeErrorMessage(e)}`));
     if (reason) {
       if (!dryRun) {
         Object.assign(item, { status: "skipped", error: reason });

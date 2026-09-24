@@ -11,7 +11,7 @@ import { redis } from "@/lib/redis";
 import { redisKv } from "@/lib/kv";
 import { startJob } from "@/lib/jobs/log";
 import { isAdultShop, resolveCategory } from "@/lib/shop-categories";
-import { SITE_URL } from "@/lib/seo/config";
+import { SITE_URL, absoluteUrl } from "@/lib/seo/config";
 import { duplicateArticleCanonicals, isArticleIndexable } from "@/lib/seo/indexing";
 import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
 import { getLinkHealthMap, isAffiliateLinkDead } from "@/lib/links/health";
@@ -134,8 +134,9 @@ export function realFbDeps(): FbDeps {
       since: (Date.parse(item.publishingAt || item.updatedAt) || Date.now()) - 15 * 60_000,
     }),
     imageUrlFor: (slug) => `${SITE_URL}/akcie/${encodeURIComponent(slug)}/opengraph-image`,
-    // Do postu ide monetizovaný affiliate odkaz (overená prax FB auto-postingu).
-    linkFor: (c) => c.affiliateUrl,
+    // Post vedie VŽDY na verejnú stránku akcie (kanonická URL, OG náhľad);
+    // affiliate CTA je až tam — URL siete (Dognet/eHub/CJ/Affial) sa na FB nezobrazí.
+    linkFor: (c) => absoluteUrl(`/akcie/${c.slug}`),
   };
 }
 
