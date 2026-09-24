@@ -257,7 +257,8 @@ async function SaleArticle({ article, shopSlug, lifecycle, categoryId }: LoadedA
         <h1 style={{ fontSize: "clamp(24px,4vw,38px)", fontWeight: 800, letterSpacing: "-0.6px", lineHeight: 1.15, margin: "0 0 12px" }}>
           {article.title}
         </h1>
-        <p style={{ fontSize: 16, color: "#555", lineHeight: 1.7, margin: "0 0 12px", maxWidth: 760 }}>{article.perex}</p>
+        {/* Pri ukončenej akcii perex a text (písané v prítomnom čase „práve prebieha“) nezobrazujeme — odporovali by stavu. */}
+        {!expired && <p style={{ fontSize: 16, color: "#555", lineHeight: 1.7, margin: "0 0 12px", maxWidth: 760 }}>{article.perex}</p>}
         <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 24 }}>
           <span style={{
             display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700,
@@ -324,7 +325,7 @@ async function SaleArticle({ article, shopSlug, lifecycle, categoryId }: LoadedA
         )}
 
         {/* Obsah článku */}
-        {seoContent && (
+        {seoContent && !expired && (
           <>
             <style>{`
               .sale-body h2 { font-size: 22px; font-weight: 800; margin: 32px 0 12px; letter-spacing: -0.3px; color: #1d1d1f; }
