@@ -54,6 +54,12 @@ export interface FeedSourceDef<T = unknown> {
   configured(): boolean;
   fetch(ctx: FetchContext): Promise<FetchResult<T>>;
   itemKey(item: T): string;
+  /**
+   * Čo sa porovnáva pri detekcii zmeny (default celá položka). Pre siete, ktoré
+   * pri každom requeste vracajú ekvivalentné, ale iné hodnoty (napr. CJ rotuje
+   * doménu click linku) — inak by každý beh vyzeral ako zmena a zapisoval.
+   */
+  fingerprint?(item: T): unknown;
   isValidItem?(item: T): boolean;
   onAuthError?(): Promise<boolean>;
   /** Od akej veľkosti posledného úspechu sa uplatní ochrana proti poklesu. */
@@ -292,7 +298,7 @@ export async function runFeed<T>(def: FeedSourceDef<T>, opts: RunFeedOptions = {
 
     // ── DIFF + UPSERT (zápis len pri zmene) ──
     const hashes: Record<string, string> = {};
-    for (const item of items) hashes[def.itemKey(item)] = fnv1a(stableStringify(item));
+    for (const item of items) hashes[def.itemKey(item)] = fnv1a(stableStringify(def.fingerprint ? def.fingerprint(item) : item));
     const checksum = checksumOf(hashes);
     const prevHashes = (await kv.get<Record<string, string>>(itemHashKey(def.id)).catch(() => null)) ?? {};
     for (const [k, h] of Object.entries(hashes)) {

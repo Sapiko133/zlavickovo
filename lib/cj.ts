@@ -65,12 +65,12 @@ function cjQuery(params: Record<string, string>): URLSearchParams | null {
 }
 
 /** Striktný CJ request — chyby vyhadzuje (feed engine ich klasifikuje a retryuje). */
-async function fetchFromCjStrict(params: Record<string, string>): Promise<string> {
+async function fetchFromCjStrict(params: Record<string, string>, timeoutMs = 20000): Promise<string> {
   const qs = cjQuery(params);
   if (!qs) throw new FeedError("config", "CJ: chýba CJ_API_KEY alebo CJ_WEBSITE_ID");
   const res = await fetch(`https://link-search.api.cj.com/v2/link-search?${qs}`, {
     headers: { Authorization: `Bearer ${process.env.CJ_API_KEY}` },
-    signal: AbortSignal.timeout(20000),
+    signal: AbortSignal.timeout(timeoutMs),
     cache: "no-store",
   });
   const httpErr = errorFromResponse(res, "CJ link-search");
@@ -240,7 +240,8 @@ async function fetchCjBanners(): Promise<CjBanner[]> {
 
 /** Feed engine: banner kreatívy joined advertiserov; chyby vyhadzuje. */
 export async function fetchCjBannersStrict(): Promise<CjBanner[]> {
-  const xml = await fetchFromCjStrict({ "link-type": "Banner", "records-per-page": "500" });
+  // 500 bannerov = veľká XML odpoveď; CJ ju generuje pomaly (20 s nestačí).
+  const xml = await fetchFromCjStrict({ "link-type": "Banner", "records-per-page": "500" }, 60000);
   const out: CjBanner[] = [];
   for (const link of parseLinks(xml)) {
     const html = decodeEntities(xmlField(link, "link-code-html"));

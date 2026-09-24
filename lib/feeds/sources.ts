@@ -25,6 +25,9 @@ import { fetchEhubCouponsStrict, fetchEhubShopsStrict, type EhubCoupon, type Ehu
 import { cleanFeedText } from "@/lib/offers/text";
 import type { FeedSourceDef } from "./engine";
 
+/** CJ vracia click linky na náhodnej z ekvivalentných domén — pre porovnanie stačí cesta. */
+const cjStableLink = (u: string) => u.replace(/^https?:\/\/[^/]+/, "cj:");
+
 const env = (...names: string[]) => () => names.every((n) => Boolean(process.env[n]));
 const isHttp = (u: unknown) => typeof u === "string" && /^https?:\/\//.test(u);
 
@@ -132,6 +135,7 @@ const cjCoupons: FeedSourceDef<CjCoupon> = {
     return { items: items.map((c) => cleanFields(c, ["description", "advertiserName"])) };
   },
   itemKey: (c) => c.id,
+  fingerprint: (c) => ({ ...c, link: cjStableLink(c.link) }),
   isValidItem: (c) => Boolean(c.id && c.advertiserName && isHttp(c.link)),
 };
 
@@ -150,6 +154,8 @@ const cjShops: FeedSourceDef<CjShop> = {
   minItemsForDropCheck: 10,
   fetch: async () => ({ items: await fetchCjShopsStrict() }),
   itemKey: (s) => s.advertiserId,
+  // CJ vyberie pri každom requeste iný (rovnocenný) link inzerenta → link sa neporovnáva.
+  fingerprint: (s) => ({ advertiserId: s.advertiserId, advertiserName: s.advertiserName, commission: s.commission }),
   isValidItem: (s) => Boolean(s.advertiserId && s.advertiserName),
 };
 
@@ -167,6 +173,7 @@ const cjBanners: FeedSourceDef<CjBanner> = {
   configured: env("CJ_API_KEY", "CJ_WEBSITE_ID"),
   fetch: async () => ({ items: await fetchCjBannersStrict() }),
   itemKey: (b) => b.imageUrl,
+  minItemsForDropCheck: 10,
   isValidItem: (b) => isHttp(b.imageUrl),
 };
 

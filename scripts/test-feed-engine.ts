@@ -290,6 +290,22 @@ async function main() {
   assert.equal(dataGets, 2);
 }
 
+// ── 14b. Fingerprint: volatilné, ale ekvivalentné pole (CJ rotuje doménu linku) nie je zmena ──
+{
+  const kv = createMemoryKv();
+  let host = "dpbolvw.net";
+  const def = source(async () => ({ items: items(12).map((i) => ({ ...i, title: `https://www.${host}/click-1-${i.id}` })) }), {
+    fingerprint: (i: Item) => ({ ...i, title: i.title.replace(/^https?:\/\/[^/]+/, "cj:") }),
+  });
+  await runFeed(def, { kv, now, sleep: noSleep });
+  host = "kqzyfj.com";
+  const before = kv.writes;
+  const r = await runFeed(def, { kv, now, sleep: noSleep });
+  assert.equal(r.status, "unchanged");
+  assert.equal(r.updated, 0);
+  assert.equal(kv.writes - before, 1, "iba metadata");
+}
+
 // ── 15. Klasifikácia chýb a cooldown ──
 {
   const t = new Error("x"); t.name = "TimeoutError";
