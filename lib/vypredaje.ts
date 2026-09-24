@@ -22,6 +22,8 @@ export interface VypredajItem {
   imageUrl?: string;
   imageSource?: string;
   actionKey?: string;
+  /** actionKey duplicitných článkov, ktoré majú canonical na tento článok. */
+  aliasActionKeys?: string[];
   external: boolean;
   clickType: ClickType;
   source: "dognet" | "affial" | "ehub" | "cj" | "editorial" | "static";
@@ -67,7 +69,13 @@ async function articleItems(): Promise<VypredajItem[]> {
   const published = await getPublishedArticles("sale").catch(() => []);
   const dup = duplicateArticleCanonicals(published);
   const articles = published.filter((a) => isArticleIndexable(a) && !dup.has(a.slug));
+  const aliasKeys = new Map<string, string[]>();
+  for (const a of published) {
+    const canonical = dup.get(a.slug);
+    if (canonical && a.actionKey) aliasKeys.set(canonical, [...(aliasKeys.get(canonical) ?? []), a.actionKey]);
+  }
   return articles.map((article) => ({
+    aliasActionKeys: aliasKeys.get(article.slug),
     id: `editorial-${article.slug}`,
     shopName: article.shopName || "Obchod",
     domain: article.domain || getShopDomain(article.shopName || "") || "",
@@ -100,9 +108,21 @@ export async function getVypredaje(): Promise<VypredajeData> {
   const articleByAction = new Map(
     articles.filter((article) => article.actionKey).map((article) => [article.actionKey as string, article]),
   );
+  // Affiliate akcia duplicitného článku vedie na jeho kanonický článok (inak by originál osirel).
+  for (const article of articles) {
+    for (const k of article.aliasActionKeys ?? []) if (!articleByAction.has(k)) articleByAction.set(k, article);
+  }
+  // Párovanie affiliate akcie s článkom: actionKey → rovnaký obchod+text → prvý článok obchodu.
+  // Zhoda podľa textu je nutná, inak by článok, ktorého affiliate dvojča sa pri dedupe
+  // nižšie zahodí, nemal žiadny interný odkaz (osirelá stránka).
+  const keyOf = (i: { shopSlug: string; title: string }) => `${i.shopSlug}|${i.title.toLocaleLowerCase("sk")}`;
+  const articleByKey = new Map(articles.map((article) => [keyOf(article), article]));
   const articleByShop = new Map(articles.map((article) => [article.shopSlug, article]));
   const linkedAffiliate = affiliate.map((item) => {
-    const linked = (item.actionKey ? articleByAction.get(item.actionKey) : undefined) || articleByShop.get(item.shopSlug);
+    const linked =
+      (item.actionKey ? articleByAction.get(item.actionKey) : undefined) ||
+      articleByKey.get(keyOf(item)) ||
+      articleByShop.get(item.shopSlug);
     return {
       ...item,
       detailUrl: linked?.ctaUrl,
