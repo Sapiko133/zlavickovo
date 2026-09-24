@@ -132,6 +132,16 @@ function build(shops: KnownShop[]): ShopRegistry {
 let memo: { at: number; data: Promise<ShopRegistry> } | null = null;
 const MEMO_MS = 5 * 60 * 1000;
 
+/**
+ * Pod touto veľkosťou je register postavený len zo statického fallbacku
+ * (živé zdroje/cache nedostupné) — sitemap ani SEO index z neho nesmú vzniknúť.
+ */
+export const MIN_HEALTHY_REGISTRY = 200;
+
+export function isRegistryDegraded(reg: ShopRegistry): boolean {
+  return reg.bySlug.size < MIN_HEALTHY_REGISTRY;
+}
+
 /** Register (memo 5 min v rámci inštancie + dedupe v rámci requestu). */
 export const getShopRegistry = cache(async (): Promise<ShopRegistry> => {
   if (memo && Date.now() - memo.at < MEMO_MS) return memo.data;
@@ -139,7 +149,8 @@ export const getShopRegistry = cache(async (): Promise<ShopRegistry> => {
     .catch(() => getStaticKnownShops())
     .then(build);
   memo = { at: Date.now(), data };
-  data.catch(() => { memo = null; });
+  // Degradovaný register (statický fallback) nememoizuj — ďalší request skúsi znova.
+  data.then((r) => { if (isRegistryDegraded(r)) memo = null; }, () => { memo = null; });
   return data;
 });
 

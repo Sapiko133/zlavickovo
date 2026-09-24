@@ -104,7 +104,8 @@ export function xmlResponse(body: string): Response {
 export async function sitemapRoute(type: SitemapType): Promise<Response> {
   try {
     const entries = await sitemapEntries(type);
-    if (entries.length === 0 && type !== "offers") {
+    // Poistka: radšej 503 (Google skúsi neskôr) než orezaná sitemap, ktorá by vyradila URL.
+    if ((entries.length === 0 && type !== "offers") || (type === "shops" && entries.length < 100)) {
       return new Response("sitemap temporarily unavailable", { status: 503, headers: { "Retry-After": "600" } });
     }
     return xmlResponse(renderUrlset(entries));

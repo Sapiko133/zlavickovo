@@ -10,7 +10,7 @@
 import { collectShopOffers, loadShopOfferSources } from "@/lib/dognet";
 import { getAllArticles, type Article } from "@/lib/articles";
 import { redis } from "@/lib/redis";
-import { getShopRegistry, resolveShopSlugSync, type ShopRegistry } from "./shop-registry";
+import { getShopRegistry, isRegistryDegraded, resolveShopSlugSync, type ShopRegistry } from "./shop-registry";
 import { duplicateArticleCanonicals, isArticleIndexable, isShopOfferActive, shopIndexDecision } from "./indexing";
 
 export interface ShopSeoStat {
@@ -51,6 +51,8 @@ async function compute(): Promise<ShopSeoStat[]> {
     loadShopOfferSources(),
     getAllArticles().catch(() => [] as Article[]),
   ]);
+  if (isRegistryDegraded(reg)) throw new Error(`SEO index: degradovaný register (${reg.bySlug.size} obchodov)`);
+  if (sources.dognet.length === 0 && sources.ehub.length === 0) throw new Error("SEO index: zdroje ponúk sú prázdne");
   const byShop = articlesByShop(articles, reg);
   const out: ShopSeoStat[] = [];
   for (const e of reg.bySlug.values()) {

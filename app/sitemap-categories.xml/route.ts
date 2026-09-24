@@ -1,6 +1,7 @@
 import { sitemapRoute } from "@/lib/seo/sitemap";
 
-export const revalidate = 3600;
+// Dynamicky (nie prerender pri builde — build nemusí mať živé zdroje); CDN cache cez Cache-Control.
+export const dynamic = "force-dynamic";
 
 export function GET() {
   return sitemapRoute("categories");
