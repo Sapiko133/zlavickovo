@@ -10,6 +10,7 @@
 import { collectShopOffers, loadShopOfferSources } from "@/lib/dognet";
 import { getAllArticles, type Article } from "@/lib/articles";
 import { redis } from "@/lib/redis";
+import { isAdultShop } from "@/lib/shop-categories";
 import { getShopRegistry, isRegistryDegraded, resolveShopSlugSync, type ShopRegistry } from "./shop-registry";
 import { duplicateArticleCanonicals, isArticleIndexable, isShopOfferActive, shopIndexDecision } from "./indexing";
 
@@ -20,11 +21,36 @@ export interface ShopSeoStat {
   activeCodes: number;
   activeDeals: number;
   activeArticles: number;
+  /** Outbound kliky + interné vyhľadávania značky (all-time). */
+  demandEvents: number;
+  lastOfferAt: string | null;
   index: boolean;
   reason: string;
 }
 
-const CACHE_KEY = "seo:shop-index:v1";
+const CACHE_KEY = "seo:shop-index:v2";
+/** Hash slug → ISO čas poslednej aktívnej ponuky (trvalý, pre anti-flapping grace). */
+const LAST_OFFER_KEY = "seo:shop-last-offer";
+
+/** Dopyt po značke z vlastných dát webu: outbound kliky (all-time) + interné vyhľadávania. */
+async function loadDemand(reg: ShopRegistry, slugs: string[]): Promise<Map<string, number>> {
+  const out = new Map<string, number>();
+  try {
+    for (let i = 0; i < slugs.length; i += 200) {
+      const chunk = slugs.slice(i, i + 200);
+      const vals = (await redis.mget<(number | null)[]>(...chunk.map((s) => `click:outbound:shop:${s}`))) ?? [];
+      chunk.forEach((s, j) => { const n = Number(vals[j]) || 0; if (n) out.set(s, n); });
+    }
+  } catch {}
+  try {
+    const flat = (await redis.zrange("search:log:all", 0, -1, { withScores: true })) as unknown[];
+    for (let i = 0; i + 1 < flat.length; i += 2) {
+      const slug = resolveShopSlugSync(reg, { name: String(flat[i]) });
+      if (slug) out.set(slug, (out.get(slug) ?? 0) + (Number(flat[i + 1]) || 0));
+    }
+  } catch {}
+  return out;
+}
 const CACHE_TTL = 3600;
 
 /** Meno, ktorým stránka obchodu hľadá ponuky (musí byť zhodné s app/kupony/[slug]). */
@@ -54,18 +80,34 @@ async function compute(): Promise<ShopSeoStat[]> {
   if (isRegistryDegraded(reg)) throw new Error(`SEO index: degradovaný register (${reg.bySlug.size} obchodov)`);
   if (sources.dognet.length === 0 && sources.ehub.length === 0) throw new Error("SEO index: zdroje ponúk sú prázdne");
   const byShop = articlesByShop(articles, reg);
+  const slugs = [...reg.bySlug.keys()];
+  const [demand, lastOffer] = await Promise.all([
+    loadDemand(reg, slugs),
+    redis.hgetall<Record<string, string>>(LAST_OFFER_KEY).catch(() => null),
+  ]);
+  const nowIso = new Date().toISOString();
+  const touched: Record<string, string> = {};
   const out: ShopSeoStat[] = [];
   for (const e of reg.bySlug.values()) {
     const offers = collectShopOffers(shopLookupName(e.slug), sources).filter(isShopOfferActive);
     const activeCodes = offers.filter((c: any) => c.code && String(c.code).trim() !== "").length;
     const activeDeals = offers.length - activeCodes;
     const activeArticles = byShop.get(e.slug)?.length ?? 0;
-    const d = shopIndexDecision({ slug: e.slug, activeOffers: offers.length + activeArticles });
+    const total = offers.length + activeArticles;
+    if (total > 0) touched[e.slug] = nowIso;
+    const lastOfferAt = total > 0 ? nowIso : (lastOffer?.[e.slug] ?? null);
+    const demandEvents = demand.get(e.slug) ?? 0;
+    const d = shopIndexDecision({
+      slug: e.slug, activeOffers: total, lastOfferAt, demandEvents,
+      isAdult: isAdultShop({ slug: e.slug, name: e.name, domain: e.domain }),
+    });
     out.push({
       slug: e.slug, name: e.name, categoryId: e.categoryId ?? null,
-      activeCodes, activeDeals, activeArticles, index: d.index, reason: d.reason,
+      activeCodes, activeDeals, activeArticles, demandEvents, lastOfferAt,
+      index: d.index, reason: d.reason,
     });
   }
+  if (Object.keys(touched).length > 0) await redis.hset(LAST_OFFER_KEY, touched).catch(() => {});
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 

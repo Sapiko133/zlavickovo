@@ -33,10 +33,11 @@ export async function generateMetadata({
     : "https://www.zlavickovo.sk/kupony";
 
   return {
-    title: `Zľavové kódy a kupóny – aktuálne ponuky ${year}${page > 1 ? ` – strana ${page}` : ""}`,
+    title: page > 1 ? `Zľavové kódy a kupóny – strana ${page}` : `Zľavové kódy a kupóny – aktuálne ponuky ${year}`,
     description: `Aktuálne zľavové kódy, kupóny a promo akcie slovenských obchodov. Vyhľadajte obchod, porovnajte podmienky a ušetrite pri nákupe.${page > 1 ? ` Strana ${page}.` : ""}`,
     alternates: { canonical },
-    robots: isFiltered ? { index: false, follow: true } : undefined,
+    // Filtre aj strany ≥2 sú noindex,follow (duplicitné výpisy; odkazy sa sledujú).
+    robots: isFiltered || page > 1 ? { index: false, follow: true } : undefined,
     openGraph: {
       title: `Všetky zľavové kódy a kupóny ${year}`,
       description: "Aktuálne kupóny a promo akcie slovenských obchodov.",

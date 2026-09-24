@@ -30,6 +30,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
 import { cache } from "react";
 import { absoluteUrl, clampDescription } from "@/lib/seo/config";
+import { fitTitle, metadataTitle, offerTitleVariants } from "@/lib/seo/title";
 import { breadcrumbJsonLd, buildJsonLdGraph, type Crumb } from "@/lib/seo/jsonld";
 import { articleLifecycle, duplicateArticleCanonicals, isArticleIndexable, isShopOfferActive } from "@/lib/seo/indexing";
 import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
@@ -79,24 +80,22 @@ const loadArticle = cache(async (rawSlug: string) => {
   return { article, shopSlug, lifecycle, canonicalSlug, categoryId };
 });
 
-/** SEO titulok: bez prefixu "Obchod.sk:", s menom obchodu vpredu, ≤ ~60 znakov. */
-function articleSeoTitle(a: Article): string {
-  const shop = (a.shopName || "").trim();
-  const body = a.title.replace(/^[^:]{1,40}:\s*/, "").replace(/\s+/g, " ").trim();
-  const prefix = shop && !body.toLowerCase().includes(shop.toLowerCase().replace(/\.(sk|cz|com)$/, "")) ? `${shop}: ` : "";
-  const full = `${prefix}${body}`;
-  // Strop 90 znakov: kratší rez by zlial rôzne akcie do rovnakého titulku
-  // ("…spotřebičů Siemens" vs "…spotřebičů Electrolux"). Google zobrazí, čo sa zmestí.
-  if (full.length <= 90) return full;
-  const cut = full.slice(0, 88);
-  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 60)).replace(/[,;:–-]\s*$/, "")}…`;
+/**
+ * SEO titulok akcie: "Obchod: text akcie" z prirodzených variantov (lib/seo/title.ts) —
+ * celý text, ak sa zmestí (aj bez značky webu), inak prvá veta/klauzula; nikdy
+ * useknuté slovo. Ukončená akcia má prefix "Ukončená akcia:".
+ */
+function articleSeoTitle(a: Article, expired: boolean) {
+  const variants = offerTitleVariants(a.shopName || "", a.title);
+  return fitTitle(expired ? variants.map((v) => `Ukončená akcia: ${v}`) : variants);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const { article: a, lifecycle, canonicalSlug } = await loadArticle(slug);
   const expired = lifecycle.state !== "active";
-  const title = expired ? `Ukončená akcia: ${articleSeoTitle(a)}` : articleSeoTitle(a);
+  const fitted = articleSeoTitle(a, expired);
+  const title = fitted.text;
   const description = clampDescription(
     expired
       ? `Táto akcia ${a.shopName ? `obchodu ${a.shopName} ` : ""}už skončila. Pozri aktuálne zľavové kódy a akcie obchodu na Zlavickovo.`
@@ -104,7 +103,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
   const url = absoluteUrl(`/akcie/${canonicalSlug}`);
   return {
-    title,
+    title: metadataTitle(fitted),
     description,
     alternates: { canonical: url },
     robots: expired ? { index: false, follow: true } : undefined,

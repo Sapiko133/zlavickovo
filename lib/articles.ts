@@ -74,7 +74,20 @@ function legacyTipArticles(): Article[] {
   }
 }
 
-async function readRedisArticles(): Promise<Article[]> {
+// In-process memo: hash `articles` má ~0,8 MB (HTML obsah). Zmeny z adminu v tej istej
+// inštancii memo hneď zneplatnia (saveArticle/deleteArticle); iné inštancie do 60 s.
+const ARTICLES_MEMO_MS = 60_000;
+let articlesMemo: { at: number; data: Promise<Article[]> } | null = null;
+
+function readRedisArticles(): Promise<Article[]> {
+  if (articlesMemo && Date.now() - articlesMemo.at < ARTICLES_MEMO_MS) return articlesMemo.data;
+  const data = readRedisArticlesUncached();
+  articlesMemo = { at: Date.now(), data };
+  data.then((d) => { if (d.length === 0) articlesMemo = null; }, () => { articlesMemo = null; });
+  return data;
+}
+
+async function readRedisArticlesUncached(): Promise<Article[]> {
   try {
     const map = await redis.hgetall<Record<string, Article>>(ARTICLES_KEY);
     if (!map) return [];
@@ -116,10 +129,12 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 
 export async function saveArticle(article: Article): Promise<void> {
   await redis.hset(ARTICLES_KEY, { [article.slug]: article });
+  articlesMemo = null;
 }
 
 export async function deleteArticle(slug: string): Promise<void> {
   await redis.hdel(ARTICLES_KEY, slug);
+  articlesMemo = null;
 }
 
 /** Najnovšie publikované články (pre homepage grid), voliteľne podľa typu. */

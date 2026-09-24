@@ -120,14 +120,25 @@ async function _fetchDognetCoupons(): Promise<any[]> {
 
 // Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 // Market filter sa aplikuje aj pri čítaní, aby 24h cache nezobrazovala cudzie trhy.
+// In-process memo (rovnaký vzor ako lib/cj.ts): cache ~560 KB sa obnovuje 1×/deň
+// cronom, preto ju netreba ťahať z Redis pri každom requeste. Prázdny výsledok sa nememoizuje.
+const COUPONS_MEMO_MS = 60_000;
+let couponsMemo: { at: number; data: Promise<any[]> } | null = null;
+
 export async function getCoupons(): Promise<any[]> {
-  try {
-    const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
-    if (cached && Array.isArray(cached) && cached.length > 0) {
-      return cached.filter(isAllowedDognetCoupon);
-    }
-  } catch {}
-  return [];
+  if (couponsMemo && Date.now() - couponsMemo.at < COUPONS_MEMO_MS) return couponsMemo.data;
+  const data = (async () => {
+    try {
+      const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
+      if (cached && Array.isArray(cached) && cached.length > 0) {
+        return cached.filter(isAllowedDognetCoupon);
+      }
+    } catch {}
+    return [];
+  })();
+  couponsMemo = { at: Date.now(), data };
+  data.then((d) => { if (d.length === 0) couponsMemo = null; }, () => { couponsMemo = null; });
+  return data;
 }
 
 // Priamy fetch z Dognet API (bez cache) — pre prebuild, keď je Redis cache prázdna.

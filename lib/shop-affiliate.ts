@@ -63,19 +63,20 @@ export async function getShopAffiliateUrl(shopName: string): Promise<string | nu
 
   // Tá istá značka môže mať viac krajinských programov (Aquaangels.sk aj
   // Aqua-angels.cz) — vyber .sk pred .cz, nie prvý match v poradí feedu.
-  const ehubShops = await getEhubShops().catch(() => []);
+  // Zdroje sa načítajú paralelne (predtým sériovo); PRIORITA výberu ostáva: eHub → CJ → Dognet.
+  const [ehubShops, cjUrl, dognetUrl] = await Promise.all([
+    getEhubShops().catch(() => []),
+    // CJ joined advertiser bez coupon-type promo (napr. Answear.sk) — shop-level clickUrl.
+    getCjShopUrl(shopName).catch(() => null),
+    // Joined Dognet kampaň bez voucherov (napr. obchod s aktívnym programom, ale
+    // bez kupónov) — zostrojený tracking link z homepage kampane.
+    getShopDognetUrl(shopName).catch(() => null),
+  ]);
   const ehub = ehubShops
     .filter(s => matches(s.name, s.web) && s.affiliateLink?.startsWith("http"))
     .sort((a, b) => ehubCountryPriority(a) - ehubCountryPriority(b))[0];
   if (ehub) return ehub.affiliateLink;
-
-  // CJ joined advertiser bez coupon-type promo (napr. Answear.sk) — shop-level clickUrl.
-  const cjUrl = await getCjShopUrl(shopName).catch(() => null);
   if (cjUrl) return cjUrl;
-
-  // Joined Dognet kampaň bez voucherov (napr. obchod s aktívnym programom, ale
-  // bez kupónov) — zostrojený tracking link z homepage kampane.
-  const dognetUrl = await getShopDognetUrl(shopName).catch(() => null);
   if (dognetUrl) return dognetUrl;
 
   return null;

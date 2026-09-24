@@ -4,7 +4,7 @@
  * entity a legacy presmerovania. Očakávané správanie je v komentároch.
  */
 export const SEO_AUDIT_EXTRA_PATHS: string[] = [
-  "/kupony?page=2",                 // 200, self-canonical, index
+  "/kupony?page=2",                 // 200, self-canonical, noindex,follow
   "/kupony?page=9999",              // 404 (stránka mimo rozsahu)
   "/kupony?sort=discount",          // 200, noindex,follow
   "/kupony?q=alza",                 // 200, noindex,follow

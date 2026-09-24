@@ -22,7 +22,8 @@ export default function Breadcrumbs({ items, color = "#6B7280", activeColor = "#
                   {c.name}
                 </span>
               ) : (
-                <a href={c.path} style={{ color, textDecoration: "none" }}>{c.name}</a>
+                // padding → cieľ dotyku ≥ 24 px výšky (WCAG 2.2 target size) bez zmeny vizuálu
+                <a href={c.path} style={{ color, textDecoration: "none", display: "inline-block", padding: "3px 0", minHeight: 24, boxSizing: "border-box" }}>{c.name}</a>
               )}
               {!last && <span aria-hidden="true">›</span>}
             </li>

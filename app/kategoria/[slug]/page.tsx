@@ -15,6 +15,7 @@ import { getShopRegistry } from "@/lib/seo/shop-registry";
 import { articlesByShop, getShopSeoIndex, type ShopSeoStat } from "@/lib/seo/shop-index";
 import { categoryIndexDecision } from "@/lib/seo/indexing";
 import { buildCategoryShops } from "@/lib/seo/category-shops";
+import { categoryTitleVariants, fitTitle, metadataTitle } from "@/lib/seo/title";
 import { withTimeout } from "@/lib/with-timeout";
 
 export const revalidate = 3600;
@@ -66,7 +67,8 @@ const loadCategory = cache(async (slug: string) => {
   const akcieList = coupons.filter((c: any) => !c.code || String(c.code).trim() === "");
   const shopsWithOffers = shopList.filter(s => s.offers > 0);
   const totalOffers = shopsWithOffers.reduce((n, s) => n + s.offers, 0);
-  const decision = categoryIndexDecision({ shopCount: shopList.length, activeOffers: totalOffers + coupons.length });
+  // Rovnaké vstupy ako sitemap (lib/seo/sitemap.ts) → meta robots a sitemap sa nerozídu.
+  const decision = categoryIndexDecision({ shopCount: shopList.length, activeOffers: totalOffers });
 
   return { cat, shopList, shopsWithOffers, totalOffers, articles, kuponyList, akcieList, decision };
 });
@@ -80,14 +82,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const top = d.shopsWithOffers.slice(0, 3).map(s => s.name);
   const url = absoluteUrl(`/kategoria/${d.cat.id}`);
   // Search intent "{kategória} akcie / zľavy" — kategória vpredu, bez opakovania slov.
-  const title = `${label} – akcie, zľavy a zľavové kódy ${month} ${year}`;
+  const fitted = fitTitle(categoryTitleVariants(label, month, year));
+  const title = fitted.text;
   const description = clampDescription(
     top.length > 0
       ? `Akcie a zľavové kódy v kategórii ${lc}: ${d.shopsWithOffers.length} ${plural(d.shopsWithOffers.length, "obchod", "obchody", "obchodov")} s aktuálnou ponukou, napr. ${top.join(", ")}. Prehľad na ${month} ${year}.`
       : `Obchody v kategórii ${lc} a ich zľavové kódy a akcie na jednom mieste. ${d.cat.desc}`,
   );
   return {
-    title,
+    title: metadataTitle(fitted),
     description,
     alternates: { canonical: url },
     robots: d.decision.index ? undefined : { index: false, follow: true },

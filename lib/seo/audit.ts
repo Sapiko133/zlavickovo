@@ -236,7 +236,7 @@ async function pool<T, R>(items: T[], concurrency: number, fn: (t: T) => Promise
 
 // ─── Analýza ────────────────────────────────────────────────────────────────
 
-const TITLE_MAX = 65;
+const TITLE_MAX = 60; // zhodné s lib/seo/title.ts
 const DESC_MIN = 70;
 const DESC_MAX = 165;
 /** Pod touto dĺžkou viditeľného textu (bez nav/footer) považujeme stránku za thin. */

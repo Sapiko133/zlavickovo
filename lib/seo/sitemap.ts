@@ -10,7 +10,6 @@
  * rovnaké funkcie rozhodujú aj o meta robots na stránke.
  */
 import { getAllArticles, type Article } from "@/lib/articles";
-import { LETAKY } from "@/lib/letaky";
 import { isAdultShop } from "@/lib/shop-categories";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { SITE_URL, absoluteUrl } from "./config";
@@ -27,7 +26,8 @@ export interface SitemapEntry {
 export const SITEMAP_TYPES = ["pages", "shops", "categories", "offers"] as const;
 export type SitemapType = (typeof SITEMAP_TYPES)[number];
 
-const STATIC_PAGES = ["/", "/akcie", "/kupony", "/obchody", "/kategoria", "/letaky", "/o-nas", "/inzercia", "/privacy"];
+// /letaky a /letaky/* sú noindex (bez vlastných dát) → nie sú v sitemap.
+const STATIC_PAGES = ["/", "/akcie", "/kupony", "/obchody", "/kategoria", "/o-nas", "/inzercia", "/privacy"];
 
 function isoDate(v: string | undefined | null): string | undefined {
   if (!v) return undefined;
@@ -38,10 +38,7 @@ function isoDate(v: string | undefined | null): string | undefined {
 export async function sitemapEntries(type: SitemapType): Promise<SitemapEntry[]> {
   switch (type) {
     case "pages":
-      return [
-        ...STATIC_PAGES.map((p) => ({ url: absoluteUrl(p) })),
-        ...LETAKY.map((l) => ({ url: absoluteUrl(`/letaky/${l.slug}`) })),
-      ];
+      return STATIC_PAGES.map((p) => ({ url: absoluteUrl(p) }));
 
     case "shops": {
       const index = await getShopSeoIndex();

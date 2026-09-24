@@ -11,6 +11,7 @@ import {
 } from "../lib/seo/indexing.ts";
 import { resolveShopSlugSync, seoShopName, type ShopRegistry } from "../lib/seo/shop-registry.ts";
 import { renderSitemapIndex, renderUrlset } from "../lib/seo/sitemap.ts";
+import { BRAND_SUFFIX, TITLE_MAX, categoryTitleVariants, fitTitle, offerTitleVariants, shopTitleVariants } from "../lib/seo/title.ts";
 import { parseHtml } from "../lib/seo/audit.ts";
 import type { Article } from "../lib/articles.ts";
 
@@ -54,7 +55,16 @@ assert.equal(resolveShopSlugSync(reg, { slug: "siko" }), null, "obchod bez strá
 // ── indexačná politika ──
 assert.equal(shopIndexDecision({ slug: "random", activeOffers: 0 }).index, false);
 assert.equal(shopIndexDecision({ slug: "random", activeOffers: 2 }).index, true);
-assert.equal(shopIndexDecision({ slug: "alza", activeOffers: 0 }).index, true, "TOP obchod ostáva indexovateľný");
+assert.equal(shopIndexDecision({ slug: "alza", activeOffers: 0 }).index, false, "TOP bez ponuky a bez dopytu → noindex (nie slepý zoznam)");
+assert.equal(shopIndexDecision({ slug: "alza", activeOffers: 0, demandEvents: 3 }).index, true, "TOP s doloženým dopytom");
+assert.equal(shopIndexDecision({ slug: "random", activeOffers: 0, demandEvents: 50 }).index, false, "dopyt pomáha len TOP značkám");
+assert.equal(shopIndexDecision({ slug: "random", activeOffers: 3, isAdult: true }).index, false, "18+ nikdy");
+{
+  const NOW_S = Date.parse("2026-09-24T10:00:00Z");
+  const d = (days: number) => new Date(NOW_S - days * 86400_000).toISOString();
+  assert.equal(shopIndexDecision({ slug: "random", activeOffers: 0, lastOfferAt: d(10) }, NOW_S).index, true, "grace 30 dní (anti-flapping)");
+  assert.equal(shopIndexDecision({ slug: "random", activeOffers: 0, lastOfferAt: d(31) }, NOW_S).index, false);
+}
 assert.equal(shopIndexDecision({ slug: "alza", activeOffers: 5, isCzVariant: true }).index, false);
 assert.equal(categoryIndexDecision({ shopCount: 2, activeOffers: 0 }).index, false);
 assert.equal(categoryIndexDecision({ shopCount: 3, activeOffers: 0 }).index, true);
@@ -127,6 +137,45 @@ assert.equal(articleDedupeKey(art({ shopSlug: "tchibo", title: "Tchibo.sk: Ladie
   assert.equal(p.imagesWithoutAlt, 1);
   assert.equal(p.activeOffers, 0);
   assert.equal(p.offerExpired, true);
+}
+
+// ── title: inteligentná dĺžka (kľúčové slovo → obchod → hlavná informácia) ──
+{
+  const M = "september", Y = 2026;
+  // Krátke meno: plný variant aj so značkou.
+  const alza = fitTitle(shopTitleVariants("Alza", false, M, Y));
+  assert.equal(alza.text, "Alza akcie a zľavové kódy – september 2026");
+  assert.equal(alza.absolute, false);
+  assert.ok(alza.length <= TITLE_MAX);
+  // Dlhé meno: značka webu odpadá skôr než dátum; meno obchodu sa nikdy neskracuje.
+  const long = fitTitle(shopTitleVariants("Fotoobrazyzplatna.sk", true, M, Y));
+  assert.ok(long.text.startsWith("Fotoobrazyzplatna.sk zľavové kódy"), long.text);
+  assert.ok(long.length <= TITLE_MAX, `${long.length}: ${long.text}`);
+  // Extrémne dlhé meno: sekundárne slová a dátum odpadnú, kľúčové slovo + obchod ostanú.
+  const huge = fitTitle(shopTitleVariants("Mangooutlet.com CZ Super Extra Obchod", true, M, Y));
+  assert.ok(huge.text.includes("Mangooutlet.com CZ Super Extra Obchod") && huge.text.includes("zľavové kódy"), huge.text);
+  // Nikdy "…" ani useknuté slovo.
+  for (const name of ["H&M", "Bohatstvo-Prírody.sk", "budsforbuddies.com CZ", "Asko-nabytek.cz", "CisteOblecenie.sk"]) {
+    for (const hasCodes of [true, false]) {
+      const t = fitTitle(shopTitleVariants(name, hasCodes, M, Y));
+      assert.ok(!t.text.includes("…"), t.text);
+      assert.ok(t.text.startsWith(name), t.text);
+      assert.ok(t.length <= TITLE_MAX, `${t.length}: ${t.text}`);
+    }
+  }
+  // Unikátnosť: rôzne obchody → rôzne titulky (meno je vždy celé).
+  const names = ["Asko-nabytek.cz", "Asko-nabytok.sk", "CisteObleceni.cz", "CisteOblecenie.sk", "budsforbuddies.com", "budsforbuddies.com CZ"];
+  const titles = names.map((n) => fitTitle(shopTitleVariants(n, true, M, Y)).text);
+  assert.equal(new Set(titles).size, names.length, titles.join(" / "));
+  // Kategória.
+  const cat = fitTitle(categoryTitleVariants("Elektronika", M, Y));
+  assert.ok(cat.length <= TITLE_MAX && cat.text.startsWith("Elektronika"), cat.text);
+  // Akcia: celý text, ak sa zmestí (aj bez značky); inak prirodzená klauzula, nie "Bundy".
+  const off = fitTitle(offerTitleVariants("Allegro.cz", "Allegro.cz: Bundy, kabáty a mikiny až o -30% levněji ( CZ)"));
+  assert.ok(off.text.startsWith("Allegro.cz: Bundy, kabáty a mikiny"), off.text);
+  const sent = offerTitleVariants("Parolek-shop.cz", "Parolek-shop.cz: Využijte akci Gorenje Cashback a získejte peníze zpět. Navíc můžete získat spotřebič se slevou 90 %.");
+  assert.equal(sent[1], "Parolek-shop.cz: Využijte akci Gorenje Cashback a získejte peníze zpět");
+  assert.ok(BRAND_SUFFIX.includes("Zlavickovo"));
 }
 
 console.log("test-seo: OK");

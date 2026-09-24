@@ -5,13 +5,17 @@
  *
  * | Šablóna              | index keď                                             | inak                    |
  * |----------------------|-------------------------------------------------------|-------------------------|
- * | /kupony/[obchod]     | ≥1 aktívna ponuka (kód/akcia/článok) ALEBO TOP obchod | noindex,follow + mimo SM|
+ * | /kupony/[obchod]     | ≥1 aktívna ponuka, ALEBO ponuka za posledných 30 dní  | noindex,follow + mimo SM|
+ * |                      | (anti-flapping), ALEBO TOP obchod s doloženým dopytom |                         |
+ * |                      | (klik/vyhľadanie na webe); 18+ nikdy                  |                         |
  * | /kupony/[obchod]-cz  | nikdy samostatne — canonical na /kupony/[obchod]      |                         |
  * | /kategoria/[id]      | ≥3 obchody ALEBO ≥1 aktívna ponuka                    | noindex,follow          |
  * | /akcie/[slug] (sale) | aktívna, nie duplikát                                 | ukončená: noindex →     |
  * |                      |                                                       | po 30 dňoch 308 obchod  |
  * | /akcie/[slug] (tip)  | vždy (evergreen)                                      |                         |
- * | /kupony?page=N       | N ≤ počet strán, bez filtrov                          | filtre noindex; N>max 404|
+ * | /kupony (strana 1)   | vždy                                                  |                         |
+ * | /kupony?page=N (N≥2) | nikdy (duplicitný zoznam; follow = crawl cesta)       | noindex,follow; N>max 404|
+ * | /letaky, /letaky/*   | nikdy — žiadne vlastné dáta, len odkaz na web reťazca | noindex,follow          |
  * | /hladat, filtre      | nikdy                                                 | noindex,follow          |
  */
 import type { Article } from "@/lib/articles";
@@ -29,11 +33,34 @@ export function isShopOfferActive(c: { valid_to?: unknown; validTo?: unknown; en
   return isOfferActive(raw);
 }
 
-export function shopIndexDecision(input: { slug: string; activeOffers: number; isCzVariant?: boolean }): IndexDecision {
+/** Ako dlho po poslednej aktívnej ponuke ostáva obchod v indexe (proti flappingu index↔noindex). */
+export const SHOP_OFFER_GRACE_DAYS = 30;
+
+export interface ShopIndexInput {
+  slug: string;
+  activeOffers: number;
+  isCzVariant?: boolean;
+  /** 18+ obchody nepropagujeme (homepage, sitemap) → ani index. */
+  isAdult?: boolean;
+  /** ISO čas, kedy mal obchod naposledy aktívnu ponuku (SEO index ho zapisuje). */
+  lastOfferAt?: string | null;
+  /** Doložený dopyt po značke na webe: outbound kliky + interné vyhľadávania (all-time). */
+  demandEvents?: number;
+}
+
+export function shopIndexDecision(input: ShopIndexInput, now = Date.now()): IndexDecision {
   if (input.isCzVariant) return { index: false, reason: "cz-variant (canonical na základný obchod)" };
+  if (input.isAdult) return { index: false, reason: "18+ obchod (mimo indexu aj sitemap)" };
   if (input.activeOffers > 0) return { index: true, reason: `${input.activeOffers} aktívnych ponúk` };
-  if (TOP_SLUGS.includes(input.slug)) return { index: true, reason: "kurátorský TOP obchod" };
-  return { index: false, reason: "žiadna aktívna ponuka (thin)" };
+  const last = input.lastOfferAt ? Date.parse(input.lastOfferAt) : NaN;
+  if (Number.isFinite(last) && now - last <= SHOP_OFFER_GRACE_DAYS * 86400_000) {
+    return { index: true, reason: `posledná ponuka ${new Date(last).toISOString().slice(0, 10)} (grace ${SHOP_OFFER_GRACE_DAYS} dní)` };
+  }
+  // TOP zoznam už nie je slepý: bez ponuky ostane v indexe len značka s doloženým dopytom.
+  if (TOP_SLUGS.includes(input.slug) && (input.demandEvents ?? 0) > 0) {
+    return { index: true, reason: `TOP obchod s dopytom (${input.demandEvents} udalostí)` };
+  }
+  return { index: false, reason: "žiadna aktívna ponuka ani doložený dopyt (thin)" };
 }
 
 export const CATEGORY_MIN_SHOPS = 3;

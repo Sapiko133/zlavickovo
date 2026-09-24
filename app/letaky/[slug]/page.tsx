@@ -25,6 +25,8 @@ export async function generateMetadata({ params }: Props) {
     title: `${letak.name} leták aktuálny ${month} ${year}`,
     description: `Aktuálny ${letak.name} leták ${month} ${year}. ${letak.updateText.charAt(0).toUpperCase() + letak.updateText.slice(1)}. Nájdite najlepšie akcie a zľavy.`,
     alternates: { canonical: `https://www.zlavickovo.sk/letaky/${slug}` },
+    // Žiadne vlastné dáta (len odkaz na web reťazca + šablónové FAQ) → noindex, follow.
+    robots: { index: false, follow: true },
     openGraph: {
       title: `${letak.name} leták ${month} ${year} | Zlavickovo`,
       description: `Aktuálny ${letak.name} leták online. ${letak.updateText}.`,

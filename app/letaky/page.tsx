@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   title: "Aktuálne akcie supermarketov a reťazcov",
   description: "Aktuálne týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalších obchodov. Nájdi najlepšie zľavy.",
   alternates: { canonical: "https://www.zlavickovo.sk/letaky" },
+  // Politika (lib/seo/indexing.ts): letáky nemajú vlastné dáta — noindex, follow.
+  robots: { index: false, follow: true },
   openGraph: {
     title: "Aktuálne akcie supermarketov | Zlavickovo",
     description: "Týždenné akcie Lidl, Kaufland, Tesco, Billa a ďalšie. Aktualizované automaticky.",

@@ -1,7 +1,7 @@
 import { cache } from "react";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { getCouponsByShop } from "@/lib/dognet";
+import { collectShopOffers, loadShopOfferSources, type ShopOfferSources } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop } from "@/lib/affial-shops";
 import AdBanner from "@/components/AdBanner";
@@ -10,7 +10,7 @@ import ShopCouponList from "@/components/ShopCouponList";
 import ShopFavicon from "@/components/ShopFavicon";
 import { getShopDomain } from "@/lib/shop-domains";
 import { withTimeout } from "@/lib/with-timeout";
-import { resolveCategory } from "@/lib/shop-categories";
+import { isAdultShop, resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/lib/shop-affiliate";
@@ -20,6 +20,7 @@ import Nav from "@/components/Nav";
 import TrackedLink from "@/components/TrackedLink";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { absoluteUrl, clampDescription, plural } from "@/lib/seo/config";
+import { fitTitle, metadataTitle, shopTitleVariants } from "@/lib/seo/title";
 import { breadcrumbJsonLd, buildJsonLdGraph, itemListJsonLd, type Crumb } from "@/lib/seo/jsonld";
 import { SHOP_NAME_OVERRIDES, TOP_SLUGS, getShopRegistry, resolveShopRequest } from "@/lib/seo/shop-registry";
 import { isShopOfferActive, shopIndexDecision } from "@/lib/seo/indexing";
@@ -36,6 +37,10 @@ export const dynamic = "force-dynamic";
  * robí centrálny register (lib/seo/shop-registry.ts).
  */
 const loadShop = cache(async (rawSlug: string) => {
+  // Zdroje nezávislé od slugu sa začnú načítavať HNEĎ, paralelne s resolve (predtým sériovo).
+  const sourcesP = withTimeout<ShopOfferSources | null>(loadShopOfferSources(), 8000, null);
+  const articlesP = withTimeout(getAllArticles(), 3000, [] as Article[]);
+  const seoIndexP = withTimeout(getShopSeoIndex(), 2500, [] as Awaited<ReturnType<typeof getShopSeoIndex>>);
   const res = await resolveShopRequest(rawSlug);
   if (res.kind === "notfound") notFound();
   if (res.kind === "redirect") permanentRedirect(res.to);
@@ -52,12 +57,9 @@ const loadShop = cache(async (rawSlug: string) => {
   const displayName = SHOP_NAME_OVERRIDES[baseSlug] ?? entry.name ?? capitalized;
 
   // Timeouty na render-path volania — viď [[with-timeout]].
-  const [liveCoupons, reg, allArticles, seoIndex] = await Promise.all([
-    withTimeout<any[] | null>(getCouponsByShop(slugName), 8000, null),
-    getShopRegistry(),
-    withTimeout(getAllArticles(), 3000, [] as Article[]),
-    withTimeout(getShopSeoIndex(), 2500, [] as Awaited<ReturnType<typeof getShopSeoIndex>>),
-  ]);
+  const [sources, reg, allArticles, seoIndex] = await Promise.all([sourcesP, getShopRegistry(), articlesP, seoIndexP]);
+  // = getCouponsByShop(slugName), len nad už načítanými zdrojmi (rovnaká funkcia collectShopOffers).
+  const liveCoupons: any[] | null = sources ? collectShopOffers(slugName, sources) : null;
   const coupons = liveCoupons ?? [];
   const articles = (articlesByShop(allArticles, reg).get(baseSlug) ?? [])
     .sort((a, b) => b.date.localeCompare(a.date))
@@ -67,12 +69,18 @@ const loadShop = cache(async (rawSlug: string) => {
   const active = coupons.filter(isShopOfferActive);
   const codeCount = active.filter((c: any) => c.code && String(c.code).trim() !== "").length;
   const dealCount = active.length - codeCount;
-  let decision = shopIndexDecision({ slug: baseSlug, activeOffers: active.length + articles.length, isCzVariant });
-  // Fail-open: timeout zdroja alebo SEO index (zdroj sitemap) hovorí "index" → nikdy
-  // nedeindexuj stránku kvôli prechodnému výpadku. Sitemap ⊆ indexovateľné stránky.
-  if (!decision.index && !isCzVariant) {
-    if (liveCoupons === null) decision = { index: true, reason: "zdroj ponúk neodpovedal (fail-open)" };
-    else if (seoIndex.find((s) => s.slug === baseSlug)?.index) decision = { index: true, reason: "SEO index (sitemap)" };
+  const isAdult = isAdultShop({ slug: baseSlug, name: displayName, domain: entry.domain });
+  // Jeden zdroj pravdy pre index/noindex: SEO index (ten istý rozhoduje o sitemap) →
+  // meta robots a sitemap sa nemôžu rozísť. Živý výpočet len keď index nie je dostupný,
+  // a vtedy fail-open (timeout zdroja nikdy nespôsobí noindex).
+  const indexed = seoIndex.find((st) => st.slug === baseSlug);
+  let decision = isCzVariant
+    ? shopIndexDecision({ slug: baseSlug, activeOffers: 0, isCzVariant })
+    : indexed
+    ? { index: indexed.index, reason: `SEO index: ${indexed.reason}` }
+    : shopIndexDecision({ slug: baseSlug, activeOffers: active.length + articles.length, isAdult });
+  if (!indexed && !decision.index && !isCzVariant && !isAdult && liveCoupons === null) {
+    decision = { index: true, reason: "zdroj ponúk neodpovedal (fail-open)" };
   }
 
   return { slug: res.slug, baseSlug, isCzVariant, affialShop, capitalized, displayName, entry, coupons, articles, codeCount, dealCount, decision };
@@ -156,9 +164,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const dealTotal = d.dealCount + d.articles.length;
 
   // Search intent: "{obchod} zľavový kód" / "{obchod} akcie" — meno obchodu vpredu.
-  const title = d.codeCount > 0
-    ? `${name} zľavové kódy a kupóny – ${month} ${year}`
-    : `${name} akcie a zľavové kódy – ${month} ${year}`;
+  const title = fitTitle(shopTitleVariants(name, d.codeCount > 0, month, year));
 
   const codes = `${d.codeCount} ${plural(d.codeCount, "zľavový kód", "zľavové kódy", "zľavových kódov")}`;
   const deals = `${dealTotal} ${plural(dealTotal, "aktuálna akcia", "aktuálne akcie", "aktuálnych akcií")}`;
@@ -174,7 +180,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   return {
-    title,
+    title: metadataTitle(title),
     description: clampDescription(description),
     alternates: { canonical: canonicalUrl },
     robots: d.decision.index ? undefined : { index: false, follow: true },
@@ -197,10 +203,23 @@ export default async function ShopPage({ params }: Props) {
 
   // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
   const shopDomain = getShopDomain(capitalized) || d.entry.domain || `${baseSlug}.sk`;
-  const shopAffiliateUrl: string | null =
-    affiliateUrlFromCoupons(coupons) ??
-    affialShop?.affiliateUrl ??
-    (await withTimeout(getShopAffiliateUrl(capitalized), 4000, null));
+  // Kategória obchodu — pre popis, súvisiace obchody a podobné kategórie.
+  const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
+  const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
+  // Related shops fallback (bez siete) pre prípad timeoutu
+  const relatedFallback = getRelatedShopsFallback(baseSlug, 4).map(s => {
+    const n = s.replace(/-/g, " ");
+    return { slug: s, name: n.charAt(0).toUpperCase() + n.slice(1) };
+  });
+
+  // Tri nezávislé volania paralelne (predtým sériovo: affiliate URL → popis z DB → súvisiace obchody).
+  const directAffiliate = affiliateUrlFromCoupons(coupons) ?? affialShop?.affiliateUrl ?? null;
+  const [fallbackAffiliate, shopDesc, relatedShops] = await Promise.all([
+    directAffiliate ? Promise.resolve(null) : withTimeout(getShopAffiliateUrl(capitalized), 4000, null),
+    withTimeout(getShopDescription(capitalized, baseSlug), 3000, { short: "", long: "", source: "fallback" as const }),
+    withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback),
+  ]);
+  const shopAffiliateUrl: string | null = directAffiliate ?? fallbackAffiliate;
   const shopVisitUrl: string = shopAffiliateUrl ?? `https://${shopDomain}`;
 
   // Priame odkazy bez trackingu (statické akcie, fallbacky) nahradí affiliate URL, ak existuje
@@ -221,20 +240,6 @@ export default async function ShopPage({ params }: Props) {
     return { ...rest, _token: Buffer.from(`${capitalized}:${code}`).toString("base64") };
   });
 
-  const shopDesc: { short: string; long: string } =
-    await withTimeout(getShopDescription(capitalized, baseSlug), 3000, { short: "", long: "", source: "fallback" as const });
-
-  // Kategória obchodu — pre popis, súvisiace obchody a podobné kategórie.
-  const categoryId = resolveCategory({ slug: baseSlug, name: capitalized, domain: shopDomain });
-  const categoryLabel = categoryId ? TAXONOMY[categoryId].label : null;
-
-  // Related shops fallback (bez siete) pre prípad timeoutu getAllKnownShops
-  const relatedFallback = getRelatedShopsFallback(baseSlug, 4).map(s => {
-    const n = s.replace(/-/g, " ");
-    return { slug: s, name: n.charAt(0).toUpperCase() + n.slice(1) };
-  });
-
-  const relatedShops = await withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
 
   const crumbs: Crumb[] = [

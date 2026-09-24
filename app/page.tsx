@@ -24,7 +24,7 @@ export const revalidate = 3600;
 
 export const metadata = {
   // absolute: bez layout template "| Zlavickovo" (značka je už na začiatku)
-  title: { absolute: "Zlavickovo – akcie, zľavy a zľavové kódy slovenských obchodov" },
+  title: { absolute: "Zlavickovo – akcie a zľavové kódy slovenských obchodov" },
   description: "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov. Nové ponuky z affiliate sietí pravidelne na jednom mieste.",
   alternates: { canonical: "https://www.zlavickovo.sk" },
   openGraph: {
