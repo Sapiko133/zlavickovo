@@ -10,7 +10,9 @@ import { createShopMatcher } from "@/lib/shop-match";
 import { getAllManualCoupons, manualCouponsForShop, type ManualCoupon } from "@/lib/manual-coupons";
 import { cleanDognetShopName } from "@/lib/shop-name";
 import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
-import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
+import { isOfferActive } from "@/lib/offers/freshness";
+import { errorFromResponse, FeedError } from "@/lib/feeds/fetch";
+import { feedVersionKey, readVersionedSnapshot } from "@/lib/feeds/engine";
 
 const API_BASE = "https://api.app.dognet.com/api/v1";
 const AD_CHANNEL_ID = 33415;
@@ -43,6 +45,13 @@ const TOKEN_CACHE_TTL = 82800; // 23 hodín
 
 let token: string | null = null;
 
+/** Zahodí cachovaný token (in-process aj Redis) — volá feed engine pri HTTP 401/403. */
+export async function resetDognetToken(): Promise<boolean> {
+  token = null;
+  try { await redis.del(TOKEN_CACHE_KEY); } catch {}
+  return Boolean(process.env.DOGNET_EMAIL && process.env.DOGNET_PASSWORD);
+}
+
 export async function getToken(): Promise<string> {
   if (token) return token;
 
@@ -63,10 +72,12 @@ export async function getToken(): Promise<string> {
     }),
     signal: AbortSignal.timeout(15000),
   });
+  const httpErr = errorFromResponse(res, "Dognet login");
+  if (httpErr) throw httpErr.kind === "http_4xx" ? new FeedError("auth", httpErr.message, { status: httpErr.status }) : httpErr;
 
   const data = await res.json();
   token = data.token || data.data?.token;
-  if (!token) throw new Error("Dognet login zlyhal");
+  if (!token) throw new FeedError("auth", "Dognet login zlyhal");
 
   try {
     await redis.set(TOKEN_CACHE_KEY, token, { ex: TOKEN_CACHE_TTL });
@@ -76,7 +87,6 @@ export async function getToken(): Promise<string> {
 }
 
 const COUPONS_CACHE_KEY = "dognet:coupons:v3"; // v3: market filter SK/CZ
-const COUPONS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 async function _fetchDognetCoupons(): Promise<any[]> {
   const t = await getToken();
@@ -94,28 +104,47 @@ async function _fetchDognetCoupons(): Promise<any[]> {
       "per-page": 500,
     }),
     signal: AbortSignal.timeout(30000),
+    cache: "no-store",
   });
+  const httpErr = errorFromResponse(res, "Dognet coupons");
+  if (httpErr) throw httpErr;
   const data = await res.json();
-  const raw: any[] = data.data || [];
+  if (!Array.isArray(data?.data)) throw new FeedError("validation", "Dognet coupons: odpoveď bez poľa data");
+  const raw: any[] = data.data;
   const chid = extractDognetChid(raw);
   return raw.filter(isAllowedDognetCoupon).map((c: any) => {
-    const campaign = c.campaign?.name
-      ? { ...c.campaign, name: cleanDognetShopName(c.campaign.name) }
+    // Snapshot drží len polia, ktoré web používa. Kampaň z API nesie HTML popis,
+    // account_metas a ad_channels (~1,7 KB/kupón) — zbytočný Redis prenos pri každom čítaní.
+    const campaign = c.campaign
+      ? {
+          id: c.campaign.id,
+          name: c.campaign.name ? cleanDognetShopName(c.campaign.name) : c.campaign.name,
+          url: c.campaign.url,
+          logo_url: c.campaign.logo_url,
+        }
       : c.campaign;
+    const { original_id: _o, form: _f, url_error: _ue, url_type: _ut, parallel_tracking: _pt, detailed_description, ...rest } = c;
     // c.url = Dognet tracking redirect. Welcome/klub/newsletter vouchery bez cieľovej URL
     // ho nemajú (url_error "Unable to generate URL without destination URL") — napr. Bonprix.
     // Filter je from_joined_campaigns, takže kampaň je joined → tracking link zostrojíme
     // z homepage kampane a nikdy nevrátime "#".
     const resolvedUrl = c.url || buildDognetTrackingUrl(chid, c.campaign?.url);
     return {
-      ...c,
+      ...rest,
+      // detailed_description sa nečíta nikde okrem fallbacku popisu → zachovaj ho len tam
+      description: c.description || detailed_description || null,
       campaign,
       url: resolvedUrl || c.url,
       affiliate_link: resolvedUrl || c.affiliate_link || "#",
-      title: c.title || c.description || c.detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (campaign?.name || "Kupón")),
+      title: c.title || c.description || detailed_description || (c.discount_value ? `${c.discount_value} zľava` : (campaign?.name || "Kupón")),
       name: c.name || c.title || c.description || "",
     };
   });
+}
+
+/** Feed engine: striktný fetch kupónov (chyby vyhadzuje, nič nezapisuje). */
+export async function fetchDognetCouponsStrict(): Promise<any[]> {
+  return _fetchDognetCoupons();
 }
 
 // Read-only: returns cached coupons or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
@@ -129,9 +158,11 @@ export async function getCoupons(): Promise<any[]> {
   if (couponsMemo && Date.now() - couponsMemo.at < COUPONS_MEMO_MS) return couponsMemo.data;
   const data = (async () => {
     try {
-      const cached = await redis.get<any[]>(COUPONS_CACHE_KEY);
+      const cached = await readVersionedSnapshot<any[]>(COUPONS_CACHE_KEY, feedVersionKey("dognet-coupons"));
       if (cached && Array.isArray(cached) && cached.length > 0) {
-        return cached.filter(isAllowedDognetCoupon);
+        // Last-good snapshot môže byť pri výpadku siete starší — expirované kupóny
+        // sa nesmú zobraziť ako aktuálne (kanonický freshness model).
+        return cached.filter((c) => isAllowedDognetCoupon(c) && isOfferActive(c.valid_to ?? null));
       }
     } catch {}
     return [];
@@ -146,67 +177,72 @@ export async function fetchDognetCouponsDirect(): Promise<any[]> {
   return _fetchDognetCoupons();
 }
 
-// Called only from the cron endpoint — allowed to be slow.
-export async function refreshDognetCache(): Promise<{ count: number; error?: string }> {
-  try {
-    const coupons = await _fetchDognetCoupons();
-    if (coupons.length > 0) {
-      await redis.set(COUPONS_CACHE_KEY, coupons, { ex: COUPONS_CACHE_TTL });
-    }
-    return { count: coupons.length };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[dognet] refreshDognetCache zlyhalo:", msg);
-    return { count: 0, error: msg };
-  }
-}
-
 // ── Joined kampane (aj bez voucherov) ───────────────────────────────────────
 // Shop stránka obchodu, ktorý je joined (ad_channel status 1) ale nemá aktívny
 // voucher, dostane affiliate link zostrojený z homepage kampane. Status 2/3
 // (pending / nie joined) vynechávame — tam by tracking nekreditoval.
-const CAMPAIGNS_CACHE_KEY = "dognet:joined-campaigns:v1";
-const CAMPAIGNS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
+const CAMPAIGNS_CACHE_KEY = "dognet:joined-campaigns:v1"; // legacy fallback (pred feed engine)
+/** Snapshot všetkých SK/CZ kampaní (slim) — plní feed engine (zdroj dognet-campaigns). */
+export const DOGNET_CAMPAIGNS_SNAPSHOT_KEY = "dognet:campaigns:v2";
 
 export interface DognetJoinedCampaign {
   name: string;
   url: string;
 }
 
-async function _fetchJoinedDognetCampaigns(t: string): Promise<DognetJoinedCampaign[]> {
-  const all = await _fetchAllCampaigns(t);
-  const out: DognetJoinedCampaign[] = [];
+export interface DognetCampaignLite {
+  id: number;
+  name: string;
+  url: string;
+  logo_url?: string;
+  /** Náš ad_channel je v kampani schválený (status 1). */
+  joined: boolean;
+}
+
+/** SK/CZ kampane v slim tvare (bez HTML popisov) — striktné, chyby vyhadzuje. */
+export async function fetchDognetCampaignsStrict(): Promise<DognetCampaignLite[]> {
+  const t = await getToken();
+  const all = await _fetchAllCampaigns(t, { strict: true });
+  const out: DognetCampaignLite[] = [];
   for (const c of all) {
-    const ch = (c.ad_channels_in_campaign || []).find((a: any) => a.ad_channel_id === AD_CHANNEL_ID);
-    if (!ch || ch.status !== 1) continue; // len joined/approved
-    if (!c.url || !String(c.url).startsWith("http")) continue;
+    if (!c?.name) continue;
     if (!isDognetSkCzMarket(c.name, c.url)) continue; // len SK/CZ trh
-    out.push({ name: cleanDognetShopName(c.name), url: c.url });
+    const ch = (c.ad_channels_in_campaign || []).find((a: any) => a.ad_channel_id === AD_CHANNEL_ID);
+    out.push({
+      id: Number(c.id) || 0,
+      name: cleanDognetShopName(c.name),
+      url: String(c.url || ""),
+      ...(c.logo_url ? { logo_url: String(c.logo_url) } : {}),
+      joined: ch?.status === 1,
+    });
   }
   return out;
 }
 
+async function getDognetCampaignsSnapshot(): Promise<DognetCampaignLite[] | null> {
+  try {
+    const cached = await readVersionedSnapshot<DognetCampaignLite[]>(
+      DOGNET_CAMPAIGNS_SNAPSHOT_KEY,
+      feedVersionKey("dognet-campaigns"),
+      { memoMs: 10 * 60_000 },
+    );
+    return Array.isArray(cached) && cached.length > 0 ? cached : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function getJoinedDognetCampaigns(): Promise<DognetJoinedCampaign[]> {
+  const snapshot = await getDognetCampaignsSnapshot();
+  if (snapshot) {
+    // len joined/approved s platnou URL — tam tracking kredituje
+    return snapshot.filter((c) => c.joined && c.url.startsWith("http")).map((c) => ({ name: c.name, url: c.url }));
+  }
   try {
     const cached = await redis.get<DognetJoinedCampaign[]>(CAMPAIGNS_CACHE_KEY);
     if (cached && Array.isArray(cached) && cached.length > 0) return cached;
   } catch {}
   return [];
-}
-
-export async function refreshDognetCampaignsCache(): Promise<{ count: number; error?: string }> {
-  try {
-    const t = await getToken();
-    const camps = await _fetchJoinedDognetCampaigns(t);
-    if (camps.length > 0) {
-      await redis.set(CAMPAIGNS_CACHE_KEY, camps, { ex: CAMPAIGNS_CACHE_TTL });
-    }
-    return { count: camps.length };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[dognet] refreshDognetCampaignsCache zlyhalo:", msg);
-    return { count: 0, error: msg };
-  }
 }
 
 // ── Coverage report (read-only audit) ──────────────────────────────────────
@@ -434,23 +470,32 @@ export async function getLatestSales(limit = 8) {
 const CAMPAIGNS_PER_PAGE = 200;
 const CAMPAIGNS_MAX_PAGES = 10;
 
-async function _fetchAllCampaigns(t: string): Promise<any[]> {
+async function _fetchAllCampaigns(t: string, opts: { strict?: boolean } = {}): Promise<any[]> {
   const items: any[] = [];
   for (let page = 1; page <= CAMPAIGNS_MAX_PAGES; page++) {
     // Retry na 429/5xx — pri paralelnom cron refreshi Dognet občas rate-limituje
     // a bez retry by pagination skončila predčasne (neúplný campaigns cache).
     let res: Response | null = null;
+    let lastError: unknown = null;
     for (let attempt = 0; attempt < 3; attempt++) {
       res = await fetch(`${API_BASE}/campaigns/filter?page=${page}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${t}` },
         body: JSON.stringify({ "per-page": CAMPAIGNS_PER_PAGE }),
         signal: AbortSignal.timeout(20000),
-      }).catch(() => null);
+        cache: "no-store",
+      }).catch((e) => { lastError = e; return null; });
       if (res?.ok) break;
+      if (res && (res.status === 401 || res.status === 403)) break; // auth — retry nepomôže
       await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
     }
-    if (!res?.ok) break;
+    if (!res?.ok) {
+      // Striktný režim (feed engine): neúplná pagination = zlyhaný feed, NIE menší snapshot.
+      if (opts.strict) {
+        throw (res ? errorFromResponse(res, `Dognet campaigns page ${page}`) : null) ?? lastError ?? new FeedError("network", `Dognet campaigns page ${page}`);
+      }
+      break;
+    }
     const data = await res.json();
     const batch: any[] = Array.isArray(data?.data) ? data.data : [];
     items.push(...batch);
@@ -462,12 +507,12 @@ async function _fetchAllCampaigns(t: string): Promise<any[]> {
 
 export async function getShops(prefetchedCoupons?: any[]) {
   try {
-    const t = await getToken();
-
-    // Use getCoupons() (cached) + campaigns endpoint in parallel — single source of truth
+    // Kampane zo snapshotu feed enginu; živé stránkovanie Dognet API len keď
+    // snapshot ešte neexistuje (napr. prvý build) — nie pri každom rebuilde zoznamu.
     const [couponsRes, cmpRes] = await Promise.allSettled([
       prefetchedCoupons ? Promise.resolve(prefetchedCoupons) : getCoupons(),
-      _fetchAllCampaigns(t).catch(() => [] as any[]),
+      getDognetCampaignsSnapshot().then(async (snap) =>
+        snap ?? (await _fetchAllCampaigns(await getToken()).catch(() => [] as any[]))),
     ]);
 
     // Build map from shops with active coupons (higher priority, have coupon count)

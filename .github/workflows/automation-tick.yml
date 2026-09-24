@@ -1,0 +1,38 @@
+# Voliteľný spúšťač automatizačného ticku (zadarmo v rámci GitHub Actions minút).
+# Vercel Hobby cron spúšťa tick 4× denne; tento workflow pridá beh každé 2 hodiny,
+# takže HIGH feedy (3 h) a Facebook sloty sa trafia presnejšie. Tick je idempotentný
+# a spúšťa iba splatné feedy — viac spúšťačov neznamená viac práce ani záťaž providerov.
+#
+# Nastavenie: GitHub → Settings → Secrets and variables → Actions → New secret
+#   CRON_SECRET = rovnaká hodnota ako vo Verceli
+# Bez secretu sa krok preskočí (žiadne chybové e-maily).
+name: automation-tick
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: automation-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Trigger tick
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET nie je nastavený — preskakujem."
+            exit 0
+          fi
+          code=$(curl -sS -o response.json -w "%{http_code}" --max-time 300 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "https://www.zlavickovo.sk/api/cron/tick?source=github-actions")
+          head -c 2000 response.json; echo
+          # 500 = niektorý krok zlyhal (detail v /admin/ops); workflow nech je viditeľne červený
+          test "$code" = "200"

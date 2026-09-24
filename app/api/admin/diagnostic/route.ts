@@ -1,10 +1,13 @@
 import { getCoupons, getCouponsByShop } from "@/lib/dognet";
 import { getEhubCoupons, getEhubShops } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
+import { isAdminOrCron } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  // Admin diagnostika (kupóny, posledné odhalenia kódov) nesmie byť verejná.
+  if (!(await isAdminOrCron(req))) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { searchParams } = new URL(req.url);
   const source = searchParams.get("source");
 

@@ -48,6 +48,7 @@ export interface Article {
   actionKey?: string;       // stabilný kľúč konkrétnej affiliate akcie (sieť:id)
   origin?: ArticleOrigin;   // ktorý automat udržiava/deaktivuje článok
   contentHash?: string;     // zabráni prepisu updatedAt, keď sa akcia nezmenila
+  missingSince?: string | null; // akcia chýba vo validnom feede od (grace perióda → stale)
 }
 
 /** Staré blogové posty (súborové) → Article (type "tip"), read-only. */
@@ -75,16 +76,33 @@ function legacyTipArticles(): Article[] {
 }
 
 // In-process memo: hash `articles` má ~0,8 MB (HTML obsah). Zmeny z adminu v tej istej
-// inštancii memo hneď zneplatnia (saveArticle/deleteArticle); iné inštancie do 60 s.
+// inštancii memo hneď zneplatnia (saveArticle/deleteArticle). Iné inštancie po 60 s
+// overia len malý kľúč verzie (INCR pri každom zápise) — celý hash stiahnu iba pri zmene.
 const ARTICLES_MEMO_MS = 60_000;
-let articlesMemo: { at: number; data: Promise<Article[]> } | null = null;
+const ARTICLES_VERSION_KEY = "articles:ver";
+let articlesMemo: { at: number; ver: number | null; data: Promise<Article[]> } | null = null;
 
-function readRedisArticles(): Promise<Article[]> {
+async function readRedisArticles(): Promise<Article[]> {
   if (articlesMemo && Date.now() - articlesMemo.at < ARTICLES_MEMO_MS) return articlesMemo.data;
-  const data = readRedisArticlesUncached();
-  articlesMemo = { at: Date.now(), data };
-  data.then((d) => { if (d.length === 0) articlesMemo = null; }, () => { articlesMemo = null; });
-  return data;
+  if (articlesMemo && articlesMemo.ver != null) {
+    const ver = await redis.get<number>(ARTICLES_VERSION_KEY).catch(() => null);
+    if (ver != null && Number(ver) === articlesMemo.ver) {
+      articlesMemo.at = Date.now();
+      return articlesMemo.data;
+    }
+  }
+  const memo: { at: number; ver: number | null; data: Promise<Article[]> } = { at: Date.now(), ver: null, data: Promise.resolve([]) };
+  memo.data = (async () => {
+    const [list, ver] = await Promise.all([
+      readRedisArticlesUncached(),
+      redis.get<number>(ARTICLES_VERSION_KEY).catch(() => null),
+    ]);
+    memo.ver = ver == null ? null : Number(ver);
+    return list;
+  })();
+  articlesMemo = memo;
+  memo.data.then((d) => { if (d.length === 0 && articlesMemo === memo) articlesMemo = null; }, () => { if (articlesMemo === memo) articlesMemo = null; });
+  return memo.data;
 }
 
 async function readRedisArticlesUncached(): Promise<Article[]> {
@@ -129,11 +147,13 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 
 export async function saveArticle(article: Article): Promise<void> {
   await redis.hset(ARTICLES_KEY, { [article.slug]: article });
+  await redis.incr(ARTICLES_VERSION_KEY).catch(() => {});
   articlesMemo = null;
 }
 
 export async function deleteArticle(slug: string): Promise<void> {
   await redis.hdel(ARTICLES_KEY, slug);
+  await redis.incr(ARTICLES_VERSION_KEY).catch(() => {});
   articlesMemo = null;
 }
 

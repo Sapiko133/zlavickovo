@@ -41,6 +41,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   }
 
   const SECTIONS = [
+    { href: "/admin/ops",       icon: "⚙️", title: "Operations",       desc: "Feedy, lifecycle ponúk, Facebook fronta, SEO, alerty, história jobov" },
     { href: "/admin/clanky",    icon: "📝", title: "Články",           desc: "Auto výpredaje + manuálne články, publikovať/skryť" },
     { href: "/admin/featured",  icon: "⭐", title: "Featured obchody", desc: "Správa odporúčaných obchodov na hlavnej stránke" },
     { href: "/admin/kupony",    icon: "🏷️", title: "Kupóny",           desc: "Sieťové + manuálne kupóny obchodov" },

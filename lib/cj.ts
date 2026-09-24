@@ -4,6 +4,9 @@ import {
   DAILY_REFRESH_CACHE_TTL_SECONDS,
   PROCESS_MEMO_TTL_SECONDS,
 } from "@/lib/feeds/cache-policy";
+import { errorFromResponse, FeedError } from "@/lib/feeds/fetch";
+import { FEED_SNAPSHOT_TTL_SECONDS, feedVersionKey, readVersionedSnapshot } from "@/lib/feeds/engine";
+import { isOfferActive } from "@/lib/offers/freshness";
 
 export interface CjCoupon {
   id: string;
@@ -48,39 +51,58 @@ function affiliateUrl(link: string): string {
   return xmlField(link, "clickUrl") || xmlField(link, "destination");
 }
 
-async function fetchFromCj(params: Record<string, string>): Promise<string | null> {
+function cjQuery(params: Record<string, string>): URLSearchParams | null {
   const apiKey = process.env.CJ_API_KEY;
   const websiteId = process.env.CJ_WEBSITE_ID;
   if (!apiKey || !websiteId) return null;
-
-  const qs = new URLSearchParams({
+  return new URLSearchParams({
     "website-id": websiteId,
     "link-type": "Text Link",
     "advertiser-ids": "joined",
     "records-per-page": "200",
     ...params,
   });
+}
 
-  try {
-    const res = await fetch(
-      `https://link-search.api.cj.com/v2/link-search?${qs}`,
-      {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        signal: AbortSignal.timeout(12000),
-      }
-    );
-    if (!res.ok) return null;
-    return res.text();
-  } catch {
-    return null;
+/** Striktný CJ request — chyby vyhadzuje (feed engine ich klasifikuje a retryuje). */
+async function fetchFromCjStrict(params: Record<string, string>): Promise<string> {
+  const qs = cjQuery(params);
+  if (!qs) throw new FeedError("config", "CJ: chýba CJ_API_KEY alebo CJ_WEBSITE_ID");
+  const res = await fetch(`https://link-search.api.cj.com/v2/link-search?${qs}`, {
+    headers: { Authorization: `Bearer ${process.env.CJ_API_KEY}` },
+    signal: AbortSignal.timeout(20000),
+    cache: "no-store",
+  });
+  const httpErr = errorFromResponse(res, "CJ link-search");
+  if (httpErr) throw httpErr;
+  const xml = await res.text();
+  if (!/<links[\s>]/.test(xml)) throw new FeedError("parse", "CJ link-search: odpoveď bez <links>");
+  return xml;
+}
+
+const CJ_MAX_PAGES = 5;
+
+/** Všetky strany výsledku (records-per-page je max 200; kupónov býva viac). */
+async function fetchCjLinksAllPages(params: Record<string, string>): Promise<string[]> {
+  const links: string[] = [];
+  for (let page = 1; page <= CJ_MAX_PAGES; page++) {
+    const xml = await fetchFromCjStrict({ ...params, "page-number": String(page) });
+    const batch = parseLinks(xml);
+    links.push(...batch);
+    const total = Number(xml.match(/total-matched="(\d+)"/)?.[1] ?? 0);
+    const perPage = Number(params["records-per-page"] ?? 200);
+    if (batch.length < perPage || (total > 0 && links.length >= total)) break;
   }
+  return links;
 }
 
 async function fetchCjCoupons(): Promise<CjCoupon[]> {
-  const xml = await fetchFromCj({ "promotion-type": "Coupon" });
-  if (!xml) return [];
+  return fetchCjCouponsStrict().catch(() => []);
+}
 
-  const links = parseLinks(xml);
+/** Feed engine: všetky strany coupon promo linkov; chyby vyhadzuje. */
+export async function fetchCjCouponsStrict(): Promise<CjCoupon[]> {
+  const links = await fetchCjLinksAllPages({ "promotion-type": "Coupon" });
   const results: CjCoupon[] = [];
   const now = Date.now();
 
@@ -109,10 +131,12 @@ async function fetchCjCoupons(): Promise<CjCoupon[]> {
 }
 
 async function fetchCjShops(): Promise<CjShop[]> {
-  const xml = await fetchFromCj({});
-  if (!xml) return [];
+  return fetchCjShopsStrict().catch(() => []);
+}
 
-  const links = parseLinks(xml);
+/** Feed engine: joined advertiseri (shop-level linky); chyby vyhadzuje. */
+export async function fetchCjShopsStrict(): Promise<CjShop[]> {
+  const links = parseLinks(await fetchFromCjStrict({}));
   const seen = new Set<string>();
   const shops: CjShop[] = [];
 
@@ -142,8 +166,9 @@ export async function getCjCoupons(): Promise<CjCoupon[]> {
   }
   const promise = (async () => {
     try {
-      const cached = await redis.get<CjCoupon[]>(COUPON_CACHE_KEY);
-      if (cached && Array.isArray(cached) && cached.length > 0) return cached;
+      const cached = await readVersionedSnapshot<CjCoupon[]>(COUPON_CACHE_KEY, feedVersionKey("cj-coupons"));
+      // Last-good snapshot môže byť pri výpadku starší — expirované kupóny vyraď.
+      if (cached && Array.isArray(cached) && cached.length > 0) return cached.filter((c) => isOfferActive(c.endDate || null));
     } catch {}
 
     const coupons = await fetchCjCoupons();
@@ -163,7 +188,7 @@ export async function getCjShops(): Promise<CjShop[]> {
   }
   const promise = (async () => {
     try {
-      const cached = await redis.get<CjShop[]>(SHOP_CACHE_KEY);
+      const cached = await readVersionedSnapshot<CjShop[]>(SHOP_CACHE_KEY, feedVersionKey("cj-shops"), { memoMs: 10 * 60_000 });
       if (cached && Array.isArray(cached) && cached.length > 0) return cached;
     } catch {}
 
@@ -192,7 +217,8 @@ export interface CjBanner {
   area: number;
 }
 
-const BANNER_CACHE_KEY = "cj:banners:v1";
+export const CJ_BANNER_CACHE_KEY = "cj:banners:v1";
+const BANNER_CACHE_KEY = CJ_BANNER_CACHE_KEY;
 let bannersMemo: { at: number; data: Promise<CjBanner[]> } | null = null;
 
 function decodeEntities(s: string): string {
@@ -209,8 +235,12 @@ function domainFromUrl(url: string): string {
 }
 
 async function fetchCjBanners(): Promise<CjBanner[]> {
-  const xml = await fetchFromCj({ "link-type": "Banner", "records-per-page": "500" });
-  if (!xml) return [];
+  return fetchCjBannersStrict().catch(() => []);
+}
+
+/** Feed engine: banner kreatívy joined advertiserov; chyby vyhadzuje. */
+export async function fetchCjBannersStrict(): Promise<CjBanner[]> {
+  const xml = await fetchFromCjStrict({ "link-type": "Banner", "records-per-page": "500" });
   const out: CjBanner[] = [];
   for (const link of parseLinks(xml)) {
     const html = decodeEntities(xmlField(link, "link-code-html"));
@@ -239,7 +269,7 @@ export async function getCjBanners(): Promise<CjBanner[]> {
     } catch {}
     const banners = await fetchCjBanners();
     if (banners.length > 0) {
-      try { await redis.set(BANNER_CACHE_KEY, banners, { ex: SHOP_CACHE_TTL }); } catch {}
+      try { await redis.set(BANNER_CACHE_KEY, banners, { ex: FEED_SNAPSHOT_TTL_SECONDS }); } catch {}
     }
     return banners;
   })();
@@ -296,26 +326,4 @@ export async function getJoinedCjAdvertiserIds(): Promise<JoinedCjAdvertisers> {
     // Redis/cache/auth zlyhanie — nesmie vyzerať ako "0 joinov"
     return { available: false };
   }
-}
-
-export async function importAndCacheCjCoupons(): Promise<number> {
-  const coupons = await fetchCjCoupons();
-  if (coupons.length > 0) {
-    try { await redis.set(COUPON_CACHE_KEY, coupons, { ex: COUPON_CACHE_TTL }); } catch {}
-  }
-  return coupons.length;
-}
-
-/**
- * Deterministický warmer joined CJ shops cache — pre refresh-affiliate-cache cron.
- * Drží cj:shops:v3 teplú (24h TTL), aby read-only cross-check pri Product Feed
- * discovery ({@link getJoinedCjAdvertiserIds}) nevracal 503. Zapisuje iba pri
- * neprázdnom výsledku (nikdy neprepíše platnú cache prázdnou pri chybe CJ API).
- */
-export async function refreshCjShopsCache(): Promise<{ count: number }> {
-  const shops = await fetchCjShops();
-  if (shops.length > 0) {
-    try { await redis.set(SHOP_CACHE_KEY, shops, { ex: SHOP_CACHE_TTL }); } catch {}
-  }
-  return { count: shops.length };
 }

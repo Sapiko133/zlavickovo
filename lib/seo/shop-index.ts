@@ -5,7 +5,8 @@
  * a meta robots sa nemôžu rozísť.
  *
  * Výpočet je čisto v pamäti nad raz načítanými zdrojmi (žiadne N+1),
- * výsledok sa cachuje v Redis (1 h) — sitemap ani dashboard ho nepočítajú pri každom hite.
+ * výsledok sa cachuje v Redis (6 h, tick ho obnoví po zmene dát) — sitemap ani
+ * dashboard ho nepočítajú pri každom hite.
  */
 import { collectShopOffers, loadShopOfferSources } from "@/lib/dognet";
 import { getAllArticles, type Article } from "@/lib/articles";
@@ -51,7 +52,10 @@ async function loadDemand(reg: ShopRegistry, slugs: string[]): Promise<Map<strin
   } catch {}
   return out;
 }
-const CACHE_TTL = 3600;
+// Automatizačný tick (lib/automation/tick.ts) index prepočíta hneď po zmene feedov
+// alebo článkov (getShopSeoIndex({ fresh: true })), preto netreba krátke TTL —
+// cache miss by inak spúšťal ťažký výpočet počas requestu návštevníka.
+const CACHE_TTL = 6 * 3600;
 
 /** Meno, ktorým stránka obchodu hľadá ponuky (musí byť zhodné s app/kupony/[slug]). */
 export function shopLookupName(slug: string): string {

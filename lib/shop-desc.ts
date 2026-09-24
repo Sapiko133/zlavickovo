@@ -29,8 +29,11 @@ function genericDesc(shopName: string): string {
   return `${shopName} je populárny online obchod ponúkajúci širokú škálu produktov pre slovenských zákazníkov. Pravidelne vydáva zľavové kódy a akcie, vďaka ktorým môžete ušetriť na svojich nákupoch. Nájdite aktuálne kupóny práve tu na Zlavickovo.sk.`;
 }
 
-/** Načíta uložený popis z tabuľky shop_descriptions (generátor ju napĺňa offline). */
-async function fromDb(slug: string): Promise<ShopDescription | null> {
+/**
+ * Načíta uložený popis z tabuľky shop_descriptions (generátor ju napĺňa offline).
+ * null = záznam neexistuje; undefined = DB chyba (necachuje sa).
+ */
+async function fromDbUncached(slug: string): Promise<ShopDescription | null | undefined> {
   try {
     const sql = getDb();
     const rows = (await sql`
@@ -44,13 +47,42 @@ async function fromDb(slug: string): Promise<ShopDescription | null> {
     }
   } catch {
     // Tabuľka nemusí ešte existovať / DB nedostupná — pokračuj na ďalší zdroj.
+    return undefined;
   }
   return null;
 }
 
+// Stránka obchodu je dynamická → bez cache by KAŽDÝ request robil Neon dotaz
+// (studený štart compute + cesta do eu-central). Popisy generuje offline skript,
+// menia sa zriedka: Redis cache 7 dní vrátane negatívneho výsledku + procesové memo.
+const DB_DESC_TTL = 7 * 86400;
+const dbMemo = new Map<string, { at: number; value: ShopDescription | null }>();
+
+async function fromDb(slug: string): Promise<ShopDescription | null> {
+  const m = dbMemo.get(slug);
+  if (m && Date.now() - m.at < 3600_000) return m.value;
+  const key = `shop_desc:db:v1:${slug}`;
+  try {
+    const cached = await redis.get<{ short?: string; long?: string; none?: true }>(key);
+    if (cached) {
+      const value = cached.none ? null : { short: cached.short ?? "", long: cached.long ?? "", source: "db" as const };
+      dbMemo.set(slug, { at: Date.now(), value });
+      return value;
+    }
+  } catch {}
+  const value = await fromDbUncached(slug);
+  if (value === undefined) return null; // DB chyba — skús nabudúce, necachuj
+  dbMemo.set(slug, { at: Date.now(), value });
+  try {
+    await redis.set(key, value ? { short: value.short, long: value.long } : { none: true }, { ex: DB_DESC_TTL });
+  } catch {}
+  return value;
+}
+
 /**
  * Štruktúrovaný popis obchodu pre stránku /kupony/[slug].
- * Poradie zdrojov: DB (generátor) → kurátorský text → Redis cache → AI → fallback.
+ * Poradie zdrojov: DB (generátor) → kurátorský text → Redis cache (staršie texty) → deterministický fallback.
+ * Platené AI API sa pri renderi nevolá (náklady + nekontrolované tvrdenia o obchode).
  */
 export async function getShopDescription(shopName: string, slug: string): Promise<ShopDescription> {
   // 1. DB — trvalý zdroj generovaný scriptom (short + long)
@@ -70,38 +102,7 @@ export async function getShopDescription(shopName: string, slug: string): Promis
     if (cached) return { short: cached, long: cached, source: "cache" };
   } catch {}
 
-  // 4. Anthropic API (fallback pre obchody bez DB záznamu)
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (apiKey) {
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: "claude-haiku-4-5-20251001",
-          max_tokens: 400,
-          messages: [{
-            role: "user",
-            content: `Napíš krátky popis obchodu ${shopName} v 150-200 slovách po slovensky. Zahrň: čo predávajú, prečo tam nakupovať, aké zľavy ponúkajú a tipy pre zákazníkov. Píš priamo, bez nadpisov, len súvislý text. Nepoužívaj tvrdenia „najlepší", „najlacnejší", „oficiálny partner" ani „garantované ceny".`,
-          }],
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const text = data.content?.[0]?.text?.trim();
-        if (text && text.length > 50) {
-          try { await redis.set(cacheKey, text, { ex: 86400 * 7 }); } catch {}
-          return { short: text, long: text, source: "ai" };
-        }
-      }
-    } catch {}
-  }
-
-  // 5. Fallback
+  // 4. Deterministický fallback (bez AI)
   const desc = genericDesc(shopName);
   try { await redis.set(cacheKey, desc, { ex: 86400 * 7 }); } catch {}
   return { short: desc, long: desc, source: "fallback" };

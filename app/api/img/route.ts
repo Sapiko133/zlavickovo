@@ -13,7 +13,7 @@
 export const runtime = "nodejs";
 
 // Povolené image hosty (suffix match). Držíme úzko — nie univerzálny proxy.
-const ALLOWED_HOST_SUFFIXES = [".dognet.sk", ".dognet.com", "dognet.sk", "dognet.com"];
+const ALLOWED_HOSTS = ["dognet.sk", "dognet.com"];
 
 const UPSTREAM_TIMEOUT_MS = 8000;
 // Bannery sú nemenné (unikátny hash v ceste) → dlhý immutable cache na CDN.
@@ -21,7 +21,8 @@ const CACHE_CONTROL = "public, max-age=86400, s-maxage=2592000, stale-while-reva
 
 function isAllowed(host: string): boolean {
   const h = host.toLowerCase();
-  return ALLOWED_HOST_SUFFIXES.some((s) => h === s || h.endsWith(s));
+  // presná doména alebo jej subdoména — "evildognet.sk" neprejde
+  return ALLOWED_HOSTS.some((s) => h === s || h.endsWith(`.${s}`));
 }
 
 export async function GET(req: Request) {

@@ -9,6 +9,7 @@ import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import { isOfferActive } from "@/lib/offers/freshness";
 import { dedupeOffers } from "@/lib/offers/dedupe";
+import { cleanFeedText, offerTitle } from "@/lib/offers/text";
 
 export type AffiliateActionSource = "dognet" | "affial" | "ehub" | "cj" | "static";
 
@@ -79,8 +80,11 @@ function stableHash(value: string): string {
 
 function normalizeAction(raw: RawAction): AffiliateAction | null {
   if (raw.code?.trim()) return null;
-  const shopName = String(raw.shopName || "").trim();
-  const title = String(raw.title || raw.description || "").trim();
+  const shopName = cleanFeedText(raw.shopName);
+  // Data quality: siete posielajú titulky so zlomami riadkov, dvojitými medzerami
+  // alebo celý odsek ako titulok — normalizujeme bez vymýšľania textu.
+  const title = offerTitle(raw.title || raw.description || "");
+  const description = cleanFeedText(raw.description);
   const affiliateUrl = String(raw.affiliateUrl || "").trim();
   if (!shopName || !title || !affiliateUrl.startsWith("http") || !isActive(raw.validTo)) return null;
 
@@ -99,10 +103,10 @@ function normalizeAction(raw: RawAction): AffiliateAction | null {
     shopSlug,
     domain,
     title,
-    description: String(raw.description || "").trim(),
+    description,
     affiliateUrl,
     validTo: raw.validTo || null,
-    discountPct: extractDiscountPct(`${title} ${raw.description || ""}`),
+    discountPct: extractDiscountPct(`${title} ${description}`),
   };
 }
 

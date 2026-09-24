@@ -117,20 +117,21 @@ export async function logOutboundClick(
 
   const now = ev.timestamp || Date.now();
   const day = dayKey(new Date(now));
-  const ops: Promise<unknown>[] = [];
+  // Jeden pipeline = jeden HTTP request na Upstash (predtým ~15 samostatných requestov na klik).
+  const p = redis.pipeline();
 
   // Ploché počítadlá (zadanie)
-  ops.push(redis.incr(ALL_KEY));
-  ops.push(redis.incr(`click:outbound:daily:${day}`));
-  ops.push(redis.incr(`click:outbound:type:${ev.type}`));
-  ops.push(redis.incr(`click:outbound:source:${ev.source}`));
-  if (ev.shopSlug) ops.push(redis.incr(`click:outbound:shop:${ev.shopSlug}`));
+  p.incr(ALL_KEY);
+  p.incr(`click:outbound:daily:${day}`);
+  p.incr(`click:outbound:type:${ev.type}`);
+  p.incr(`click:outbound:source:${ev.source}`);
+  if (ev.shopSlug) p.incr(`click:outbound:shop:${ev.shopSlug}`);
 
   // Denné ZSET buckety per dimenzia (windowed top-N)
   const zput = (dim: string, member: string) => {
     const key = `click:o:d:${dim}:${day}`;
-    ops.push(redis.zincrby(key, 1, member));
-    ops.push(redis.expire(key, DAY_TTL_S));
+    p.zincrby(key, 1, member);
+    p.expire(key, DAY_TTL_S);
   };
   zput("type", ev.type);
   zput("source", ev.source);
@@ -140,13 +141,13 @@ export async function logOutboundClick(
   if (couponMember) zput("coupon", couponMember);
 
   // Denné počítadlo TTL + recent list (náhľad eventov)
-  ops.push(redis.expire(`click:outbound:daily:${day}`, DAY_TTL_S));
+  p.expire(`click:outbound:daily:${day}`, DAY_TTL_S);
   // Upstash client serializuje sám — ukladáme objekt priamo (nie JSON.stringify)
-  ops.push(redis.lpush(RECENT_KEY, ev));
-  ops.push(redis.ltrim(RECENT_KEY, 0, RECENT_MAX - 1));
+  p.lpush(RECENT_KEY, ev);
+  p.ltrim(RECENT_KEY, 0, RECENT_MAX - 1);
 
   try {
-    await Promise.all(ops);
+    await p.exec();
   } catch {
     // ticho — pozri doc komentár
   }

@@ -1,11 +1,11 @@
+import { isCronAuthorized } from "@/lib/auth";
+
 export const dynamic = "force-dynamic";
 
 const BASE = "https://zlavickovo.sk";
 
 export async function GET(req: Request) {
-  const cronSecret = process.env.CRON_SECRET;
-  const auth = req.headers.get("authorization");
-  if (!cronSecret || auth !== `Bearer ${cronSecret}`) {
+  if (!isCronAuthorized(req)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 

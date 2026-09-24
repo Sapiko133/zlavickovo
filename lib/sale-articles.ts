@@ -1,7 +1,3 @@
-import { getSalesCoupons } from "@/lib/dognet";
-import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
-import { getShopAffiliateUrl } from "@/lib/shop-affiliate";
-import { normalizeShopSlug } from "@/lib/slug";
 import { getAffiliateActions } from "@/lib/affiliate-actions";
 import {
   actionContentHash,
@@ -12,125 +8,87 @@ import {
   getAllArticles,
   saveArticle,
   type Article,
-  type SaleProduct,
 } from "@/lib/articles";
 import { resolveActionImage } from "@/lib/action-image";
+import { isOfferActive } from "@/lib/offers/freshness";
+import { loadAllFeedMeta, type FeedMeta } from "@/lib/feeds/engine";
 
 /**
- * Generátor článkov o výpredajoch (cron /api/cron/check-sales, každých 6h).
+ * Synchronizácia akčných článkov (/akcie/[slug]) s aktuálnymi affiliate akciami.
+ * Volá ju feed tick (lib/feeds/tick.ts) po zmene zdrojov akcií, príp. manuálne
+ * /api/cron/check-sales.
  *
- * Zdroj zľavy = OBOJE (odsúhlasené):
- *  - Dognet sale kampane (getSalesCoupons, type 1/3) → doména kandidát + headline %
- *  - cenové poklesy z product_price_history (getBiggestPriceDropsByDomain)
+ * OFFER LIFECYCLE (článok ponuky):
+ *   active     akcia je v poslednom validnom feede
+ *   stale      akcia z validného feedu zmizla, ale je v grace perióde (článok ostáva
+ *              publikovaný a indexovaný — chráni pred flappingom pri výkyvoch feedu)
+ *   expired    validTo prešiel ALEBO grace uplynula → published=false; SEO vrstva
+ *              (lib/seo/indexing.ts articleLifecycle) → noindex historická stránka
+ *   removed    30 dní po skončení → 308 na obchod (existujúce SEO pravidlo)
+ *   duplicate  rieši lib/seo/indexing.ts duplicateArticleCanonicals (canonical)
  *
- * Grid produktov: prednostne z cenových poklesov (reálna stará/nová cena);
- * ak ich je málo, doplní feed produkty obchodu (getProductsByDomain) bez preškrtnutej ceny.
- * Článok vznikne len ak má obchod ≥ MIN_PRODUCTS produktov.
- *
- * Poznámka: generátor do Neonu NIČ nezapisuje (len číta) — DB je blízko 512 MB stropu.
+ * FAILURE SAFETY: akcie providera, ktorého feed je v chybe (alebo o ňom nič nevieme),
+ * sa NIKDY nedeaktivujú kvôli "zmiznutiu". Ak by beh deaktivoval nezvyčajne veľa
+ * článkov naraz, deaktivácia sa zastaví (guard) a vznikne alert.
  */
 
-const MIN_PRODUCTS = 5;
-const MAX_CANDIDATE_DOMAINS = 80; // strop na runtime crona
-// Max. koľko reálnych obrázkov doťaháme za jeden beh (chráni runtime crona).
+/** Ako dlho môže akcia chýbať vo validnom feede, kým ju považujeme za ukončenú. */
+export const ACTION_MISSING_GRACE_HOURS = 24;
+/** Feed je "zdravý" pre lifecycle, ak mal úspech v tomto okne. */
+const PROVIDER_HEALTHY_WINDOW_HOURS = 36;
+/** Guard: viac "missing" deaktivácií naraz = pravdepodobne problém dát, nie realita. */
+const MASS_DEACTIVATION_MIN = 10;
+const MASS_DEACTIVATION_RATIO = 0.25;
+
+// Max. koľko reálnych obrázkov doťaháme za jeden beh (chráni runtime).
 // Cez SALE_IMAGE_BUDGET sa dá zvýšiť pre jednorazový backfill.
 const IMAGE_BUDGET = Number(process.env.SALE_IMAGE_BUDGET) || 40;
 
-const SK_MONTHS = [
-  "január", "február", "marec", "apríl", "máj", "jún",
-  "júl", "august", "september", "október", "november", "december",
-];
+/** Feed zdroj, z ktorého pochádzajú akcie danej siete (actionKey "dognet:123"). */
+const PROVIDER_ACTION_FEEDS: Record<string, string[]> = {
+  dognet: ["dognet-coupons"],
+  ehub: ["ehub-vouchers"],
+  cj: ["cj-coupons"],
+  affial: ["affial-coupons"],
+};
 
-interface SaleCouponCandidate {
-  title?: string;
-  name?: string;
-  description?: string;
-  affiliate_link?: string;
-  url?: string;
-  campaign?: { name?: string; url?: string; website_url?: string };
+export function providerOfArticle(a: Pick<Article, "actionKey">): string | null {
+  return a.actionKey ? a.actionKey.split(":")[0] || null : null;
 }
 
-function domainFromCampaign(c: SaleCouponCandidate): string {
-  const url = c.campaign?.url ?? c.campaign?.website_url ?? "";
-  return String(url)
-    .replace(/^https?:\/\/(www\.)?/, "")
-    .replace(/\/.*$/, "")
-    .toLowerCase();
-}
-
-function pctFromText(txt: string): number | null {
-  const m = (txt || "").match(/(\d{1,2})\s*%/);
-  if (!m) return null;
-  const n = parseInt(m[1], 10);
-  return n >= 5 && n <= 90 ? n : null;
-}
-
-function couponLink(c: SaleCouponCandidate): string {
-  if (typeof c?.affiliate_link === "string" && c.affiliate_link.startsWith("http")) return c.affiliate_link;
-  if (typeof c?.url === "string" && c.url.startsWith("http")) return c.url;
-  return "";
-}
-
-interface Candidate {
-  domain: string;
-  shopName: string;
-  discountPct: number | null;
-  ctaUrl: string | null; // Dognet tracking link, ak je
-}
-
-/** Domény s aktivitou v cenovej histórii za posledných 30 dní. */
-async function domainsWithPriceHistory(): Promise<string[]> {
-  // Cenová história (product_price_history) je odstránená; kandidáti na sale
-  // články vychádzajú výhradne z Dognet sale kampaní.
-  return [];
-}
-
-async function collectCandidates(): Promise<Candidate[]> {
-  const byDomain = new Map<string, Candidate>();
-
-  // 1. Dognet sale kampane
-  try {
-    const sales = await getSalesCoupons(100) as SaleCouponCandidate[];
-    for (const c of sales) {
-      const domain = domainFromCampaign(c);
-      const shopName = c.campaign?.name || "";
-      if (!domain || !shopName) continue;
-      const pct = pctFromText(c.title || c.name || c.description || "");
-      const cta = couponLink(c);
-      const existing = byDomain.get(domain);
-      if (existing) {
-        existing.discountPct = existing.discountPct ?? pct;
-        existing.ctaUrl = existing.ctaUrl ?? (cta || null);
-      } else {
-        byDomain.set(domain, { domain, shopName, discountPct: pct, ctaUrl: cta || null });
-      }
-    }
-  } catch {}
-
-  // 2. Domény s cenovými poklesmi (aj bez Dognet kampane)
-  const historyDomains = await domainsWithPriceHistory();
-  for (const domain of historyDomains) {
-    if (!byDomain.has(domain)) {
-      byDomain.set(domain, { domain, shopName: "", discountPct: null, ctaUrl: null });
-    }
+/** Zdravie providerov z metadát feed enginu. Statické akcie sú vždy "zdravé". */
+export function providerHealthFromMeta(meta: Record<string, FeedMeta>, now = Date.now()): Record<string, boolean> {
+  const out: Record<string, boolean> = { static: true };
+  for (const [provider, feeds] of Object.entries(PROVIDER_ACTION_FEEDS)) {
+    out[provider] = feeds.every((id) => {
+      const m = meta[id];
+      const last = m?.lastSuccessAt ? Date.parse(m.lastSuccessAt) : NaN;
+      return m?.status === "ok" && Number.isFinite(last) && now - last <= PROVIDER_HEALTHY_WINDOW_HOURS * 3600_000;
+    });
   }
-
-  return Array.from(byDomain.values()).slice(0, MAX_CANDIDATE_DOMAINS);
+  return out;
 }
 
-/** Meno + slug obchodu pre doménu — z known shops, inak odvodené z domény. */
-function resolveShop(domain: string, fallbackName: string, shopsByDomain: Map<string, KnownShop>) {
-  const known = shopsByDomain.get(domain);
-  if (known) return { name: known.name, slug: known.slug };
-  const name = fallbackName || domain.replace(/\.(sk|cz|eu|com)$/i, "");
-  return { name, slug: normalizeShopSlug(name || domain) };
-}
+export type MissingDecision =
+  | { action: "keep"; reason: string }
+  | { action: "mark_stale"; missingSince: string }
+  | { action: "deactivate"; reason: "expired" | "missing" };
 
-async function buildProducts(_domain: string): Promise<{ products: SaleProduct[]; maxDropPct: number }> {
-  // Produktový grid a cenové poklesy sú odstránené (žiadny produktový katalóg,
-  // žiadna Heureka). Sale články sú textové o výpredaji obchodu; /akcie ako
-  // živý deal listing sa prepracuje vo fáze B4.
-  return { products: [], maxDropPct: 0 };
+/** Čo urobiť s publikovaným článkom, ktorého akcia v aktuálnych dátach chýba. Čistá funkcia. */
+export function decideMissingAction(
+  a: Pick<Article, "validTo" | "missingSince">,
+  providerHealthy: boolean,
+  now = Date.now(),
+  graceHours = ACTION_MISSING_GRACE_HOURS,
+): MissingDecision {
+  if (a.validTo && !isOfferActive(a.validTo, now)) return { action: "deactivate", reason: "expired" };
+  if (!providerHealthy) return { action: "keep", reason: "provider-unhealthy" };
+  if (!a.missingSince) return { action: "mark_stale", missingSince: new Date(now).toISOString() };
+  const since = Date.parse(a.missingSince);
+  if (!Number.isFinite(since)) return { action: "mark_stale", missingSince: new Date(now).toISOString() };
+  return now - since >= graceHours * 3600_000
+    ? { action: "deactivate", reason: "missing" }
+    : { action: "keep", reason: "grace" };
 }
 
 export interface GenerateResult {
@@ -138,30 +96,40 @@ export interface GenerateResult {
   scannedActions: number;
   created: string[];
   deactivated: string[];
+  staled: string[];
+  restored: string[];
+  keptUnhealthy: number;
+  guardTriggered: boolean;
+  unchanged: number;
+  writes: number;
+  dryRun: boolean;
   timestamp: string;
 }
 
-export async function generateSaleArticles(): Promise<GenerateResult> {
-  const shops = await getAllKnownShops().catch(() => getStaticKnownShops());
-  const shopsByDomain = new Map<string, KnownShop>();
-  for (const s of shops) if (s.domain) shopsByDomain.set(s.domain.toLowerCase(), s);
+export async function generateSaleArticles(opts: { dryRun?: boolean; now?: number } = {}): Promise<GenerateResult> {
+  const dryRun = Boolean(opts.dryRun);
+  const nowMs = opts.now ?? Date.now();
+  const nowIso = new Date(nowMs).toISOString();
+  let writes = 0;
+  const save = async (a: Article) => {
+    writes++;
+    if (!dryRun) await saveArticle(a);
+  };
 
-  const candidates = await collectCandidates();
-
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const monthLabel = `${SK_MONTHS[now.getMonth()]} ${now.getFullYear()}`;
-  const nowIso = now.toISOString();
-
-  const existing = await getAllArticles();
+  const [existing, affiliateActions, feedMeta] = await Promise.all([
+    getAllArticles(),
+    getAffiliateActions().catch(() => []),
+    loadAllFeedMeta(),
+  ]);
   const existingBySlug = new Map(existing.map((a) => [a.slug, a]));
+  const providerHealthy = providerHealthFromMeta(feedMeta, nowMs);
 
   const created: string[] = [];
-  const generatedSlugs = new Set<string>();
+  const restored: string[] = [];
+  let unchanged = 0;
   const generatedActionSlugs = new Set<string>();
 
   // Každá aktuálna affiliate akcia dostane vlastný stabilný detail a SEO obsah.
-  const affiliateActions = await getAffiliateActions().catch(() => []);
   let imageBudget = IMAGE_BUDGET;
   for (const action of affiliateActions) {
     const prev = existingBySlug.get(action.articleSlug);
@@ -172,7 +140,7 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
     // ho ešte nemáme a v rámci rozpočtu behu; výsledok je v Redise cachovaný.
     let imageUrl = prev?.imageUrl;
     let imageSource = prev?.imageSource;
-    if (!imageUrl && imageBudget > 0) {
+    if (!imageUrl && imageBudget > 0 && !dryRun) {
       imageBudget--;
       const resolved = await resolveActionImage({
         shopName: action.shopName,
@@ -185,8 +153,16 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
     }
 
     // Nehýb updatedAt ani sitemap lastmod, pokiaľ sa nezmenili vstupné dáta akcie
-    // ani sa nedoplnil nový obrázok.
-    if (prev?.contentHash === contentHash && prev.published && imageUrl === prev?.imageUrl) continue;
+    // ani sa nedoplnil nový obrázok. Akcia sa vrátila do feedu → len zruš "stale".
+    if (prev?.contentHash === contentHash && prev.published && imageUrl === prev?.imageUrl) {
+      if (prev.missingSince) {
+        await save({ ...prev, missingSince: null });
+        restored.push(prev.slug);
+      } else {
+        unchanged++;
+      }
+      continue;
+    }
 
     const article: Article = {
       slug: action.articleSlug,
@@ -211,81 +187,62 @@ export async function generateSaleArticles(): Promise<GenerateResult> {
       actionKey: action.actionKey,
       origin: "affiliate-action",
       contentHash,
+      missingSince: null,
     };
     article.content = buildSaleSeoContent(article);
-    await saveArticle(article);
+    await save(article);
     created.push(article.slug);
   }
 
-  for (const cand of candidates) {
-    const { products, maxDropPct } = await buildProducts(cand.domain);
-    if (products.length < MIN_PRODUCTS) continue;
+  // ── EXPIRE: každý automat spravuje iba vlastné články (nie scrapované ani ručné) ──
+  const candidates = existing.filter((a) =>
+    a.type === "sale" && a.source === "auto" && a.published &&
+    ((a.origin === "affiliate-action" && !generatedActionSlugs.has(a.slug)) ||
+      // Legacy produktové výpredaje (Heureka odstránená) už nikdy nevzniknú.
+      a.origin === "price-drop"));
 
-    const { name: shopName, slug: shopSlug } = resolveShop(cand.domain, cand.shopName, shopsByDomain);
-    if (!shopSlug) continue;
+  const decisions = candidates.map((a) => {
+    if (a.origin === "price-drop") return { a, d: { action: "deactivate", reason: "expired" } as MissingDecision };
+    const provider = providerOfArticle(a) ?? "";
+    return { a, d: decideMissingAction(a, providerHealthy[provider] ?? false, nowMs) };
+  });
 
-    // Monetizácia: článok vytvor len ak vieme získať REÁLNY affiliate link
-    // (Dognet tracking z kupónu alebo joined program). Bez neho obchod preskoč —
-    // nechceme písať články pre obchody, na ktoré nemáme affiliate.
-    const ctaUrl = cand.ctaUrl || (await getShopAffiliateUrl(shopName).catch(() => null));
-    if (!ctaUrl) continue;
-
-    const discountPct = maxDropPct >= 5 ? maxDropPct : cand.discountPct ?? null;
-    const slug = `${shopSlug}-vypredaj-${ym}`;
-    generatedSlugs.add(slug);
-
-    const image = products.find((p) => p.imgUrl)?.imgUrl;
-    const pctLabel = discountPct ? ` – zľavy až -${discountPct}%` : "";
-    const title = `${shopName} výpredaj ${monthLabel}${pctLabel}`;
-    const perex = discountPct
-      ? `Aktuálny výpredaj v obchode ${shopName} – vybrali sme ${products.length} produktov so zľavou až -${discountPct}%. Ceny a dostupnosť over priamo v obchode.`
-      : `Aktuálne akciové produkty v obchode ${shopName}. Vybrali sme ${products.length} zaujímavých ponúk – ceny a dostupnosť over priamo v obchode.`;
-
-    const prev = existingBySlug.get(slug);
-    const article: Article = {
-      slug,
-      type: "sale",
-      title,
-      perex,
-      imageUrl: image,
-      imageSource: image ? "feed" : undefined,
-      shopName,
-      domain: cand.domain,
-      shopSlug,
-      discountPct,
-      products,
-      affiliateUrl: ctaUrl,
-      date: prev?.date ?? nowIso, // zachovaj pôvodný publikačný dátum pri update
-      updatedAt: nowIso,
-      published: true,
-      source: prev?.source === "manual" ? "manual" : "auto",
-      validTo: null,
-      origin: "price-drop",
-    };
-    article.content = prev?.source === "manual" && prev.content
-      ? prev.content
-      : buildSaleSeoContent(article);
-
-    await saveArticle(article);
-    created.push(slug);
+  const activeAuto = existing.filter((a) => a.type === "sale" && a.origin === "affiliate-action" && a.published).length;
+  const missingDeactivations = decisions.filter((x) => x.d.action === "deactivate" && x.d.reason === "missing").length;
+  const guardTriggered = missingDeactivations > Math.max(MASS_DEACTIVATION_MIN, activeAuto * MASS_DEACTIVATION_RATIO);
+  if (guardTriggered) {
+    console.error(`[sale-articles] GUARD: ${missingDeactivations}/${activeAuto} akcií by sa deaktivovalo naraz — deaktivácia pozastavená`);
   }
 
-  // Každý automat deaktivuje iba vlastné články; nezasiahne scrapované ani ručné.
   const deactivated: string[] = [];
-  for (const a of existing) {
-    const missingAffiliateAction = a.origin === "affiliate-action" && !generatedActionSlugs.has(a.slug);
-    const missingPriceDrop = a.origin === "price-drop" && !generatedSlugs.has(a.slug);
-    if (a.type === "sale" && a.source === "auto" && a.published && (missingAffiliateAction || missingPriceDrop)) {
-      await saveArticle({ ...a, published: false, updatedAt: nowIso, validTo: nowIso });
+  const staled: string[] = [];
+  let keptUnhealthy = 0;
+  for (const { a, d } of decisions) {
+    if (d.action === "deactivate") {
+      if (d.reason === "missing" && guardTriggered) continue;
+      const endedAt = d.reason === "expired" && a.validTo ? a.validTo : nowIso;
+      await save({ ...a, published: false, updatedAt: nowIso, validTo: endedAt, missingSince: null });
       deactivated.push(a.slug);
+    } else if (d.action === "mark_stale") {
+      await save({ ...a, missingSince: d.missingSince });
+      staled.push(a.slug);
+    } else if (d.reason === "provider-unhealthy") {
+      keptUnhealthy++;
     }
   }
 
   return {
-    scannedDomains: candidates.length,
+    scannedDomains: 0,
     scannedActions: affiliateActions.length,
     created,
     deactivated,
+    staled,
+    restored,
+    keptUnhealthy,
+    guardTriggered,
+    unchanged,
+    writes,
+    dryRun,
     timestamp: nowIso,
   };
 }

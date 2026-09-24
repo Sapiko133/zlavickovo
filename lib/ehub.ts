@@ -1,19 +1,19 @@
-import { redis } from "@/lib/redis";
 import { createShopMatcher } from "@/lib/shop-match";
-import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
+import { errorFromResponse, FeedError } from "@/lib/feeds/fetch";
+import { feedVersionKey, readVersionedSnapshot } from "@/lib/feeds/engine";
 
 const BASE = "https://api.ehub.cz/v3";
 const COUPONS_CACHE_KEY = "ehub:coupons:v3"; // v3: + approval filter (len schválené kampane)
-const COUPONS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 const FETCH_TIMEOUT_MS = 10000;
 // eHub API vracia max 100 poloziek na stranku (perPage limit 1-100, default 50).
 const PER_PAGE = 100;
 const MAX_PAGES = 50;
 
 // Stiahne vsetky stranky daneho endpointu (vouchers/campaigns) po PER_PAGE polozkach.
+// Chyba ktorejkolvek stranky = vynimka: neuplna pagination nesmie prepisat snapshot mensim zoznamom.
 async function _fetchAllPages(path: string, listKey: string): Promise<any[]> {
   const { partnerId, apiKey } = getCredentials();
-  if (!partnerId || !apiKey) return [];
+  if (!partnerId || !apiKey) throw new FeedError("config", "eHub: chýba EHUB_PARTNER_ID alebo EHUB_API_KEY");
   const items: any[] = [];
   for (let page = 1; page <= MAX_PAGES; page++) {
     const res = await fetch(
@@ -21,10 +21,13 @@ async function _fetchAllPages(path: string, listKey: string): Promise<any[]> {
       {
         headers: { Accept: "application/json" },
         signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        cache: "no-store",
       }
     );
-    if (!res.ok) break;
+    const httpErr = errorFromResponse(res, `eHub ${path} page ${page}`);
+    if (httpErr) throw httpErr;
     const data = await res.json();
+    if (!Array.isArray(data?.[listKey])) throw new FeedError("validation", `eHub ${path}: odpoveď bez poľa ${listKey}`);
     const batch: any[] = Array.isArray(data?.[listKey]) ? data[listKey] : [];
     items.push(...batch);
     const total = Number(data?.totalItems ?? 0);
@@ -130,10 +133,21 @@ export interface EhubShop {
   approved: boolean;
 }
 
+// Kampane potrebujú vouchery (market + schválenie) aj zoznam obchodov. V jednom
+// behu feed enginu sa stiahnu raz a zdieľajú (predtým 2× rovnaké stránkovanie).
+let campaignsShared: { at: number; data: Promise<any[]> } | null = null;
+function fetchCampaignsShared(): Promise<any[]> {
+  if (campaignsShared && Date.now() - campaignsShared.at < 5 * 60_000) return campaignsShared.data;
+  const data = _fetchAllPages("campaigns", "campaigns");
+  campaignsShared = { at: Date.now(), data };
+  data.catch(() => { campaignsShared = null; });
+  return data;
+}
+
 async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
   const [vouchers, campaigns] = await Promise.all([
     _fetchAllPages("vouchers", "vouchers"),
-    _fetchAllPages("campaigns", "campaigns"),
+    fetchCampaignsShared(),
   ]);
   const marketByCampaignId = new Map<string, string>();
   const approvedCampaignIds = new Set<string>();
@@ -166,7 +180,7 @@ async function _fetchEhubCoupons(): Promise<EhubCoupon[]> {
 // vouchery ani vouchery z nerelevantnych trhov.
 export async function getEhubCoupons(): Promise<EhubCoupon[]> {
   try {
-    const cached = await redis.get<EhubCoupon[]>(COUPONS_CACHE_KEY);
+    const cached = await readVersionedSnapshot<EhubCoupon[]>(COUPONS_CACHE_KEY, feedVersionKey("ehub-vouchers"));
     if (cached && Array.isArray(cached) && cached.length > 0) {
       return cached.filter(c => isDateRangeActive(c.valid_from, c.valid_to) && isAllowedMarket(c.market));
     }
@@ -174,19 +188,9 @@ export async function getEhubCoupons(): Promise<EhubCoupon[]> {
   return [];
 }
 
-// Called only from the cron endpoint — allowed to be slow.
-export async function refreshEhubCache(): Promise<{ count: number; error?: string }> {
-  try {
-    const coupons = await _fetchEhubCoupons();
-    if (coupons.length > 0) {
-      await redis.set(COUPONS_CACHE_KEY, coupons, { ex: COUPONS_CACHE_TTL });
-    }
-    return { count: coupons.length };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ehub] refreshEhubCache zlyhalo:", msg);
-    return { count: 0, error: msg };
-  }
+/** Feed engine: striktný fetch voucherov (chyby vyhadzuje, nič nezapisuje). */
+export async function fetchEhubCouponsStrict(): Promise<EhubCoupon[]> {
+  return _fetchEhubCoupons();
 }
 
 export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon[]> {
@@ -196,7 +200,7 @@ export async function getEhubCouponsByShop(shopName: string): Promise<EhubCoupon
 }
 
 async function _fetchEhubShops(): Promise<EhubShop[]> {
-  const campaigns = await _fetchAllPages("campaigns", "campaigns");
+  const campaigns = await fetchCampaignsShared();
   return campaigns
     // len SK/CZ trh a len kampane, kde je publisher schválený — inak shop-level
     // defaultLink (click.php) vráti 400 "Publisher nie je povolený v kampani".
@@ -222,36 +226,25 @@ async function _fetchEhubShops(): Promise<EhubShop[]> {
 
 // Priamy fetch z eHub API (bez cache) — pre prebuild, keď je Redis cache prázdna.
 export async function fetchEhubShopsDirect(): Promise<EhubShop[]> {
+  return _fetchEhubShops().catch(() => []);
+}
+
+/** Feed engine: striktný fetch obchodov (chyby vyhadzuje). */
+export async function fetchEhubShopsStrict(): Promise<EhubShop[]> {
   return _fetchEhubShops();
 }
 
 const SHOPS_CACHE_KEY = "ehub:shops:v3"; // v3: + approval filter (len schválené kampane)
-const SHOPS_CACHE_TTL = DAILY_REFRESH_CACHE_TTL_SECONDS;
 
 // Read-only: returns cached shops or [] immediately. Cache is filled by /api/cron/refresh-affiliate-cache.
 // Market filter sa aplikuje aj pri citani, aby cache nezobrazovala nerelevantne trhy.
 export async function getEhubShops(): Promise<EhubShop[]> {
   try {
-    const cached = await redis.get<EhubShop[]>(SHOPS_CACHE_KEY);
+    const cached = await readVersionedSnapshot<EhubShop[]>(SHOPS_CACHE_KEY, feedVersionKey("ehub-campaigns"), { memoMs: 10 * 60_000 });
     if (cached && Array.isArray(cached) && cached.length > 0) {
       // approved !== false = belt-and-suspenders proti starým/nechecknutým záznamom
       return cached.filter(s => isAllowedMarket(s.market) && s.approved !== false);
     }
   } catch {}
   return [];
-}
-
-// Called only from the cron endpoint — allowed to be slow.
-export async function refreshEhubShopsCache(): Promise<{ count: number; error?: string }> {
-  try {
-    const shops = await _fetchEhubShops();
-    if (shops.length > 0) {
-      await redis.set(SHOPS_CACHE_KEY, shops, { ex: SHOPS_CACHE_TTL });
-    }
-    return { count: shops.length };
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[ehub] refreshEhubShopsCache zlyhalo:", msg);
-    return { count: 0, error: msg };
-  }
 }

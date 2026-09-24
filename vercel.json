@@ -1,7 +1,10 @@
 {
+  "regions": ["fra1"],
   "crons": [
-    { "path": "/api/cron/check-sales",             "schedule": "0 5 * * *" },
-    { "path": "/api/cron/push-leaflet",            "schedule": "0 8 * * 1" },
-    { "path": "/api/cron/refresh-affiliate-cache", "schedule": "0 0 * * *" }
+    { "path": "/api/cron/tick/a",       "schedule": "0 6 * * *" },
+    { "path": "/api/cron/tick/b",       "schedule": "0 10 * * *" },
+    { "path": "/api/cron/tick/c",       "schedule": "0 15 * * *" },
+    { "path": "/api/cron/tick/d",       "schedule": "0 19 * * *" },
+    { "path": "/api/cron/push-leaflet", "schedule": "0 8 * * 1" }
   ]
 }
