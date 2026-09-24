@@ -4,7 +4,7 @@ import SearchPageClient from "./SearchPageClient";
 // Výsledky vyhľadávania sú thin/duplicitný obsah → noindex (C1). follow ponechá
 // tok link equity na obchody/kupóny. Kanonická je základná /hladat bez query.
 export const metadata: Metadata = {
-  title: "Vyhľadávanie obchodov a kupónov · Zlavickovo",
+  title: "Vyhľadávanie obchodov a kupónov",
   description: "Vyhľadaj obchod, zľavu alebo zľavový kód na Zlavickovo.sk.",
   robots: { index: false, follow: true },
   alternates: { canonical: "https://www.zlavickovo.sk/hladat" },

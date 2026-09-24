@@ -3,12 +3,16 @@ import { getPublishedArticles } from "@/lib/articles";
 import { getShopDomain } from "@/lib/shop-domains";
 import { normalizeShopSlug } from "@/lib/slug";
 import type { ClickType } from "@/lib/click-types";
+import { duplicateArticleCanonicals, isArticleIndexable } from "@/lib/seo/indexing";
+import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
 
 export interface VypredajItem {
   id: string;
   shopName: string;
   domain: string;
   shopSlug: string;
+  /** Interný odkaz na /kupony/[slug] — null, ak obchod nemá stránku (žiadne odkazy na 404). */
+  shopHref: string | null;
   title: string;
   badge: string;
   hasPct: boolean;
@@ -44,6 +48,7 @@ async function affiliateItems(): Promise<VypredajItem[]> {
       shopName: action.shopName,
       domain: action.domain,
       shopSlug: action.shopSlug,
+      shopHref: null,
       title: action.title,
       badge,
       hasPct: badge !== "AKCIA",
@@ -57,12 +62,17 @@ async function affiliateItems(): Promise<VypredajItem[]> {
 }
 
 async function articleItems(): Promise<VypredajItem[]> {
-  const articles = await getPublishedArticles("sale").catch(() => []);
+  // Ukončené akcie (validTo v minulosti) sa nezobrazujú ako aktuálne, aj keď cron ešte nebežal.
+  // Duplikáty (rovnaká ponuka pod 2 slugmi) vynechané — zobrazí sa kanonický originál.
+  const published = await getPublishedArticles("sale").catch(() => []);
+  const dup = duplicateArticleCanonicals(published);
+  const articles = published.filter((a) => isArticleIndexable(a) && !dup.has(a.slug));
   return articles.map((article) => ({
     id: `editorial-${article.slug}`,
     shopName: article.shopName || "Obchod",
     domain: article.domain || getShopDomain(article.shopName || "") || "",
     shopSlug: article.shopSlug || normalizeShopSlug(article.shopName || ""),
+    shopHref: null,
     title: article.title,
     badge: article.discountPct ? `-${article.discountPct}%` : "AKCIA",
     hasPct: Boolean(article.discountPct),
@@ -81,7 +91,12 @@ async function articleItems(): Promise<VypredajItem[]> {
 export interface VypredajeData { featured: VypredajItem[]; items: VypredajItem[]; total: number }
 
 export async function getVypredaje(): Promise<VypredajeData> {
-  const [affiliate, articles] = await Promise.all([affiliateItems(), articleItems()]);
+  const [affiliate, articles, reg] = await Promise.all([affiliateItems(), articleItems(), getShopRegistry()]);
+  for (const item of [...affiliate, ...articles]) {
+    const slug = resolveShopSlugSync(reg, { slug: item.shopSlug, name: item.shopName, domain: item.domain });
+    if (slug) item.shopSlug = slug;
+    item.shopHref = slug ? `/kupony/${slug}` : null;
+  }
   const articleByAction = new Map(
     articles.filter((article) => article.actionKey).map((article) => [article.actionKey as string, article]),
   );

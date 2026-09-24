@@ -48,6 +48,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     { href: "/admin/obchody",   icon: "🏪", title: "Obchody",          desc: "Zoznam všetkých obchodov" },
     { href: "/admin/feedy",     icon: "📡", title: "Feed provideri",   desc: "AWIN, Dognet, CJ — správa produktových feedov" },
     { href: "/admin/cache",     icon: "🗄️", title: "Cache",            desc: "Prehľad a mazanie Redis cache" },
+    { href: "/admin/seo",       icon: "🔎", title: "SEO health",       desc: "Indexácia, sitemap, title/H1/canonical, odkazy, structured data" },
   ];
 
   return (

@@ -6,6 +6,8 @@ import TrackedLink from "@/components/TrackedLink";
 import { proxyImage } from "@/lib/proxy-image";
 import { getVypredaje, type VypredajItem } from "@/lib/vypredaje";
 import type { Metadata } from "next";
+import { buildJsonLdGraph, itemListJsonLd } from "@/lib/seo/jsonld";
+import { getPublishedArticles, type Article } from "@/lib/articles";
 
 export const revalidate = 3600;
 
@@ -46,6 +48,13 @@ function Cta({ item, block = false }: { item: VypredajItem; block?: boolean }) {
   return <a href={item.ctaUrl} style={style}>{label}</a>;
 }
 
+/** Titulok akcie — interný odkaz na detail (/akcie/[slug]), ak existuje; inak čistý text. */
+function DealTitle({ item }: { item: VypredajItem }) {
+  const href = item.detailUrl ?? (!item.external ? item.ctaUrl : null);
+  if (!href) return <>{item.title}</>;
+  return <a href={href} style={{ color: "inherit", textDecoration: "none" }}>{item.title}</a>;
+}
+
 // Reálne bannery inzerenta vyplnia rám (cover), logá necháme celé na bielom (contain).
 function isBannerImg(source?: string): boolean {
   return source === "dognet-banner" || source === "cj-banner" || source === "og-image";
@@ -81,7 +90,7 @@ function FeaturedCard({ item }: { item: VypredajItem }) {
       </div>
       <div style={{ padding: "16px 16px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
         <Badge item={item} big />
-        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4, color: "#1d1d1f", flex: 1 }}>{item.title}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4, color: "#1d1d1f", flex: 1 }}><DealTitle item={item} /></div>
         <Cta item={item} block />
       </div>
     </div>
@@ -89,28 +98,21 @@ function FeaturedCard({ item }: { item: VypredajItem }) {
 }
 
 export default async function VypredajePage() {
-  const { featured, items, total } = await getVypredaje();
+  const [{ featured, items, total }, tips] = await Promise.all([
+    getVypredaje(),
+    getPublishedArticles("tip").catch(() => [] as Article[]),
+  ]);
 
-  // ItemList (C2) — viditeľné akcie, každá odkazuje na stránku obchodu.
+  // ItemList (C2) — viditeľné akcie s interným cieľom (detail akcie, inak stránka obchodu).
   // Bez cenových/dostupnostných tvrdení (vízia: žiadne neoverené claims).
-  const itemListJsonLd = items.length > 0 ? {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Aktuálne akcie a výpredaje",
-    numberOfItems: items.length,
-    itemListElement: items.map((it, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: it.title,
-      url: it.shopSlug
-        ? `https://www.zlavickovo.sk/kupony/${it.shopSlug}`
-        : "https://www.zlavickovo.sk/akcie",
-    })),
-  } : null;
+  const listItems = items
+    .map((it) => ({ name: it.title, path: it.detailUrl ?? (!it.external ? it.ctaUrl : null) ?? it.shopHref }))
+    .filter((it): it is { name: string; path: string } => !!it.path);
+  const itemListJson = buildJsonLdGraph([itemListJsonLd("Aktuálne akcie a výpredaje", listItems)]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f7f8", fontFamily: "system-ui, -apple-system, sans-serif", color: "#1d1d1f" }}>
-      {itemListJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c") }} />}
+      {itemListJson && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: itemListJson }} />}
       <style>{`
         .feat-row::-webkit-scrollbar { height: 8px; }
         .feat-row::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 100px; }
@@ -179,6 +181,20 @@ export default async function VypredajePage() {
             </div>
           )}
 
+          {/* Evergreen návody (/akcie/[slug] typu tip) — jediné miesto, odkiaľ sú prelinkované */}
+          {tips.length > 0 && (
+            <section style={{ marginTop: 32 }}>
+              <h2 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 12px" }}>💡 Tipy, ako ušetriť pri nákupe</h2>
+              <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 10 }}>
+                {tips.map((t) => (
+                  <li key={t.slug} style={{ background: "#fff", borderRadius: 12, border: "1px solid #ececec", padding: "12px 14px" }}>
+                    <a href={`/akcie/${t.slug}`} style={{ color: "#1d1d1f", fontWeight: 700, fontSize: 14, textDecoration: "none", lineHeight: 1.4 }}>{t.title}</a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <div style={{ marginTop: 22, padding: "14px 18px", borderRadius: 10, background: "#f0fdf4", border: "1px solid #bbf7d0", fontSize: 12, color: "#166534" }}>
             ℹ️ Podmienky, ceny a dostupnosť sa môžu meniť. Pred nákupom si vždy over aktuálne pravidlá akcie priamo v obchode.
           </div>
@@ -208,10 +224,12 @@ function RowCardWrap({ item, rank }: { item: VypredajItem; rank: number }) {
           <Badge item={item} />
           <span style={{ fontSize: 12, color: "#9ca3af" }}>{item.meta}</span>
         </div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "#1d1d1f", lineHeight: 1.35, letterSpacing: "-0.2px" }}>{item.title}</div>
-        <a href={`/kupony/${item.shopSlug}`} style={{ fontSize: 12, color: ORANGE_DARK, fontWeight: 700, textDecoration: "none", marginTop: 6, display: "inline-block" }}>
-          všetko od {item.shopName} →
-        </a>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "#1d1d1f", lineHeight: 1.35, letterSpacing: "-0.2px" }}><DealTitle item={item} /></div>
+        {item.shopHref && (
+          <a href={item.shopHref} style={{ fontSize: 12, color: ORANGE_DARK, fontWeight: 700, textDecoration: "none", marginTop: 6, display: "inline-block" }}>
+            všetky zľavy {item.shopName} →
+          </a>
+        )}
       </div>
       <div className="row-cta"><Cta item={item} /></div>
     </div>

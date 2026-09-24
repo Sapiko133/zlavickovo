@@ -10,8 +10,10 @@ import { resolveCategory } from "@/lib/shop-categories";
 import { searchMatchRank, matchesSearchTokens } from "@/lib/search-normalize";
 import { isOfferActive } from "@/lib/offers/freshness";
 import { dedupeOffers } from "@/lib/offers/dedupe";
-import { normalizeShopSlug } from "@/lib/slug";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { buildJsonLdGraph, itemListJsonLd } from "@/lib/seo/jsonld";
+import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
 import CodeReveal from "./CodeReveal";
 import CouponTypeBadge from "@/components/CouponTypeBadge";
 
@@ -32,7 +34,7 @@ export async function generateMetadata({
 
   return {
     title: `Zľavové kódy a kupóny – aktuálne ponuky ${year}${page > 1 ? ` – strana ${page}` : ""}`,
-    description: "Aktuálne zľavové kódy, kupóny a promo akcie slovenských obchodov. Vyhľadajte obchod, porovnajte podmienky a ušetrite pri nákupe.",
+    description: `Aktuálne zľavové kódy, kupóny a promo akcie slovenských obchodov. Vyhľadajte obchod, porovnajte podmienky a ušetrite pri nákupe.${page > 1 ? ` Strana ${page}.` : ""}`,
     alternates: { canonical },
     robots: isFiltered ? { index: false, follow: true } : undefined,
     openGraph: {
@@ -274,7 +276,9 @@ export default async function KuponyPage({
 
   const total = ordered.length;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
+  // Stránka mimo rozsahu nie je soft-404 s obsahom prvej/poslednej strany → 404.
+  if (page > totalPages) notFound();
+  const currentPage = page;
   const paginated = ordered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE);
   const pageKupony = paginated.filter(c => c.token !== null);
   const pageAkcie = paginated.filter(c => c.token === null);
@@ -285,7 +289,7 @@ export default async function KuponyPage({
     if (cat) p.set("cat", cat);
     if (sort !== "newest") p.set("sort", sort);
     for (const [k, v] of Object.entries(overrides)) {
-      if (v) p.set(k, v);
+      if (v && !(k === "page" && v === "1")) p.set(k, v);
       else p.delete(k);
     }
     const s = p.toString();
@@ -301,22 +305,18 @@ export default async function KuponyPage({
   // ItemList (C2) — viditeľné kupóny/akcie stránky, každý odkazuje na obchodovú
   // stránku. Bez cenových tvrdení. Pri filtrovanej stránke je robots noindex,
   // ale ItemList ponechávame (validný, neškodí).
-  const itemListJsonLd = paginated.length > 0 ? {
-    "@context": "https://schema.org",
-    "@type": "ItemList",
-    name: "Zľavové kódy a kupóny",
-    numberOfItems: paginated.length,
-    itemListElement: paginated.map((c, i) => ({
-      "@type": "ListItem",
-      position: (currentPage - 1) * PER_PAGE + i + 1,
-      name: c.title || `${c.shopName} kupón`,
-      url: `https://www.zlavickovo.sk/kupony/${normalizeShopSlug(c.shopName)}`,
-    })),
-  } : null;
+  const shopReg = await getShopRegistry();
+  const itemListJson = buildJsonLdGraph([itemListJsonLd(
+    "Zľavové kódy a kupóny",
+    paginated.flatMap((c) => {
+      const slug = resolveShopSlugSync(shopReg, { name: c.shopName });
+      return slug ? [{ name: c.title || `${c.shopName} kupón`, path: `/kupony/${slug}` }] : [];
+    }),
+  )]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fa", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
-      {itemListJsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListJsonLd).replace(/</g, "\\u003c") }} />}
+      {itemListJson && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: itemListJson }} />}
       <style>{`
         .coupon-card { transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
         .coupon-card:hover { border-color: #22C55E !important; box-shadow: 0 6px 24px rgba(34,197,94,0.10) !important; transform: translateY(-2px); }

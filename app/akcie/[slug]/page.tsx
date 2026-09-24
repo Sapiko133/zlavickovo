@@ -25,8 +25,16 @@ function formatAmount(value: number, currency?: string | null): string {
   }).format(value);
 }
 import Nav from "@/components/Nav";
-import { notFound } from "next/navigation";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { notFound, permanentRedirect } from "next/navigation";
 import type { Metadata } from "next";
+import { cache } from "react";
+import { absoluteUrl, clampDescription } from "@/lib/seo/config";
+import { breadcrumbJsonLd, buildJsonLdGraph, type Crumb } from "@/lib/seo/jsonld";
+import { articleLifecycle, duplicateArticleCanonicals, isArticleIndexable, isShopOfferActive } from "@/lib/seo/indexing";
+import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
+import { resolveCategory } from "@/lib/shop-categories";
+import { TAXONOMY } from "@/lib/taxonomy";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -47,24 +55,69 @@ export async function generateStaticParams() {
   }
 }
 
+/**
+ * Životný cyklus ponuky (lib/seo/indexing.ts → articleLifecycle):
+ *  - active  → index, self-canonical (duplikát rovnakej ponuky → canonical na originál)
+ *  - expired → historická stránka „Akcia skončila", noindex,follow, mimo sitemap
+ *  - gone    → po EXPIRED_OFFER_GRACE_DAYS 308 na stránku obchodu (ekvivalent), inak /akcie
+ */
+const loadArticle = cache(async (rawSlug: string) => {
+  if (rawSlug !== rawSlug.toLowerCase()) permanentRedirect(`/akcie/${rawSlug.toLowerCase()}`);
+  const article = await getArticleBySlug(rawSlug);
+  if (!article) notFound();
+  const reg = await getShopRegistry();
+  const shopSlug = resolveShopSlugSync(reg, { slug: article.shopSlug, name: article.shopName, domain: article.domain });
+  const lifecycle = articleLifecycle(article);
+  if (lifecycle.state === "gone") permanentRedirect(shopSlug ? `/kupony/${shopSlug}` : "/akcie");
+
+  let canonicalSlug = article.slug;
+  if (lifecycle.state === "active" && article.type === "sale") {
+    const all = await getPublishedArticles("sale").catch(() => [] as Article[]);
+    canonicalSlug = duplicateArticleCanonicals(all).get(article.slug) ?? article.slug;
+  }
+  const categoryId = resolveCategory({ slug: shopSlug ?? article.shopSlug ?? "", name: article.shopName ?? "", domain: article.domain ?? "" });
+  return { article, shopSlug, lifecycle, canonicalSlug, categoryId };
+});
+
+/** SEO titulok: bez prefixu "Obchod.sk:", s menom obchodu vpredu, ≤ ~60 znakov. */
+function articleSeoTitle(a: Article): string {
+  const shop = (a.shopName || "").trim();
+  const body = a.title.replace(/^[^:]{1,40}:\s*/, "").replace(/\s+/g, " ").trim();
+  const prefix = shop && !body.toLowerCase().includes(shop.toLowerCase().replace(/\.(sk|cz|com)$/, "")) ? `${shop}: ` : "";
+  const full = `${prefix}${body}`;
+  // Strop 90 znakov: kratší rez by zlial rôzne akcie do rovnakého titulku
+  // ("…spotřebičů Siemens" vs "…spotřebičů Electrolux"). Google zobrazí, čo sa zmestí.
+  if (full.length <= 90) return full;
+  const cut = full.slice(0, 88);
+  return `${cut.slice(0, Math.max(cut.lastIndexOf(" "), 60)).replace(/[,;:–-]\s*$/, "")}…`;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const a = await getArticleBySlug(slug);
-  if (!a) return {};
+  const { article: a, lifecycle, canonicalSlug } = await loadArticle(slug);
+  const expired = lifecycle.state !== "active";
+  const title = expired ? `Ukončená akcia: ${articleSeoTitle(a)}` : articleSeoTitle(a);
+  const description = clampDescription(
+    expired
+      ? `Táto akcia ${a.shopName ? `obchodu ${a.shopName} ` : ""}už skončila. Pozri aktuálne zľavové kódy a akcie obchodu na Zlavickovo.`
+      : a.perex,
+  );
+  const url = absoluteUrl(`/akcie/${canonicalSlug}`);
   return {
-    title: a.title,
-    description: a.perex,
-    alternates: { canonical: `${BASE}/akcie/${slug}` },
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: expired ? { index: false, follow: true } : undefined,
     openGraph: {
-      title: a.title,
-      description: a.perex,
-      url: `${BASE}/akcie/${slug}`,
+      title,
+      description,
+      url,
       type: "article",
       publishedTime: a.date,
       modifiedTime: a.updatedAt,
       locale: "sk_SK",
       images: [{
-        url: `${BASE}/akcie/${slug}/opengraph-image`,
+        url: `${BASE}/akcie/${a.slug}/opengraph-image`,
         width: 1200,
         height: 630,
         alt: a.title,
@@ -75,53 +128,48 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ArticlePage({ params }: Props) {
   const { slug } = await params;
-  const article = await getArticleBySlug(slug);
-  if (!article) notFound();
-
-  if (article.type === "sale") return <SaleArticle article={article} />;
-  return <TipArticle article={article} />;
+  const data = await loadArticle(slug);
+  if (data.article.type === "sale") return <SaleArticle {...data} />;
+  return <TipArticle article={data.article} />;
 }
 
-function ArticleStructuredData({ article }: { article: Article }) {
-  const pageUrl = `${BASE}/akcie/${article.slug}`;
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "Article",
-        headline: article.title,
-        description: article.perex,
-        datePublished: article.date,
-        dateModified: article.updatedAt,
-        image: [`${BASE}/akcie/${article.slug}/opengraph-image`],
-        author: { "@type": "Organization", name: "Zlavickovo", url: BASE },
-        publisher: { "@type": "Organization", name: "Zlavickovo", url: BASE },
-        mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
-      },
-      {
-        "@type": "BreadcrumbList",
-        itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Domov", item: BASE },
-          { "@type": "ListItem", position: 2, name: "Akcie", item: `${BASE}/akcie` },
-          { "@type": "ListItem", position: 3, name: article.title, item: pageUrl },
-        ],
-      },
-    ],
-  };
+type LoadedArticle = Awaited<ReturnType<typeof loadArticle>>;
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
-    />
-  );
+function articleCrumbs(article: Article): Crumb[] {
+  return [
+    { name: "Domov", path: "/" },
+    { name: "Akcie", path: "/akcie" },
+    { name: article.shopName || article.title, path: `/akcie/${article.slug}` },
+  ];
+}
+
+function ArticleStructuredData({ article, indexable }: { article: Article; indexable: boolean }) {
+  const pageUrl = `${BASE}/akcie/${article.slug}`;
+  const headline = article.title.length > 110 ? `${article.title.slice(0, 107).replace(/\s+\S*$/, "")}…` : article.title;
+  const json = buildJsonLdGraph([
+    indexable && {
+      "@type": "Article",
+      headline,
+      description: article.perex,
+      datePublished: article.date,
+      dateModified: article.updatedAt,
+      image: [`${BASE}/akcie/${article.slug}/opengraph-image`],
+      author: { "@type": "Organization", name: "Zlavickovo", url: BASE },
+      publisher: { "@type": "Organization", name: "Zlavickovo", url: BASE },
+      mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
+    },
+    breadcrumbJsonLd(articleCrumbs(article)),
+  ]);
+  if (!json) return null;
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
 }
 
 // ─────────────────────────────────────────────────────────────
 // SALE ČLÁNOK — výpredaj jedného obchodu
 // ─────────────────────────────────────────────────────────────
-async function SaleArticle({ article }: { article: Article }) {
-  const shopSlug = article.shopSlug || (article.shopName ? normalizeShopSlug(article.shopName) : "");
+async function SaleArticle({ article, shopSlug, lifecycle, categoryId }: LoadedArticle) {
+  const expired = lifecycle.state !== "active";
+  const category = categoryId ? TAXONOMY[categoryId] : null;
   const products = article.products ?? [];
   const seoContent = article.content || buildSaleSeoContent(article);
   // Iba REÁLNY obrázok inzerenta (banner / og:image / feed) — žiadna generická grafika.
@@ -147,21 +195,23 @@ async function SaleArticle({ article }: { article: Article }) {
     } catch {}
   }
   const couponTitles = coupons
+    .filter(isShopOfferActive)
     .map((c) => c.title || c.name || c.description)
     .filter((t): t is string => !!t)
     .slice(0, 5);
 
-  // Súvisiace akcie iných obchodov
+  // Súvisiace AKTÍVNE akcie — najprv rovnaký obchod (pri ukončenej akcii náhrada), potom iné obchody
   let related: Article[] = [];
   try {
-    related = (await getPublishedArticles("sale"))
-      .filter((a) => a.slug !== article.slug && a.shopSlug !== article.shopSlug)
-      .slice(0, 4);
+    const pool = (await getPublishedArticles("sale")).filter((a) => a.slug !== article.slug && isArticleIndexable(a));
+    const same = pool.filter((a) => a.shopSlug && a.shopSlug === article.shopSlug);
+    const other = pool.filter((a) => a.shopSlug !== article.shopSlug);
+    related = [...same.slice(0, 2), ...other].slice(0, 4);
   } catch {}
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
-      <ArticleStructuredData article={article} />
+      <ArticleStructuredData article={article} indexable={!expired} />
       <style>{`
         .sale-prod { transition: transform .15s, box-shadow .15s, border-color .15s; }
         .sale-prod:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.10) !important; border-color: ${GREEN} !important; }
@@ -172,11 +222,24 @@ async function SaleArticle({ article }: { article: Article }) {
 
       <div style={{ maxWidth: 1000, margin: "0 auto", padding: "28px 20px 80px" }}>
         {/* Breadcrumb */}
-        <div style={{ fontSize: 12, color: "#999", marginBottom: 16 }}>
-          <a href="/" style={{ color: "#999", textDecoration: "none" }}>Zlavickovo</a>{" › "}
-          <a href="/akcie" style={{ color: "#999", textDecoration: "none" }}>Akcie</a>{" › "}
-          <span style={{ color: GREEN, fontWeight: 600 }}>{article.shopName}</span>
+        <div style={{ marginBottom: 16 }}>
+          <Breadcrumbs items={articleCrumbs(article)} color="#6b7280" activeColor={GREEN_DARK} />
         </div>
+
+        {expired && (
+          <div data-offer-status="expired" role="status" style={{ margin: "0 0 20px", padding: "16px 18px", borderRadius: 14, background: "#FEF2F2", border: "1px solid #FECACA", color: "#991B1B" }}>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 4 }}>Táto akcia už skončila</div>
+            <div style={{ fontSize: 14, lineHeight: 1.6 }}>
+              {lifecycle.state === "expired" && lifecycle.endedAt ? `Platila do ${new Date(lifecycle.endedAt).toLocaleDateString("sk-SK")}. ` : ""}
+              Stránku ponechávame len pre informáciu.{" "}
+              {shopSlug ? (
+                <a href={`/kupony/${shopSlug}`} style={{ color: "#991B1B", fontWeight: 700 }}>Aktuálne zľavy {article.shopName} →</a>
+              ) : (
+                <a href="/akcie" style={{ color: "#991B1B", fontWeight: 700 }}>Aktuálne akcie →</a>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
@@ -203,7 +266,9 @@ async function SaleArticle({ article }: { article: Article }) {
             color: article.validTo ? "#c2410c" : "#166534",
             border: `1px solid ${article.validTo ? "#fed7aa" : "#bbf7d0"}`,
           }}>
-            ⏳ {article.validTo
+            ⏳ {expired
+              ? "Akcia skončila"
+              : article.validTo
               ? `Platí do ${new Date(article.validTo).toLocaleDateString("sk-SK")}`
               : "Priebežná akcia"}
           </span>
@@ -215,12 +280,15 @@ async function SaleArticle({ article }: { article: Article }) {
         {/* Hero — len reálny obrázok inzerenta; ak žiadny nemáme, žiadna výplňová grafika */}
         {heroImage && (
           <figure style={{ margin: "0 0 24px" }}>
-            <div style={{ borderRadius: 18, overflow: "hidden", background: "#f4f5f7", border: "1px solid #eceff3", maxHeight: 420, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* Pevný pomer strán rezervuje miesto (bez CLS); hero je LCP → eager + fetchpriority */}
+            <div style={{ borderRadius: 18, overflow: "hidden", background: "#f4f5f7", border: "1px solid #eceff3", aspectRatio: "1200 / 630", maxHeight: 420, width: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <SmartImage
                 src={proxyImage(heroImage)}
-                alt={`Aktuálna akcia ${article.shopName || article.title}`}
+                alt={`Akcia ${article.shopName || ""}: ${article.title}`.trim()}
+                priority
                 style={{
                   width: "100%",
+                  height: "100%",
                   maxHeight: 420,
                   objectFit: isBannerCreative || article.imageSource === "ehub-logo" ? "contain" : "cover",
                 }}
@@ -235,8 +303,8 @@ async function SaleArticle({ article }: { article: Article }) {
           </figure>
         )}
 
-        {/* CTA */}
-        {article.affiliateUrl && (
+        {/* CTA — ukončená akcia už neposiela používateľa na neplatnú ponuku */}
+        {article.affiliateUrl && !expired && (
           <TrackedLink
             href={article.affiliateUrl}
             target="_blank"
@@ -270,20 +338,20 @@ async function SaleArticle({ article }: { article: Article }) {
         )}
 
         {/* Product grid */}
-        {products.length > 0 && (
+        {products.length > 0 && !expired && (
           <section style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 18px", letterSpacing: "-0.3px" }}>
               🛍️ Zľavnené produkty
             </h2>
             <div className="sale-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 16 }}>
               {products.map((p, i) => (
-                <SaleProductCard key={`${p.name}-${i}`} product={p} shopSlug={shopSlug} domain={article.domain || ""} />
+                <SaleProductCard key={`${p.name}-${i}`} product={p} shopSlug={shopSlug ?? ""} domain={article.domain || ""} />
               ))}
             </div>
           </section>
         )}
 
-        {/* Kupóny obchodu */}
+        {/* Kupóny obchodu (ponuka → obchod) — len ak stránka obchodu existuje */}
         {shopSlug && (
           <section style={{ marginBottom: 48 }}>
             <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 18, padding: "26px 24px" }}>
@@ -303,6 +371,11 @@ async function SaleArticle({ article }: { article: Article }) {
               <a href={`/kupony/${shopSlug}`} style={{ display: "inline-block", padding: "12px 24px", borderRadius: 12, background: GREEN, color: "#fff", fontWeight: 700, fontSize: 15, textDecoration: "none" }}>
                 Zobraziť všetky kupóny pre {article.shopName} →
               </a>
+              {category && (
+                <a href={`/kategoria/${category.id}`} style={{ display: "inline-block", marginLeft: 12, marginTop: 8, fontSize: 14, fontWeight: 700, color: GREEN_DARK, textDecoration: "none" }}>
+                  {category.emoji} Ďalšie zľavy v kategórii {category.label} →
+                </a>
+              )}
             </div>
           </section>
         )}
@@ -310,7 +383,7 @@ async function SaleArticle({ article }: { article: Article }) {
         {/* Súvisiace akcie */}
         {related.length > 0 && (
           <section>
-            <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 18px", letterSpacing: "-0.3px" }}>📰 Ďalšie akcie</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 18px", letterSpacing: "-0.3px" }}>{expired ? "📰 Aktuálne akcie namiesto tejto" : "📰 Ďalšie akcie"}</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 16 }}>
               {related.map((r) => (
                 <a key={r.slug} href={`/akcie/${r.slug}`} className="rel-card"
@@ -379,7 +452,9 @@ function SaleProductCard({ product, shopSlug, domain }: { product: SaleProduct; 
 // TIP ČLÁNOK — evergreen
 // ─────────────────────────────────────────────────────────────
 async function TipArticle({ article }: { article: Article }) {
-  const shopSlug = article.shopName ? normalizeShopSlug(article.shopName) : null;
+  const shopSlug = article.shopName
+    ? resolveShopSlugSync(await getShopRegistry(), { name: article.shopName, slug: normalizeShopSlug(article.shopName) })
+    : null;
   let others: Article[] = [];
   try {
     others = (await getAllArticles()).filter((a) => a.slug !== article.slug && a.type === "tip").slice(0, 5);
@@ -387,7 +462,7 @@ async function TipArticle({ article }: { article: Article }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
-      <ArticleStructuredData article={article} />
+      <ArticleStructuredData article={article} indexable />
       <Nav />
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px", display: "flex", gap: 48, alignItems: "flex-start" }}>
         <article style={{ flex: 1, minWidth: 0, maxWidth: 720 }}>

@@ -1,9 +1,9 @@
-import { Suspense } from "react";
-import { notFound } from "next/navigation";
+import { cache } from "react";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getCouponsByShop } from "@/lib/dognet";
 import { getShopDescription } from "@/lib/shop-desc";
 import { findAffialShop } from "@/lib/affial-shops";
-import { getAllKnownShops, getStaticKnownShops, type KnownShop } from "@/lib/all-shops";
 import AdBanner from "@/components/AdBanner";
 import TopCodes from "@/components/TopCodes";
 import ShopCouponList from "@/components/ShopCouponList";
@@ -14,64 +14,69 @@ import { resolveCategory } from "@/lib/shop-categories";
 import { TAXONOMY, TAXONOMY_LIST } from "@/lib/taxonomy";
 import { compareShopsByPriority } from "@/lib/shop-priority";
 import { affiliateUrlFromCoupons, getShopAffiliateUrl, hasDirectLink } from "@/lib/shop-affiliate";
-import { isOfferActive } from "@/lib/offers/freshness";
-// ShopLogo removed — using ShopFavicon throughout
+import { getAllArticles, type Article } from "@/lib/articles";
 import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import TrackedLink from "@/components/TrackedLink";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { absoluteUrl, clampDescription, plural } from "@/lib/seo/config";
+import { breadcrumbJsonLd, buildJsonLdGraph, itemListJsonLd, type Crumb } from "@/lib/seo/jsonld";
+import { SHOP_NAME_OVERRIDES, TOP_SLUGS, getShopRegistry, resolveShopRequest } from "@/lib/seo/shop-registry";
+import { isShopOfferActive, shopIndexDecision } from "@/lib/seo/indexing";
+import { articlesByShop, getShopSeoIndex, shopLookupName } from "@/lib/seo/shop-index";
 
 type Props = { params: Promise<{ slug: string }> };
-
-const BASE = "https://www.zlavickovo.sk";
 
 export const revalidate = 3600;
 export const dynamic = "force-dynamic";
 
-// Správne obchodné meno pre slugy, ktoré nie sú v žiadnom feede
-// a kapitalizácia zo slugu by vyrobila nezmysel ("Czc" namiesto "CZC.cz")
-const SHOP_NAME_OVERRIDES: Record<string, string> = {
-  czc: "CZC.cz",
-  belda: "Belda Sport",
-  "kojenecke-obleceni": "Kojenecké oblečenie",
-  // CJ advertiser "AUKRO CZ/SK" → kanonický slug by bol "aukro-czsk" (škaredý
-  // názov + rozbité favicon). Kurátorský slug "aukro" + správne meno; CTA
-  // resolvuje getShopAffiliateUrl → getCjShopUrl("Aukro") na CJ tracking link.
-  aukro: "Aukro",
-};
-
-const TOP_SLUGS = [
-  "alza","shein","zalando","mall","notino","sportisimo",
-  "ikea","dedoles","martinus","about-you","answear","dr-max",
-  "zara","h-m","asos","lidl","kaufland","decathlon","nike","adidas",
-];
-
 /**
- * Soft 404 guard — stránka existuje len pre slug známeho obchodu.
- * Validné tvary: kanonický slug z getAllKnownShops(), kurátorské TOP_SLUGS
- * a SHOP_NAME_OVERRIDES, Affial partneri, plus historické "-cz" mutácie.
+ * Dáta stránky obchodu — zdieľané medzi generateMetadata a renderom
+ * (React cache = jeden fetch na request). Rozhodnutie o existencii/redirecte
+ * robí centrálny register (lib/seo/shop-registry.ts).
  */
-async function isValidShopSlug(slug: string): Promise<boolean> {
-  const baseSlug = slug.endsWith("-cz") ? slug.slice(0, -3) : slug;
-  if (!baseSlug) return false;
+const loadShop = cache(async (rawSlug: string) => {
+  const res = await resolveShopRequest(rawSlug);
+  if (res.kind === "notfound") notFound();
+  if (res.kind === "redirect") permanentRedirect(res.to);
 
-  if (TOP_SLUGS.includes(baseSlug)) return true;
-  if (SHOP_NAME_OVERRIDES[baseSlug]) return true;
-  if (findAffialShop(slug) || findAffialShop(baseSlug)) return true;
+  const { baseSlug, isCzVariant, entry } = res;
+  const affialShop = findAffialShop(res.slug) ?? findAffialShop(baseSlug);
+  // `capitalized` = kľúč pre dátové lookupy (doména, affiliate URL, TopCodes) — nemeniť formu.
+  const slugName = shopLookupName(baseSlug);
+  const capitalized =
+    affialShop?.name ??
+    SHOP_NAME_OVERRIDES[baseSlug] ??
+    (slugName.charAt(0).toUpperCase() + slugName.slice(1));
+  // `displayName` = čitateľné meno pre title/H1/breadcrumbs (z registra, vyčistené).
+  const displayName = SHOP_NAME_OVERRIDES[baseSlug] ?? entry.name ?? capitalized;
 
-  let shops: KnownShop[];
-  try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
-  return shops.some(s => s.slug === baseSlug || s.slug === slug);
-}
+  // Timeouty na render-path volania — viď [[with-timeout]].
+  const [liveCoupons, reg, allArticles, seoIndex] = await Promise.all([
+    withTimeout<any[] | null>(getCouponsByShop(slugName), 8000, null),
+    getShopRegistry(),
+    withTimeout(getAllArticles(), 3000, [] as Article[]),
+    withTimeout(getShopSeoIndex(), 2500, [] as Awaited<ReturnType<typeof getShopSeoIndex>>),
+  ]);
+  const coupons = liveCoupons ?? [];
+  const articles = (articlesByShop(allArticles, reg).get(baseSlug) ?? [])
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 8);
 
-/** Rozlíši historickú CZ mutáciu od skutočného partnerského slugu, napr. elmich-cz. */
-async function isSyntheticCzVariant(slug: string): Promise<boolean> {
-  if (!slug.endsWith("-cz")) return false;
-  if (SHOP_NAME_OVERRIDES[slug] || findAffialShop(slug)) return false;
+  // Expirované ponuky sa nezobrazujú ako aktívne (kanonický freshness model).
+  const active = coupons.filter(isShopOfferActive);
+  const codeCount = active.filter((c: any) => c.code && String(c.code).trim() !== "").length;
+  const dealCount = active.length - codeCount;
+  let decision = shopIndexDecision({ slug: baseSlug, activeOffers: active.length + articles.length, isCzVariant });
+  // Fail-open: timeout zdroja alebo SEO index (zdroj sitemap) hovorí "index" → nikdy
+  // nedeindexuj stránku kvôli prechodnému výpadku. Sitemap ⊆ indexovateľné stránky.
+  if (!decision.index && !isCzVariant) {
+    if (liveCoupons === null) decision = { index: true, reason: "zdroj ponúk neodpovedal (fail-open)" };
+    else if (seoIndex.find((s) => s.slug === baseSlug)?.index) decision = { index: true, reason: "SEO index (sitemap)" };
+  }
 
-  let shops: KnownShop[];
-  try { shops = await getAllKnownShops(); } catch { shops = getStaticKnownShops(); }
-  return !shops.some(s => s.slug === slug);
-}
+  return { slug: res.slug, baseSlug, isCzVariant, affialShop, capitalized, displayName, entry, coupons, articles, codeCount, dealCount, decision };
+});
 
 function currentMonthYear() {
   const now = new Date();
@@ -109,7 +114,8 @@ function getRelatedShopsFallback(currentSlug: string, count = 4) {
 }
 
 /**
- * Súvisiace obchody z rovnakej kategórie (existujúce dáta getAllKnownShops).
+ * Súvisiace obchody z rovnakej kategórie — prednostne indexovateľné obchody
+ * s aktívnymi ponukami (SEO index), aby interné odkazy viedli na hodnotné stránky.
  * Fallback na kurátorské TOP_SLUGS, keď kategória chýba alebo má málo obchodov.
  */
 async function getRelatedShops(
@@ -117,52 +123,64 @@ async function getRelatedShops(
   categoryId: ReturnType<typeof resolveCategory>,
   count = 4,
 ): Promise<{ slug: string; name: string }[]> {
+  const reg = await getShopRegistry();
+  const nameOf = (slug: string) => reg.bySlug.get(slug)?.name ?? slug.replace(/-/g, " ");
+  const out: { slug: string; name: string }[] = [];
+  const seen = new Set([currentSlug]);
   if (categoryId) {
-    try {
-      const shops = await getAllKnownShops();
-      const sameCat = shops
-        .filter(s => s.categoryId === categoryId && s.slug && s.slug !== currentSlug)
-        .sort(compareShopsByPriority)
-        .slice(0, count)
-        .map(s => ({ slug: s.slug, name: s.name }));
-      if (sameCat.length >= count) return sameCat;
-      // doplň fallbackom, bez duplicít
-      const seen = new Set([currentSlug, ...sameCat.map(s => s.slug)]);
-      for (const slug of getRelatedShopsFallback(currentSlug, count)) {
-        if (sameCat.length >= count) break;
-        if (seen.has(slug)) continue;
-        const n = slug.replace(/-/g, " ");
-        sameCat.push({ slug, name: n.charAt(0).toUpperCase() + n.slice(1) });
-        seen.add(slug);
-      }
-      if (sameCat.length > 0) return sameCat;
-    } catch {}
+    const index = await getShopSeoIndex().catch(() => []);
+    const offers = (s: (typeof index)[number]) => s.activeCodes + s.activeDeals + s.activeArticles;
+    const sameCat = index
+      .filter(s => s.categoryId === categoryId && s.index && !seen.has(s.slug))
+      .sort((a, b) => offers(b) - offers(a) || a.slug.localeCompare(b.slug))
+      .slice(0, count);
+    for (const s of sameCat) { out.push({ slug: s.slug, name: s.name }); seen.add(s.slug); }
   }
-  return getRelatedShopsFallback(currentSlug, count).map(slug => {
-    const n = slug.replace(/-/g, " ");
-    return { slug, name: n.charAt(0).toUpperCase() + n.slice(1) };
-  });
+  for (const slug of getRelatedShopsFallback(currentSlug, count + 2)) {
+    if (out.length >= count) break;
+    if (seen.has(slug) || !reg.bySlug.has(slug)) continue;
+    out.push({ slug, name: nameOf(slug) });
+    seen.add(slug);
+  }
+  return out;
 }
 
-export async function generateMetadata({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  if (!(await isValidShopSlug(slug))) notFound();
-  const isCz = await isSyntheticCzVariant(slug);
-  const baseSlug = isCz ? slug.slice(0, -3) : slug;
-  const name = baseSlug.replace(/-/g, " ");
-  const shopName = SHOP_NAME_OVERRIDES[baseSlug] ?? (name.charAt(0).toUpperCase() + name.slice(1));
+  const d = await loadShop(slug);
   const { month, year } = currentMonthYear();
-  const canonicalUrl = `${BASE}/kupony/${baseSlug}`;
+  const name = d.displayName;
+  const canonicalUrl = absoluteUrl(`/kupony/${d.baseSlug}`);
+  const categoryId = resolveCategory({ slug: d.baseSlug, name: d.capitalized, domain: getShopDomain(d.capitalized) || d.entry.domain || `${d.baseSlug}.sk` });
+  const categoryLabel = categoryId ? TAXONOMY[categoryId].label.toLowerCase() : null;
+  const dealTotal = d.dealCount + d.articles.length;
+
+  // Search intent: "{obchod} zľavový kód" / "{obchod} akcie" — meno obchodu vpredu.
+  const title = d.codeCount > 0
+    ? `${name} zľavové kódy a kupóny – ${month} ${year}`
+    : `${name} akcie a zľavové kódy – ${month} ${year}`;
+
+  const codes = `${d.codeCount} ${plural(d.codeCount, "zľavový kód", "zľavové kódy", "zľavových kódov")}`;
+  const deals = `${dealTotal} ${plural(dealTotal, "aktuálna akcia", "aktuálne akcie", "aktuálnych akcií")}`;
+  let description: string;
+  if (d.codeCount > 0 && dealTotal > 0) {
+    description = `${name}: ${codes} a ${deals} na ${month} ${year}. Kód odhalíš jedným klikom, platnosť a podmienky si over v pokladni obchodu.`;
+  } else if (d.codeCount > 0) {
+    description = `Aktuálne ${name} zľavové kódy – ${codes} na ${month} ${year}. Kód odhalíš jedným klikom, platnosť si over v pokladni obchodu.`;
+  } else if (dealTotal > 0) {
+    description = `${name}: ${deals} na ${month} ${year} zo zapojených affiliate sietí. Pozri podmienky akcie a prejdi priamo do obchodu.`;
+  } else {
+    description = `Zľavové kódy a akcie pre ${name}. Momentálne nemáme aktívnu ponuku – pozri podobné obchody${categoryLabel ? ` v kategórii ${categoryLabel}` : ""} s aktuálnymi zľavami.`;
+  }
 
   return {
-    title: `${shopName} kupóny, zľavové kódy a akcie ${month} ${year}`,
-    description: `Aktuálne kupóny, zľavové kódy a akcie pre ${shopName} na ${month} ${year}. Pozrite si platné ponuky a podmienky zliav.`,
-    alternates: {
-      canonical: canonicalUrl,
-    },
+    title,
+    description: clampDescription(description),
+    alternates: { canonical: canonicalUrl },
+    robots: d.decision.index ? undefined : { index: false, follow: true },
     openGraph: {
-      title: `${shopName} kupóny a akcie ${month} ${year}`,
-      description: `Aktuálne kupóny, zľavové kódy a akcie pre ${shopName}.`,
+      title: `${name} zľavové kódy a akcie – ${month} ${year}`,
+      description: clampDescription(description),
       url: canonicalUrl, type: "website", locale: "sk_SK",
     },
   };
@@ -170,25 +188,15 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function ShopPage({ params }: Props) {
   const { slug } = await params;
-  if (!(await isValidShopSlug(slug))) notFound();
-  const isCz = await isSyntheticCzVariant(slug);
-  const baseSlug = isCz ? slug.slice(0, -3) : slug;
-  const shopName = baseSlug.replace(/-/g, " ");
-  const affialShop = findAffialShop(slug);
-  const capitalized =
-    affialShop?.name ??
-    SHOP_NAME_OVERRIDES[baseSlug] ??
-    (shopName.charAt(0).toUpperCase() + shopName.slice(1));
+  const d = await loadShop(slug);
+  const { baseSlug, affialShop, capitalized, displayName, articles } = d;
+  const isCz = d.isCzVariant;
   const { month, year } = currentMonthYear();
-  const pageUrl = `${BASE}/kupony/${slug}`;
-  const faq = getFAQ(capitalized);
-
-  // Timeouty na render-path volania — ISR render sa nesmie zablokovať na pomalom
-  // externom volaní (live affiliate fetch, AI popis, studená DB/cache). Viď [[with-timeout]].
-  let coupons: any[] = await withTimeout(getCouponsByShop(shopName), 8000, []);
+  const faq = getFAQ(displayName);
+  let coupons: any[] = d.coupons;
 
   // Shop visit URL — priorita: affiliate z kupónov (Dognet → eHub → Affial) → Affial partner → eHub kampaň → priama doména
-  const shopDomain = getShopDomain(capitalized) || `${baseSlug}.sk`;
+  const shopDomain = getShopDomain(capitalized) || d.entry.domain || `${baseSlug}.sk`;
   const shopAffiliateUrl: string | null =
     affiliateUrlFromCoupons(coupons) ??
     affialShop?.affiliateUrl ??
@@ -203,9 +211,7 @@ export default async function ShopPage({ params }: Props) {
   }
 
   // Expirované ponuky sa nezobrazujú ako aktívne (kanonický freshness model).
-  const activeCoupons = coupons.filter((c: any) =>
-    isOfferActive(c.valid_to ?? c.validTo ?? c.endDate ?? c.expires ?? null)
-  );
+  const activeCoupons = coupons.filter(isShopOfferActive);
 
   const rawCodeCoupons = activeCoupons.filter((c: any) => c.code && c.code.trim() !== "");
   const dealCoupons = activeCoupons.filter((c: any) => !c.code || c.code.trim() === "");
@@ -231,41 +237,26 @@ export default async function ShopPage({ params }: Props) {
   const relatedShops = await withTimeout(getRelatedShops(baseSlug, categoryId, 4), 3000, relatedFallback);
   const similarCategories = TAXONOMY_LIST.filter(c => c.id !== categoryId).slice(0, 6);
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Domov", "item": BASE },
-          { "@type": "ListItem", "position": 2, "name": "Obchody", "item": `${BASE}/obchody` },
-          { "@type": "ListItem", "position": 3, "name": capitalized, "item": pageUrl },
-        ],
-      },
-      {
-        "@type": "FAQPage",
-        "mainEntity": faq.map(f => ({
-          "@type": "Question", "name": f.q,
-          "acceptedAnswer": { "@type": "Answer", "text": f.a },
-        })),
-      },
-    ],
-  };
+  const crumbs: Crumb[] = [
+    { name: "Domov", path: "/" },
+    { name: "Obchody", path: "/obchody" },
+    { name: displayName, path: `/kupony/${baseSlug}` },
+  ];
+  const jsonLd = buildJsonLdGraph([
+    breadcrumbJsonLd(crumbs),
+    itemListJsonLd(`Aktuálne akcie ${displayName}`, articles.map(a => ({ name: a.title, path: `/akcie/${a.slug}` }))),
+  ]);
 
   return (
-    <div style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif", minHeight: "100vh", background: "#F8FAFC", color: "#111827" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+    <div data-active-offers={activeCoupons.length + articles.length} style={{ fontFamily: "Inter, system-ui, -apple-system, sans-serif", minHeight: "100vh", background: "#F8FAFC", color: "#111827" }}>
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />}
 
       <Nav />
 
       {/* Breadcrumb */}
       <div style={{ background: "#fff", borderBottom: "1px solid #F3F4F6" }}>
-        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px", fontSize: 12, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4 }}>
-          <a href="/" style={{ color: "#9CA3AF", textDecoration: "none" }}>Zlavickovo</a>
-          <span>›</span>
-          <a href="/obchody" style={{ color: "#9CA3AF", textDecoration: "none" }}>Kupóny</a>
-          <span>›</span>
-          <span style={{ color: "#374151", fontWeight: 600 }}>{capitalized}</span>
+        <div style={{ maxWidth: 1100, margin: "0 auto", padding: "10px 24px" }}>
+          <Breadcrumbs items={crumbs} color="#6B7280" />
         </div>
       </div>
 
@@ -280,11 +271,11 @@ export default async function ShopPage({ params }: Props) {
               display: "flex", alignItems: "center", justifyContent: "center",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
             }}>
-              <ShopFavicon domain={getShopDomain(capitalized) || `${baseSlug}.sk`} name={capitalized} size={52} />
+              <ShopFavicon domain={shopDomain} name={displayName} size={52} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <h1 style={{ fontSize: "clamp(18px, 3vw, 26px)", fontWeight: 800, margin: "0 0 12px", color: "#111827", letterSpacing: "-0.5px", lineHeight: 1.25 }}>
-                {capitalized} zľavové kódy &amp; kupóny {month} {year}{isCz ? " (CZ)" : ""}
+                {displayName} zľavové kódy a akcie – {month} {year}{isCz ? " (CZ)" : ""}
               </h1>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                 <span style={{ fontSize: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, padding: "4px 12px", borderRadius: 9999 }}>
@@ -366,20 +357,37 @@ export default async function ShopPage({ params }: Props) {
 
             {/* Sekcia 2 — Zľavové kódy (len s kódom) */}
             <div className="card-section">
-              <div className="section-title">🏷️ Zľavové kódy ({codeCoupons.length})</div>
+              <h2 className="section-title">🏷️ {displayName} zľavové kódy ({codeCoupons.length})</h2>
               <ShopCouponList capitalized={capitalized} coupons={codeCoupons} kind="kupony" shopUrl={shopVisitUrl} />
             </div>
 
             {/* Sekcia 3 — Akcie a zľavy (bez kódu) */}
             <div className="card-section">
-              <div className="section-title">🔥 Akcie a zľavy ({dealCoupons.length})</div>
+              <h2 className="section-title">🔥 Akcie a zľavy ({dealCoupons.length})</h2>
               <ShopCouponList capitalized={capitalized} coupons={dealCoupons} kind="akcie" shopUrl={shopVisitUrl} />
             </div>
+
+            {/* Sekcia 4 — Akcie obchodu s vlastnou stránkou (interné prelinkovanie obchod → ponuky) */}
+            {articles.length > 0 && (
+              <div className="card-section">
+                <h2 className="section-title">📰 Aktuálne akcie {displayName}</h2>
+                <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                  {articles.map(a => (
+                    <li key={a.slug} style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline", borderBottom: "1px solid #F3F4F6", paddingBottom: 10 }}>
+                      <a href={`/akcie/${a.slug}`} style={{ color: "#111827", fontWeight: 600, fontSize: 14, textDecoration: "none", lineHeight: 1.45 }}>{a.title}</a>
+                      {a.validTo && (
+                        <span style={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" }}>do {new Date(a.validTo).toLocaleDateString("sk-SK")}</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Sekcia 5 — O obchode (SEO popis, fallback ak chýba) */}
             {shopDesc.long && (
               <div className="card-section">
-                <div className="section-title">ℹ️ O obchode {capitalized}</div>
+                <h2 className="section-title">ℹ️ O obchode {displayName}</h2>
                 {shopDesc.long.split(/\n{2,}/).map((para, i) => (
                   <p key={i} style={{ fontSize: 14, color: "#374151", lineHeight: 1.75, margin: i === 0 ? "0 0 12px" : "0 0 12px" }}>
                     {para.trim()}
@@ -432,7 +440,7 @@ export default async function ShopPage({ params }: Props) {
         {/* FAQ */}
         <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "32px", marginTop: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 24px", letterSpacing: "-0.3px", color: "#111827" }}>
-            Časté otázky – {capitalized} kupóny
+            Časté otázky – {displayName} kupóny
           </h2>
           <div>
             {faq.map((item, i) => (

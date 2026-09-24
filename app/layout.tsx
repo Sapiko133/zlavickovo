@@ -21,7 +21,6 @@ export const metadata: Metadata = {
   creator: "Zlavickovo",
   publisher: "Zlavickovo",
   category: "shopping",
-  keywords: ["akcie", "výpredaje", "zľavové kódy", "kupóny", "zľavy", "slovenské obchody"],
   openGraph: {
     title: "Zlavickovo – akcie, výpredaje a zľavové kupóny",
     description:
@@ -37,9 +36,9 @@ export const metadata: Metadata = {
     description:
       "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov na jednom mieste.",
   },
-  alternates: {
-    canonical: "https://www.zlavickovo.sk",
-  },
+  // Žiadny root canonical — každá stránka deklaruje vlastný self-canonical.
+  // (Zdedený canonical na homepage by z každej stránky bez vlastného canonical
+  // urobil duplikát homepage — napr. 404 stránky.)
   robots: {
     index: true,
     follow: true,

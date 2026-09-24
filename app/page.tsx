@@ -17,11 +17,14 @@ import { isOfferActive } from "@/lib/offers/freshness";
 import { TAXONOMY_LIST } from "@/lib/taxonomy";
 import { TOP_SHOPS } from "@/lib/top-shops";
 import { isAdultShop } from "@/lib/shop-categories";
+import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
+import { buildJsonLdGraph, organizationJsonLd, websiteJsonLd } from "@/lib/seo/jsonld";
 
 export const revalidate = 3600;
 
 export const metadata = {
-  title: "Zlavickovo ✂️ Akcie, výpredaje a kupóny slovenských obchodov",
+  // absolute: bez layout template "| Zlavickovo" (značka je už na začiatku)
+  title: { absolute: "Zlavickovo – akcie, zľavy a zľavové kódy slovenských obchodov" },
   description: "Aktuálne akcie, výpredaje a zľavové kupóny slovenských obchodov. Nové ponuky z affiliate sietí pravidelne na jednom mieste.",
   alternates: { canonical: "https://www.zlavickovo.sk" },
   openGraph: {
@@ -122,7 +125,9 @@ function HomeDealCard({ item, featured = false }: { item: VypredajItem; featured
 }
 
 export default async function Home() {
-  const { items: currentDeals } = await getVypredaje();
+  const [{ items: currentDeals }, shopReg] = await Promise.all([getVypredaje(), getShopRegistry()]);
+  // Interné odkazy len na existujúce stránky obchodov (inak by viedli na 404).
+  const validShopSlug = (x: { slug?: string; name?: string; domain?: string }) => resolveShopSlugSync(shopReg, x);
 
   // Kanonický freshness model (neparsovateľný dátum NIE je aktívny, SK formát OK).
   const notExpired = (v?: string | null) => isOfferActive(v ?? null);
@@ -158,6 +163,9 @@ export default async function Home() {
   for (const c of byPrio([...dognetKupony, ...affialKupony])) {
     // 18+ / alkohol / tabak nepropagujeme na homepage.
     if (isRestrictedForHome({ slug: c.shopSlug, name: c.shopName, domain: c.domain })) continue;
+    const slug = validShopSlug({ slug: c.shopSlug, name: c.shopName, domain: c.domain });
+    if (!slug) continue;
+    c.shopSlug = slug;
     const key = c.shopName.toLowerCase().trim();
     if (seenCoupon.has(key)) continue;
     seenCoupon.add(key);
@@ -172,6 +180,10 @@ export default async function Home() {
     topShops = c.windows.last30d.topShops
       .map((r) => shopFromSlug(r.key))
       .filter((s) => !isRestrictedForHome({ slug: s.slug, name: s.name, domain: s.domain }))
+      .flatMap((s) => {
+        const slug = validShopSlug(s);
+        return slug ? [{ ...s, slug }] : [];
+      })
       .slice(0, 8);
   } catch {}
   if (topShops.length === 0) topShops = FAVOURITE_SHOPS;
@@ -186,17 +198,8 @@ export default async function Home() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#ffffff", fontFamily: "system-ui,-apple-system,sans-serif", color: "#1d1d1f" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
-        "@context": "https://schema.org",
-        "@graph": [
-          { "@type": "Organization", "@id": "https://www.zlavickovo.sk/#organization", name: "Zlavickovo", url: "https://www.zlavickovo.sk" },
-          {
-            "@type": "WebSite", "@id": "https://www.zlavickovo.sk/#website", name: "Zlavickovo", alternateName: "Zlavickovo.sk", url: "https://www.zlavickovo.sk", inLanguage: "sk-SK",
-            publisher: { "@id": "https://www.zlavickovo.sk/#organization" },
-            potentialAction: { "@type": "SearchAction", target: { "@type": "EntryPoint", urlTemplate: "https://www.zlavickovo.sk/hladat?q={search_term_string}" }, "query-input": "required name=search_term_string" },
-          },
-        ],
-      }).replace(/</g, "\\u003c") }} />
+      {/* WebSite + Organization (bez SearchAction — interné vyhľadávanie je noindex a sitelinks search box Google zrušil) */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: buildJsonLdGraph([organizationJsonLd(), websiteJsonLd()]) ?? "{}" }} />
 
       <style>{`
         .sec-title { font-size: clamp(20px, 2.6vw, 26px); font-weight: 800; color: #1d1d1f; margin: 0; letter-spacing: -0.4px; }

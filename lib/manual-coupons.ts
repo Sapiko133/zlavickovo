@@ -45,8 +45,12 @@ export async function deleteManualCoupon(id: string): Promise<void> {
 
 /** Manuálne kupóny pre obchod, v tvare zhodnom s ostatnými zdrojmi (getCouponsByShop). */
 export async function getManualCouponsByShop(shopName: string): Promise<any[]> {
+  return manualCouponsForShop(shopName, await getAllManualCoupons());
+}
+
+/** Čistá varianta pre už načítané manuálne kupóny (bulk SEO index). */
+export function manualCouponsForShop(shopName: string, all: ManualCoupon[]): any[] {
   const matches = createShopMatcher(shopName);
-  const all = await getAllManualCoupons();
   return all
     .filter((c) => matches(c.shopName, c.shopSlug))
     .map((c) => {

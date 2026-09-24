@@ -1,5 +1,5 @@
 import { getAffialCoupons } from "@/lib/affial";
-import { getCjCouponsByShop } from "@/lib/cj";
+import { getCjCoupons, type CjCoupon } from "@/lib/cj";
 import { getEhubCoupons } from "@/lib/ehub";
 import { redis } from "@/lib/redis";
 import { getShopDomain } from "@/lib/shop-domains";
@@ -7,7 +7,7 @@ import { AFFIAL_COUPONS } from "@/lib/affial-coupons";
 import { AFFIAL_SHOPS } from "@/lib/affial-shops";
 import { STATIC_AKCIE, type AkciaType } from "@/lib/akcie";
 import { createShopMatcher } from "@/lib/shop-match";
-import { getManualCouponsByShop } from "@/lib/manual-coupons";
+import { getAllManualCoupons, manualCouponsForShop, type ManualCoupon } from "@/lib/manual-coupons";
 import { cleanDognetShopName } from "@/lib/shop-name";
 import { isAllowedDognetCoupon, isDognetSkCzMarket } from "@/lib/dognet-market";
 import { DAILY_REFRESH_CACHE_TTL_SECONDS } from "@/lib/feeds/cache-policy";
@@ -256,16 +256,37 @@ const AKCIA_TYPE_TO_COUPON_TYPE: Record<AkciaType, number> = {
   doprava: 5, vypredaj: 3, welcome: 1, gift: 2, event: 4,
 };
 
-export async function getCouponsByShop(shopName: string) {
-  const [dognetAll, affialAll, ehubAll, cjAll] = await Promise.all([
+/** Všetky zdroje kupónov/akcií načítané naraz — zdieľa ich stránka obchodu aj SEO index (sitemap). */
+export interface ShopOfferSources {
+  dognet: any[];
+  affial: any[];
+  ehub: Awaited<ReturnType<typeof getEhubCoupons>>;
+  cj: CjCoupon[];
+  manual: ManualCoupon[];
+}
+
+export async function loadShopOfferSources(): Promise<ShopOfferSources> {
+  const [dognet, affial, ehub, cj, manual] = await Promise.all([
     getCoupons().catch(() => []),
     getAffialCoupons().catch(() => []),
     getEhubCoupons().catch(() => []),
-    getCjCouponsByShop(shopName).catch(() => []),
+    getCjCoupons().catch(() => []),
+    getAllManualCoupons().catch(() => []),
   ]);
+  return { dognet, affial, ehub, cj, manual };
+}
+
+export async function getCouponsByShop(shopName: string) {
+  return collectShopOffers(shopName, await loadShopOfferSources());
+}
+
+/** Čistá (bez I/O) zostava ponúk obchodu z načítaných zdrojov. */
+export function collectShopOffers(shopName: string, sources: ShopOfferSources) {
+  const { dognet: dognetAll, affial: affialAll, ehub: ehubAll } = sources;
 
   // Slug/domain/normalized-name matching — "Alza.sk", "Alza", "alza.sk", "alza" → /kupony/alza
   const matchesShop = createShopMatcher(shopName);
+  const cjAll = sources.cj.filter((c) => matchesShop(c.advertiserName));
 
   const dognet = dognetAll
     .filter((c: any) => matchesShop(c.campaign?.name, c.campaign?.url ?? c.campaign?.website_url))
@@ -349,7 +370,7 @@ export async function getCouponsByShop(shopName: string) {
     }));
 
   // Manuálne kupóny z adminu (najvyššia priorita — zobrazujú sa vždy)
-  const manual = await getManualCouponsByShop(shopName).catch(() => []);
+  const manual = manualCouponsForShop(shopName, sources.manual);
 
   const seenCodes = new Set(
     [...manual, ...dognet, ...cj, ...affialStatic].map((c: any) => c.code?.toUpperCase()).filter(Boolean)

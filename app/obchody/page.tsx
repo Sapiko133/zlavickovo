@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import Nav from "@/components/Nav";
 import ObchodyClient, { type ShopItem } from "@/components/ObchodyClient";
 import type { Metadata } from "next";
+import { getShopRegistry, resolveShopSlugSync } from "@/lib/seo/shop-registry";
 
 export const revalidate = 3600;
 
@@ -21,7 +22,15 @@ export default async function ObchodyPage() {
     knownShops = getStaticKnownShops();
   }
 
-  const allShops: ShopItem[] = knownShops.map(s => ({
+  // Odkazy len na kanonické stránky (aliasy typu "(for cashbacks)" by viedli na 308).
+  const reg = await getShopRegistry();
+  const seen = new Set<string>();
+  const allShops: ShopItem[] = knownShops.flatMap(s => {
+    const slug = reg.bySlug.has(s.slug) ? s.slug : resolveShopSlugSync(reg, { slug: s.slug, name: s.name, domain: s.domain });
+    if (!slug || seen.has(slug)) return [];
+    seen.add(slug);
+    return [{ ...s, slug }];
+  }).map(s => ({
     name: s.name,
     slug: s.slug,
     domain: s.domain || `${s.slug}.sk`,

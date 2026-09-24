@@ -1,5 +1,7 @@
 import { LETAKY, getExpiryDate, formatDate, isExpiringSoon } from "@/lib/letaky";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { breadcrumbJsonLd, buildJsonLdGraph, type Crumb } from "@/lib/seo/jsonld";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import ShopFavicon from "@/components/ShopFavicon";
@@ -34,6 +36,7 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function LetatPage({ params }: Props) {
   const { slug } = await params;
+  if (slug !== slug.toLowerCase()) permanentRedirect(`/letaky/${slug.toLowerCase()}`);
   const letak = LETAKY.find(l => l.slug === slug);
   if (!letak) notFound();
 
@@ -57,41 +60,23 @@ export default async function LetatPage({ params }: Props) {
     },
   ];
 
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@graph": [
-      {
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          { "@type": "ListItem", "position": 1, "name": "Zlavickovo", "item": "https://www.zlavickovo.sk" },
-          { "@type": "ListItem", "position": 2, "name": "Letáky", "item": "https://www.zlavickovo.sk/letaky" },
-          { "@type": "ListItem", "position": 3, "name": letak.name, "item": `https://www.zlavickovo.sk/letaky/${slug}` },
-        ],
-      },
-      {
-        "@type": "FAQPage",
-        "mainEntity": faq.map(f => ({
-          "@type": "Question",
-          "name": f.q,
-          "acceptedAnswer": { "@type": "Answer", "text": f.a },
-        })),
-      },
-    ],
-  };
+  const crumbs: Crumb[] = [
+    { name: "Domov", path: "/" },
+    { name: "Letáky", path: "/letaky" },
+    { name: letak.name, path: `/letaky/${slug}` },
+  ];
+  // FAQPage schema vynechaná — otázky sú šablónový text rovnaký pre všetky letáky.
+  const jsonLd = buildJsonLdGraph([breadcrumbJsonLd(crumbs)]);
 
   return (
     <div style={{ minHeight: "100vh", background: "#fff", fontFamily: "'Inter', system-ui, sans-serif", color: "#1d1d1f" }}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
+      {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd }} />}
 
       <Nav />
 
       {/* Breadcrumb */}
-      <div style={{ maxWidth: 900, margin: "0 auto", padding: "12px 24px 0", fontSize: 12, color: "#aaa" }}>
-        <a href="/" style={{ color: "#aaa", textDecoration: "none" }}>Zlavickovo</a>
-        {" › "}
-        <a href="/letaky" style={{ color: "#aaa", textDecoration: "none" }}>Letáky</a>
-        {" › "}
-        <span style={{ color: "#555" }}>{letak.name}</span>
+      <div style={{ maxWidth: 900, margin: "0 auto", padding: "12px 24px 0" }}>
+        <Breadcrumbs items={crumbs} color="#6b7280" />
       </div>
 
       {/* Header */}
