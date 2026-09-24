@@ -306,6 +306,16 @@ async function main() {
   assert.equal(kv.writes - before, 1, "iba metadata");
 }
 
+// ── 14c. Zdroj, ktorý nikdy nemal položky, nehlási zmenu ──
+{
+  const kv = createMemoryKv();
+  const def = source(async () => ({ items: [] }));
+  const r = await runFeed(def, { kv, now, sleep: noSleep });
+  assert.equal(r.changed, false);
+  assert.equal(r.status, "unchanged");
+  assert.equal((await meta(kv)).status, "warning");
+}
+
 // ── 15. Klasifikácia chýb a cooldown ──
 {
   const t = new Error("x"); t.name = "TimeoutError";

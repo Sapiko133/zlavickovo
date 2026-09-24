@@ -307,7 +307,8 @@ export async function runFeed<T>(def: FeedSourceDef<T>, opts: RunFeedOptions = {
     }
     for (const k of Object.keys(prevHashes)) if (!(k in hashes)) report.removed++;
 
-    const changed = checksum !== meta.checksum;
+    // Prázdny zdroj bez predchádzajúcich dát nie je "zmena" (nič sa nezapisuje).
+    const changed = items.length > 0 && checksum !== meta.checksum;
     report.changed = changed;
     report.status = changed ? "updated" : "unchanged";
 
